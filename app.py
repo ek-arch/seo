@@ -664,8 +664,9 @@ def page_publication_roi():
                 if "TBD" in s["name"]:
                     continue
                 dom = s["name"].replace("https://", "").replace("http://", "").split("/")[0].lower()
-                traffic = catalog_traffic.get(dom, max(s.get("dr", 50) * 800, 20_000))
-                dr      = catalog_dr.get(dom, s.get("dr") or 50)
+                raw_dr  = s.get("dr") or 50
+                traffic = catalog_traffic.get(dom, max(raw_dr * 800, 20_000))
+                dr      = catalog_dr.get(dom, raw_dr)
                 price   = s.get("price") or 0
                 if price == 0:
                     continue
