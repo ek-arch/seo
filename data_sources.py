@@ -9,7 +9,7 @@ from typing import Optional
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STATIC DATA  (source: Hex.tech BigQuery · exchanger2_db_looker · Mar 2026)
-# Refreshed: 2026-03-11 — ISR & KAZ excluded (card issuance no longer available)
+# Refreshed: 2026-03-12 — ISR, KAZ & TUR excluded (card issuance no longer available)
 # ─────────────────────────────────────────────────────────────────────────────
 
 DATA = {
@@ -80,7 +80,7 @@ DATA = {
         {"country": "MKD", "flag": "🇲🇰", "tier": 3, "card_users": 49,  "card_spend": 90608,   "revenue": 1268,  "spend_per_user": 1849,  "conversion": 0.92},
         {"country": "FRA", "flag": "🇫🇷", "tier": 3, "card_users": 66,  "card_spend": 83152,   "revenue": 1164,  "spend_per_user": 1260,  "conversion": 0.99},
         {"country": "EGY", "flag": "🇪🇬", "tier": 3, "card_users": 55,  "card_spend": 82037,   "revenue": 1148,  "spend_per_user": 1492,  "conversion": 0.99},
-        {"country": "TUR", "flag": "🇹🇷", "tier": 3, "card_users": 32,  "card_spend": 81159,   "revenue": 1136,  "spend_per_user": 2536,  "conversion": 0.99},
+        # TUR excluded 2026-03-12 — removed from "Can Issue" list; 32 existing card users, $81K spend (historical)
         {"country": "PAK", "flag": "🇵🇰", "tier": 3, "card_users": 46,  "card_spend": 68406,   "revenue": 958,   "spend_per_user": 1487,  "conversion": 0.90},
     ],
     "languages": [
@@ -104,6 +104,41 @@ DATA = {
         "conservative": {"revenue": 3848,  "cost": 2000, "roi": 1.9},
         "mid":          {"revenue": 7500,  "cost": 2000, "roi": 3.8},
         "optimistic":   {"revenue": 11810, "cost": 2000, "roi": 5.9},
+    },
+    # Card allowance lists — updated 2026-03-12 from Hex "Card Issuance & Spend Restrictions"
+    "card_allowance": {
+        "can_issue": {
+            "europe": [
+                "FRA", "DEU", "GBR", "NLD", "POL", "FIN", "SWE", "ESP", "ITA", "CHE",
+                "CZE", "AUT", "ROU", "BGR", "NOR", "PRT", "LTU", "CYP", "LUX", "EST",
+                "GRC", "HUN", "SRB", "SVK", "HRV", "SVN", "MLT", "ISL", "AND", "LIE",
+                "MCO", "MDA",
+            ],
+            "asia_pacific": [
+                "IDN", "SGP", "JPN", "KOR", "MYS", "THA", "HKG", "AUS", "NZL",
+            ],
+            "latam_caribbean": [
+                "BRA", "ARG", "COL", "MEX", "PER", "CRI", "URY", "CHL",
+            ],
+            "central_asia_caucasus": [
+                "GEO", "AZE", "UZB", "KGZ", "ARM",
+            ],
+            "middle_east": [
+                "BHR", "ARE",
+            ],
+            "french_overseas": [
+                "REU", "GLP", "MTQ", "GUF",
+            ],
+        },
+        "cannot_issue": [
+            "RUS", "BLR", "VEN", "CUB", "IRN", "SYR", "PRK", "UKR",
+            "TUR", "ISR", "CHN", "IND", "VNM", "NPL", "IRQ", "KAZ",
+        ],
+        "cannot_spend": [
+            "SYR", "IRN", "CUB", "PRK", "RUS", "UKR", "VEN",
+        ],
+        "note": "The US is NOT a supported market.",
+        "updated": "2026-03-12",
     },
     "march_outlets": {
         # notion_score / notion_dims = from Notion Media Outlet Selection Guide (outlet_guide)
@@ -311,3 +346,26 @@ def passes_must_haves(site: dict) -> bool:
     p   = site.get("price") or 0
     pdr = (p / d) if d else 999
     return sp >= 35 and d >= 40 and pdr < 5
+
+
+def can_issue_card(country_code: str) -> bool:
+    """Check if Kolo can issue cards to residents of a country (ISO 3166-1 alpha-3)."""
+    allowance = DATA.get("card_allowance", {})
+    cannot = set(allowance.get("cannot_issue", []))
+    if country_code.upper() in cannot:
+        return False
+    # Check if in any "can_issue" region
+    can = allowance.get("can_issue", {})
+    all_allowed = set()
+    for region_codes in can.values():
+        all_allowed.update(region_codes)
+    return country_code.upper() in all_allowed
+
+
+def get_card_allowance_flat() -> list[str]:
+    """Return flat list of all country codes where card issuance is allowed."""
+    can = DATA.get("card_allowance", {}).get("can_issue", {})
+    codes = []
+    for region_codes in can.values():
+        codes.extend(region_codes)
+    return codes
