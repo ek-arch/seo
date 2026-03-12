@@ -1428,16 +1428,22 @@ def page_monthly_planner():
                     "has_crypto": True,
                 })
             if roi_inputs:
-                rois = batch_roi(roi_inputs)
-                roi_rows = []
-                for r in rois:
-                    m = r.scenarios[1] if len(r.scenarios) > 1 else r.scenarios[0]
-                    roi_rows.append({
-                        "Outlet": r.outlet, "Lang": r.lang.upper(),
-                        "Price ($)": r.price, "Mid ROI": f"{m.roi_x}x",
-                        "90d Revenue ($)": m.revenue, "Regs": m.registrations,
-                    })
-                st.dataframe(pd.DataFrame(roi_rows), use_container_width=True, hide_index=True)
+                try:
+                    rois = batch_roi(roi_inputs)
+                    roi_rows = []
+                    for r in rois:
+                        if not r.scenarios:
+                            continue
+                        m = r.scenarios[1] if len(r.scenarios) > 1 else r.scenarios[0]
+                        roi_rows.append({
+                            "Outlet": r.outlet, "Lang": r.lang.upper(),
+                            "Price ($)": r.price, "Mid ROI": f"{m.roi_x}x",
+                            "90d Revenue ($)": m.revenue, "Regs": m.registrations,
+                        })
+                    if roi_rows:
+                        st.dataframe(pd.DataFrame(roi_rows), use_container_width=True, hide_index=True)
+                except Exception as e:
+                    st.warning(f"Could not compute ROI projections: {e}")
 
             # Reasoning
             st.markdown("### Reasoning")
