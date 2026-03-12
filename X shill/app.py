@@ -1,8 +1,15 @@
+import os
 import streamlit as st
 import json
 import anthropic
 from datetime import datetime
 from personas import ACCOUNTS, TOPICS, SYSTEM_PROMPT_TEMPLATE
+
+# ── API key from Streamlit secrets or env ─────────────────────────────────────
+api_key = st.secrets.get("ANTHROPIC_API_KEY", os.environ.get("ANTHROPIC_API_KEY", ""))
+if not api_key:
+    st.error("Set ANTHROPIC_API_KEY in Streamlit secrets or environment.")
+    st.stop()
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -220,7 +227,7 @@ def generate_comment(post_text, post_author, account_id, topic):
         rules="\n".join(f"- {r}" for r in account["rules"]),
         topic=topic,
     )
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=api_key)
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=300,
@@ -234,7 +241,7 @@ def generate_comment(post_text, post_author, account_id, topic):
 
 def search_twitter_posts(topic, account_id, max_results):
     account = ACCOUNTS[account_id]
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=api_key)
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=2000,
