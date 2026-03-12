@@ -14,8 +14,19 @@ from collaborator_outlets import (
 )
 from publication_roi import (
     calculate_publication_roi, batch_roi, roi_label,
-    LTV_BY_LANG, CONVERSION_RATE_BY_LANG,
+    LTV_BY_LANG, CONVERSION_RATE_BY_LANG, LTV_BY_MARKET_LANG,
 )
+from llm_client import generate_press_release, translate_press_release, recommend_monthly_plan, LANG_NAMES
+from notion_writer import (
+    create_content_plan_entry, create_pr_draft_page,
+    create_monthly_plan_page, log_publication_result,
+)
+from monthly_cycle import (
+    PublicationResult, MonthlyEvaluation, MonthlyPlan,
+    evaluate_month, generate_plan_inputs, parse_plan_recommendation,
+    plan_to_notion_entries,
+)
+import ahrefs_hook
 
 st.set_page_config(
     page_title="Kolo SEO Intelligence Agent",
@@ -33,15 +44,18 @@ with st.sidebar:
     st.subheader("🔑 API Keys")
     hex_token = st.text_input("Hex API token",           type="password", placeholder="hxtp_...",    help="app.hex.tech → Settings → API keys")
     collab_token = st.text_input("Collaborator.pro token", type="password", placeholder="etVxo-...", help="collaborator.pro/user/api")
-    notion_token = st.text_input("Notion token (optional)", type="password", placeholder="secret_...", help="Only needed for direct API writes")
-    for k, v in [("hex_token", hex_token), ("collab_token", collab_token), ("notion_token", notion_token)]:
+    notion_token = st.text_input("Notion token", type="password", placeholder="secret_...", help="Required for writing to Notion")
+    anthropic_token = st.text_input("Anthropic API key", type="password", placeholder="sk-ant-...", help="console.anthropic.com → API keys")
+    for k, v in [("hex_token", hex_token), ("collab_token", collab_token), ("notion_token", notion_token), ("anthropic_token", anthropic_token)]:
         if v:
             st.session_state[k] = v
     st.divider()
     st.subheader("📋 Pipeline")
     for name, status in [("Stage 1 · Market Intel", "✅"), ("Stage 2 · Kolo Metrics", "✅"),
                           ("Stage 3 · Content Plan", "✅"), ("Stage 4 · Outlet Match",  "✅"),
-                          ("Stage 5 · Pub ROI",       "✅")]:
+                          ("Stage 5 · Pub ROI",       "✅"),
+                          ("Stage 6 · PR Generator",  "🆕"), ("Stage 7 · Monthly Eval", "🆕"),
+                          ("Stage 8 · Monthly Planner","🆕")]:
         st.markdown(f"{status} {name}")
     st.divider()
     st.caption("Source: Hex BigQuery · exchanger2_db_looker\nOct 10, 2025 – Mar 1, 2026")
@@ -880,6 +894,624 @@ def page_publication_roi():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# STAGE 6 — PR GENERATOR
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Briefs used by both Content Plan page and PR Generator
+BRIEFS = [
+    {"#": 1,  "Title": "How to Spend Crypto with a Visa Card in 2026",          "Lang": "EN",    "Market": "Global",      "KW": "how to spend crypto with a visa card",  "Words": 1500, "Priority": "High"},
+    {"#": 2,  "Title": "Best Crypto Debit Card in the UK 2026",                 "Lang": "EN",    "Market": "GBR",         "KW": "best crypto card UK 2026",              "Words": 1200, "Priority": "High"},
+    {"#": 3,  "Title": "Crypto Card for UAE Expats 2026: Spend USDT in Dubai",  "Lang": "EN",    "Market": "ARE",         "KW": "crypto card UAE / USDT card UAE",       "Words": 1200, "Priority": "High"},
+    {"#": 4,  "Title": "Najlepsza karta krypto w Polsce 2026",                  "Lang": "PL",    "Market": "POL",         "KW": "karta krypto Polska",                   "Words": 1000, "Priority": "Medium"},
+    {"#": 5,  "Title": "Melhor Cartao Cripto no Brasil 2026: Gaste USDT",       "Lang": "PT",    "Market": "BRA",         "KW": "cartao cripto Brasil / cartao USDT",    "Words": 1000, "Priority": "Medium"},
+    {"#": 6,  "Title": "Migliore Carta Crypto in Italia 2026",                  "Lang": "IT",    "Market": "ITA",         "KW": "carta crypto Italia",                   "Words": 1000, "Priority": "Medium"},
+    {"#": 7,  "Title": "Kartu Kripto Terbaik di Indonesia 2026",                "Lang": "ID",    "Market": "IDN",         "KW": "kartu kripto Indonesia",                "Words": 1000, "Priority": "Medium"},
+    {"#": 8,  "Title": "Alternativa Trustee Plus: luchshaya kripto-karta 2026", "Lang": "RU",    "Market": "CIS/UKR",     "KW": "alternativa trustee plus",              "Words": 1200, "Priority": "High"},
+    {"#": 9,  "Title": "Cel mai bun card crypto in Romania 2026",               "Lang": "RO",    "Market": "ROU",         "KW": "card crypto Romania",                   "Words": 1000, "Priority": "High"},
+    {"#": 10, "Title": "Crypto Card for Business 2026: Pay with USDT",          "Lang": "EN",    "Market": "Global B2B",  "KW": "crypto card business / USDT card B2B",  "Words": 1400, "Priority": "Medium"},
+]
+
+def page_pr_generator():
+    st.title("📝 Stage 6 · PR Generator")
+    st.caption("Generate press releases, translate to local languages, push to Notion")
+
+    api_key = st.session_state.get("anthropic_token")
+    notion_tok = st.session_state.get("notion_token")
+
+    tab_gen, tab_trans, tab_push, tab_track = st.tabs([
+        "Generate Draft", "Translate", "Push to Notion", "Track Publications"
+    ])
+
+    # ── Tab 1: Generate Draft ─────────────────────────────────────────────
+    with tab_gen:
+        st.subheader("Generate English Draft")
+        mode = st.radio("Source", ["Pick from briefs", "Custom brief"], horizontal=True)
+
+        if mode == "Pick from briefs":
+            brief_titles = [f"#{b['#']} — {b['Title']}" for b in BRIEFS]
+            sel = st.selectbox("Select brief", brief_titles)
+            idx = int(sel.split("#")[1].split(" ")[0]) - 1
+            brief = BRIEFS[idx]
+            st.markdown(f"**KW:** {brief['KW']} · **Market:** {brief['Market']} · **Words:** ~{brief['Words']}")
+        else:
+            brief = {
+                "Title": st.text_input("Title", placeholder="Best crypto card for..."),
+                "KW": st.text_input("Primary keyword", placeholder="crypto card UK"),
+                "Market": st.text_input("Target market", value="Global"),
+                "Words": st.number_input("Word count", value=1200, step=100),
+                "Priority": "Medium",
+            }
+
+        col1, col2 = st.columns(2)
+        with col1:
+            brief["angle"] = st.text_input("Angle (optional)", placeholder="e.g. expat relocation guide")
+        with col2:
+            brief["hooks"] = st.text_input("Hooks to include (optional)", placeholder="e.g. USDT TRC20, Telegram mini-app")
+
+        if st.button("🚀 Generate EN Draft", type="primary", disabled=not api_key):
+            if not api_key:
+                st.error("Add your Anthropic API key in the sidebar.")
+            else:
+                with st.spinner("Generating press release..."):
+                    try:
+                        draft = generate_press_release(api_key, brief)
+                        st.session_state["pr_en_draft"] = draft
+                        st.session_state["pr_brief"] = brief
+                    except Exception as e:
+                        st.error(f"Generation failed: {e}")
+
+        if not api_key:
+            st.info("Enter your Anthropic API key in the sidebar to enable generation.")
+
+        draft = st.session_state.get("pr_en_draft", "")
+        if draft:
+            edited = st.text_area("Edit draft", value=draft, height=500, key="pr_draft_editor")
+            st.session_state["pr_en_draft"] = edited
+            st.download_button("Download .md", data=edited, file_name="press_release_en.md", mime="text/markdown")
+
+    # ── Tab 2: Translate ──────────────────────────────────────────────────
+    with tab_trans:
+        st.subheader("Translate to Target Languages")
+        source = st.session_state.get("pr_en_draft", "")
+        if not source:
+            st.warning("Generate an English draft first (Tab 1).")
+        else:
+            st.text_area("Source (EN)", value=source[:500] + "..." if len(source) > 500 else source, height=150, disabled=True)
+            target_langs = st.multiselect(
+                "Target languages",
+                options=["ru", "it", "es", "pl", "pt", "id", "ro"],
+                default=["ru", "it", "es", "pl", "pt", "id"],
+                format_func=lambda x: LANG_NAMES.get(x, x),
+            )
+            if st.button("🌍 Translate All", type="primary", disabled=not api_key):
+                translations = st.session_state.get("pr_translations", {})
+                progress = st.progress(0)
+                for i, lang in enumerate(target_langs):
+                    with st.spinner(f"Translating to {LANG_NAMES.get(lang, lang)}..."):
+                        try:
+                            translations[lang] = translate_press_release(api_key, source, lang)
+                        except Exception as e:
+                            st.error(f"Translation to {lang} failed: {e}")
+                    progress.progress((i + 1) / len(target_langs))
+                st.session_state["pr_translations"] = translations
+                st.success(f"Translated to {len(translations)} languages!")
+
+            translations = st.session_state.get("pr_translations", {})
+            for lang, text in translations.items():
+                with st.expander(f"🌐 {LANG_NAMES.get(lang, lang).upper()}", expanded=False):
+                    edited = st.text_area(f"Edit {lang}", value=text, height=400, key=f"trans_{lang}")
+                    translations[lang] = edited
+                    st.download_button(
+                        f"Download {lang}.md", data=edited,
+                        file_name=f"press_release_{lang}.md", mime="text/markdown",
+                        key=f"dl_{lang}",
+                    )
+            if translations:
+                st.session_state["pr_translations"] = translations
+
+    # ── Tab 3: Push to Notion ─────────────────────────────────────────────
+    with tab_push:
+        st.subheader("Push to Notion Content Plan")
+        if not notion_tok:
+            st.error("Add your Notion API token in the sidebar to enable writes.")
+        else:
+            draft = st.session_state.get("pr_en_draft", "")
+            translations = st.session_state.get("pr_translations", {})
+            brief = st.session_state.get("pr_brief", {})
+
+            if not draft:
+                st.warning("Generate and translate a draft first.")
+            else:
+                all_versions = {"en": draft}
+                all_versions.update(translations)
+
+                st.markdown(f"**Brief:** {brief.get('Title', 'N/A')}")
+                st.markdown(f"**Versions ready:** {', '.join(k.upper() for k in all_versions.keys())}")
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    push_langs = st.multiselect("Push which versions", list(all_versions.keys()),
+                                                default=list(all_versions.keys()),
+                                                format_func=lambda x: LANG_NAMES.get(x, x).upper())
+                with col2:
+                    outlet = st.text_input("Outlet domain", placeholder="businessabc.net")
+                with col3:
+                    month = st.selectbox("Month", ["2026-03", "2026-04", "2026-05", "2026-06"])
+
+                priority = st.selectbox("Priority", ["High", "Medium", "Low"])
+
+                if st.button("📤 Push to Notion", type="primary"):
+                    pushed = st.session_state.get("pr_pushed_entries", [])
+                    en_page_url = None
+
+                    for lang in push_langs:
+                        text = all_versions[lang]
+                        title = brief.get("Title", "Untitled")
+                        with st.spinner(f"Pushing [{lang.upper()}] to Notion..."):
+                            try:
+                                # Create PR draft page
+                                page_resp = create_pr_draft_page(
+                                    notion_tok, title=title,
+                                    content_markdown=text, lang=lang.upper(),
+                                )
+                                page_url = page_resp.get("url", "")
+                                page_id = page_resp.get("id", "")
+
+                                if lang == "en":
+                                    en_page_url = page_url
+
+                                # Create Content Plan DB entry
+                                entry_resp = create_content_plan_entry(
+                                    notion_tok,
+                                    title=f"[{lang.upper()}] {title}",
+                                    lang=lang.upper(),
+                                    outlet=outlet,
+                                    month_tag=month,
+                                    priority=priority,
+                                    source_draft_url=en_page_url if lang != "en" else None,
+                                    price_usd=None,
+                                )
+                                entry_id = entry_resp.get("id", "")
+                                pushed.append({
+                                    "title": title, "lang": lang.upper(),
+                                    "outlet": outlet, "notion_page_id": entry_id,
+                                    "draft_url": page_url,
+                                })
+                                st.success(f"[{lang.upper()}] pushed — [Open in Notion]({page_url})")
+                            except Exception as e:
+                                st.error(f"[{lang.upper()}] failed: {e}")
+
+                    st.session_state["pr_pushed_entries"] = pushed
+
+    # ── Tab 4: Track Publications ─────────────────────────────────────────
+    with tab_track:
+        st.subheader("Track Published Articles")
+        pushed = st.session_state.get("pr_pushed_entries", [])
+        if not pushed:
+            st.info("No entries pushed to Notion yet. Use Tab 3 to push PR drafts.")
+        else:
+            track_df = pd.DataFrame(pushed)
+            st.dataframe(track_df, use_container_width=True, hide_index=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STAGE 7 — MONTHLY EVALUATION
+# ══════════════════════════════════════════════════════════════════════════════
+
+def page_monthly_eval():
+    st.title("📉 Stage 7 · Monthly Evaluation")
+    st.caption("Compare actual vs projected ROI for published articles")
+
+    notion_tok = st.session_state.get("notion_token")
+
+    tab_input, tab_report, tab_ahrefs = st.tabs([
+        "Input Results", "Evaluation Report", "Ahrefs Data"
+    ])
+
+    # ── Tab 1: Input Results ──────────────────────────────────────────────
+    with tab_input:
+        st.subheader("Enter Publication Results")
+        eval_month = st.selectbox("Month to evaluate", ["2026-03", "2026-04", "2026-05", "2026-06"], key="eval_month_sel")
+
+        # Pre-fill from march_outlets for 2026-03
+        if eval_month == "2026-03":
+            default_rows = []
+            for lang_key, sites in DATA["march_outlets"].items():
+                for s in sites:
+                    if "TBD" in s["name"]:
+                        continue
+                    default_rows.append({
+                        "Outlet": s["name"],
+                        "Lang": lang_key.upper(),
+                        "Price": s.get("price") or 0,
+                        "Publication URL": "",
+                        "Referral Traffic": 0,
+                        "Registrations": 0,
+                        "Revenue ($)": 0.0,
+                    })
+        else:
+            default_rows = [{"Outlet": "", "Lang": "EN", "Price": 0, "Publication URL": "",
+                            "Referral Traffic": 0, "Registrations": 0, "Revenue ($)": 0.0}]
+
+        if f"eval_data_{eval_month}" not in st.session_state:
+            st.session_state[f"eval_data_{eval_month}"] = pd.DataFrame(default_rows)
+
+        edited_df = st.data_editor(
+            st.session_state[f"eval_data_{eval_month}"],
+            use_container_width=True,
+            num_rows="dynamic",
+            key=f"eval_editor_{eval_month}",
+        )
+        st.session_state[f"eval_data_{eval_month}"] = edited_df
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💾 Save Results"):
+                results = []
+                for _, row in edited_df.iterrows():
+                    results.append(PublicationResult(
+                        outlet=row.get("Outlet", ""),
+                        lang=row.get("Lang", "en").lower(),
+                        price=float(row.get("Price", 0)),
+                        publication_url=row.get("Publication URL") or None,
+                        actual_referral_traffic=int(row.get("Referral Traffic", 0)),
+                        actual_registrations=int(row.get("Registrations", 0)),
+                        actual_revenue=float(row.get("Revenue ($)", 0)),
+                    ))
+                st.session_state[f"eval_results_{eval_month}"] = results
+                st.success(f"Saved {len(results)} results for {eval_month}")
+
+        with col2:
+            if st.button("📤 Push Results to Notion", disabled=not notion_tok):
+                if not notion_tok:
+                    st.error("Add Notion token in sidebar.")
+                else:
+                    pushed = st.session_state.get("pr_pushed_entries", [])
+                    results = st.session_state.get(f"eval_results_{eval_month}", [])
+                    matched = 0
+                    for r in results:
+                        # Find matching Notion entry
+                        match = next(
+                            (p for p in pushed if p["outlet"] == r.outlet and p["lang"] == r.lang.upper()),
+                            None
+                        )
+                        if match and match.get("notion_page_id") and r.publication_url:
+                            try:
+                                log_publication_result(
+                                    notion_tok,
+                                    match["notion_page_id"],
+                                    publication_url=r.publication_url,
+                                    actual_traffic=r.actual_referral_traffic,
+                                    actual_registrations=r.actual_registrations,
+                                    actual_revenue=r.actual_revenue,
+                                )
+                                matched += 1
+                            except Exception as e:
+                                st.error(f"Failed to update {r.outlet}: {e}")
+                    st.success(f"Updated {matched} entries in Notion")
+
+    # ── Tab 2: Evaluation Report ──────────────────────────────────────────
+    with tab_report:
+        st.subheader("Actual vs Projected")
+        eval_month = st.session_state.get("eval_month_sel", "2026-03")
+        results = st.session_state.get(f"eval_results_{eval_month}")
+
+        if not results:
+            st.info("Save results in the Input tab first.")
+        else:
+            # Get projections from the existing ROI model
+            from publication_roi import batch_roi as _batch_roi
+            outlet_inputs = []
+            for r in results:
+                outlet_inputs.append({
+                    "outlet": r.outlet, "lang": r.lang,
+                    "price": r.price, "traffic": 20_000, "dr": 50,
+                    "has_crypto": True,
+                })
+            projections = _batch_roi(outlet_inputs) if outlet_inputs else []
+            evaluation = evaluate_month(eval_month, results, projections)
+
+            # KPI cards
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Total Spend", f"${evaluation.total_spend:,.0f}")
+            c2.metric("Actual Revenue", f"${evaluation.total_actual_revenue:,.0f}")
+            c3.metric("Projected Revenue", f"${evaluation.total_projected_revenue_mid:,.0f}")
+            ratio_pct = (evaluation.actual_vs_projected_ratio - 1) * 100
+            c4.metric("vs Projected", f"{evaluation.actual_vs_projected_ratio:.1f}x",
+                      delta=f"{ratio_pct:+.0f}%" if evaluation.total_projected_revenue_mid > 0 else None)
+
+            # Comparison table
+            rows = []
+            for r in evaluation.publications:
+                proj_rev = r.projected.scenarios[1].revenue if r.projected and len(r.projected.scenarios) > 1 else 0
+                rows.append({
+                    "Outlet": r.outlet,
+                    "Lang": r.lang.upper(),
+                    "Price ($)": r.price,
+                    "Actual Revenue ($)": r.actual_revenue,
+                    "Projected Revenue ($)": proj_rev,
+                    "Actual ROI": f"{r.actual_revenue / r.price:.1f}x" if r.price else "—",
+                    "Registrations": r.actual_registrations,
+                })
+            if rows:
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+            # Bar chart: actual vs projected
+            if rows:
+                chart_data = pd.DataFrame(rows)
+                chart_data = chart_data[chart_data["Actual Revenue ($)"] > 0]
+                if not chart_data.empty:
+                    melted = pd.melt(
+                        chart_data, id_vars=["Outlet"],
+                        value_vars=["Actual Revenue ($)", "Projected Revenue ($)"],
+                        var_name="Type", value_name="Revenue",
+                    )
+                    chart = alt.Chart(melted).mark_bar().encode(
+                        x=alt.X("Outlet:N", sort="-y"),
+                        y="Revenue:Q",
+                        color="Type:N",
+                        xOffset="Type:N",
+                    ).properties(height=350)
+                    st.altair_chart(chart, use_container_width=True)
+
+            # Insights
+            if evaluation.insights:
+                st.subheader("Key Insights")
+                for insight in evaluation.insights:
+                    st.markdown(f"- {insight}")
+            if evaluation.top_performer:
+                st.success(f"🏆 Top performer: **{evaluation.top_performer}**")
+            if evaluation.worst_performer and evaluation.worst_performer != evaluation.top_performer:
+                st.warning(f"⚠️ Worst performer: **{evaluation.worst_performer}**")
+
+            st.session_state[f"eval_report_{eval_month}"] = evaluation
+
+    # ── Tab 3: Ahrefs Data ────────────────────────────────────────────────
+    with tab_ahrefs:
+        st.subheader("Ahrefs Integration")
+        if ahrefs_hook.is_available():
+            st.success("Ahrefs is connected!")
+            st.info("Ahrefs data will auto-populate when evaluating results.")
+        else:
+            st.info("⏳ Ahrefs integration not yet connected.\n\n"
+                    "When the Ahrefs MCP connector is available, this tab will "
+                    "auto-populate with:\n"
+                    "- Backlink count per publication\n"
+                    "- Referring domains\n"
+                    "- Organic traffic from published articles\n"
+                    "- Domain Rating changes for kolo.in")
+            st.markdown("**Ahrefs MCP UUID:** `098cb32a-ba21-4770-97dd-78bb54655419`")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STAGE 8 — MONTHLY PLANNER
+# ══════════════════════════════════════════════════════════════════════════════
+
+def page_monthly_planner():
+    st.title("🗓️ Stage 8 · Monthly Planner")
+    st.caption("Full cycle: evaluate last month → recommend next → approve → push to Notion")
+
+    api_key = st.session_state.get("anthropic_token")
+    notion_tok = st.session_state.get("notion_token")
+
+    tab_rec, tab_review, tab_approve = st.tabs([
+        "Analyze + Recommend", "Review Plan", "Approve + Push"
+    ])
+
+    # ── Tab 1: Analyze + Recommend ────────────────────────────────────────
+    with tab_rec:
+        st.subheader("Generate Next Month's Plan")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            plan_month = st.selectbox("Planning for", ["2026-04", "2026-05", "2026-06"], key="plan_month_sel")
+        with col2:
+            budget = st.number_input("Budget ($)", value=2000, step=100, min_value=500, max_value=10000)
+
+        # Show last month's summary if available
+        prev_months = {"2026-04": "2026-03", "2026-05": "2026-04", "2026-06": "2026-05"}
+        prev = prev_months.get(plan_month, "2026-03")
+        prev_eval = st.session_state.get(f"eval_report_{prev}")
+
+        if prev_eval:
+            st.info(f"**{prev} Summary:** ${prev_eval.total_spend:,.0f} spent → "
+                    f"${prev_eval.total_actual_revenue:,.0f} revenue "
+                    f"({prev_eval.actual_vs_projected_ratio:.1f}x vs projected)")
+        else:
+            st.warning(f"No evaluation data for {prev}. Go to Monthly Eval → Input Results first, "
+                       "or the recommendation will be based on projected data only.")
+
+        if st.button("🧠 Generate Recommendation", type="primary", disabled=not api_key):
+            if not api_key:
+                st.error("Add Anthropic API key in sidebar.")
+            else:
+                with st.spinner("Analysing performance and generating plan..."):
+                    try:
+                        # Build last_month_results from evaluation or defaults
+                        if prev_eval:
+                            last_month = generate_plan_inputs(
+                                prev_eval,
+                                {},  # available_outlets populated below
+                                budget,
+                                DATA.get("countries", []),
+                                DATA.get("languages", []),
+                            )
+                        else:
+                            # Fallback: use projected data from march outlets
+                            last_month = {
+                                "month": prev,
+                                "total_spend": 1717,
+                                "total_actual_revenue": 0,
+                                "actual_vs_projected": 0,
+                                "publications": [],
+                                "insights": ["No actual data yet — recommending based on projections."],
+                                "top_countries": [],
+                                "language_ltv": {k: v for k, v in LTV_BY_LANG.items()},
+                                "budget": budget,
+                            }
+
+                        # Get available outlets
+                        available = []
+                        for lang_code in ["en", "ru", "it", "es", "pl", "pt", "id"]:
+                            try:
+                                from collaborator_outlets import get_outlets
+                                outlets = get_outlets(lang_code, min_dr=40, max_price=250)
+                                for o in outlets[:10]:
+                                    available.append({
+                                        "domain": o[0], "dr": o[1], "price": o[2],
+                                        "search_pct": o[3], "traffic": o[4], "score": o[5],
+                                        "lang": lang_code,
+                                    })
+                            except Exception:
+                                pass
+
+                        raw = recommend_monthly_plan(api_key, last_month, available, budget)
+                        plan = parse_plan_recommendation(raw, plan_month, budget)
+                        st.session_state["plan_parsed"] = plan
+                        st.session_state["plan_raw"] = raw
+                        st.success("Plan generated! Review it in the next tab.")
+                    except Exception as e:
+                        st.error(f"Recommendation failed: {e}")
+
+        if not api_key:
+            st.info("Enter your Anthropic API key in the sidebar to enable plan generation.")
+
+    # ── Tab 2: Review Plan ────────────────────────────────────────────────
+    with tab_review:
+        plan = st.session_state.get("plan_parsed")
+        if not plan:
+            st.info("Generate a recommendation first (Tab 1).")
+        else:
+            st.subheader(f"Recommended Plan: {plan.month}")
+
+            # Outlet allocations
+            st.markdown("### Outlet Allocations")
+            if plan.outlet_allocations:
+                alloc_df = pd.DataFrame(plan.outlet_allocations)
+                edited_alloc = st.data_editor(alloc_df, use_container_width=True, num_rows="dynamic", key="plan_outlets_editor")
+                plan.outlet_allocations = edited_alloc.to_dict("records")
+
+            # Content angles
+            st.markdown("### Content Angles")
+            if plan.content_angles:
+                angles_df = pd.DataFrame(plan.content_angles)
+                edited_angles = st.data_editor(angles_df, use_container_width=True, num_rows="dynamic", key="plan_angles_editor")
+                plan.content_angles = edited_angles.to_dict("records")
+
+            # Budget breakdown
+            st.markdown("### Budget by Pillar")
+            if plan.pillar_budgets:
+                budget_df = pd.DataFrame([
+                    {"Pillar": k, "Budget ($)": v} for k, v in plan.pillar_budgets.items()
+                ])
+                chart = alt.Chart(budget_df).mark_arc(innerRadius=50).encode(
+                    theta="Budget ($):Q",
+                    color="Pillar:N",
+                    tooltip=["Pillar", "Budget ($)"],
+                ).properties(height=300)
+                st.altair_chart(chart, use_container_width=True)
+
+                total = sum(plan.pillar_budgets.values())
+                st.metric("Total Planned Spend", f"${total:,.0f}",
+                          delta=f"${plan.budget - total:+,.0f} remaining" if total <= plan.budget else f"${total - plan.budget:,.0f} over budget")
+
+            # ROI forecast for recommended outlets
+            st.markdown("### Projected ROI")
+            roi_inputs = []
+            for o in plan.outlet_allocations:
+                roi_inputs.append({
+                    "outlet": o.get("outlet", ""),
+                    "lang": o.get("lang", "en"),
+                    "price": o.get("price", 100),
+                    "traffic": 20_000,
+                    "dr": 50,
+                    "has_crypto": True,
+                })
+            if roi_inputs:
+                rois = batch_roi(roi_inputs)
+                roi_rows = []
+                for r in rois:
+                    m = r.scenarios[1] if len(r.scenarios) > 1 else r.scenarios[0]
+                    roi_rows.append({
+                        "Outlet": r.outlet, "Lang": r.lang.upper(),
+                        "Price ($)": r.price, "Mid ROI": f"{m.roi_x}x",
+                        "90d Revenue ($)": m.revenue, "Regs": m.registrations,
+                    })
+                st.dataframe(pd.DataFrame(roi_rows), use_container_width=True, hide_index=True)
+
+            # Reasoning
+            st.markdown("### Reasoning")
+            st.markdown(plan.reasoning)
+
+            st.session_state["plan_parsed"] = plan
+
+    # ── Tab 3: Approve + Push ─────────────────────────────────────────────
+    with tab_approve:
+        plan = st.session_state.get("plan_parsed")
+        if not plan:
+            st.info("Generate and review a plan first.")
+        else:
+            st.subheader(f"Plan: {plan.month} — Status: {plan.status.upper()}")
+
+            # Summary
+            n_outlets = len(plan.outlet_allocations)
+            n_angles = len(plan.content_angles)
+            total_budget = sum(o.get("price", 0) for o in plan.outlet_allocations)
+            st.markdown(f"**{n_outlets} outlets** · **{n_angles} content angles** · **${total_budget:,.0f} total spend**")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if plan.status == "draft":
+                    if st.button("✅ Approve Plan", type="primary"):
+                        plan.status = "approved"
+                        st.session_state["plan_parsed"] = plan
+                        st.rerun()
+                elif plan.status == "approved":
+                    st.success("Plan approved!")
+                elif plan.status == "pushed":
+                    st.success("Plan pushed to Notion!")
+
+            with col2:
+                if plan.status == "approved" and notion_tok:
+                    if st.button("📤 Push to Notion", type="primary"):
+                        with st.spinner("Creating Notion pages..."):
+                            try:
+                                # Create monthly plan page
+                                plan_resp = create_monthly_plan_page(
+                                    notion_tok, month=plan.month,
+                                    plan_data={
+                                        "recommended_outlets": plan.outlet_allocations,
+                                        "content_angles": plan.content_angles,
+                                        "pillar_budgets": plan.pillar_budgets,
+                                        "reasoning": plan.reasoning,
+                                    },
+                                )
+                                plan_url = plan_resp.get("url", "")
+                                st.success(f"Plan page created: [Open in Notion]({plan_url})")
+
+                                # Create Content Plan entries
+                                entries = plan_to_notion_entries(plan)
+                                created = 0
+                                for entry in entries:
+                                    try:
+                                        create_content_plan_entry(notion_tok, **entry)
+                                        created += 1
+                                    except Exception as e:
+                                        st.error(f"Failed to create entry for {entry.get('outlet', '?')}: {e}")
+
+                                st.success(f"Created {created} Content Plan entries in Notion")
+                                plan.status = "pushed"
+                                st.session_state["plan_parsed"] = plan
+                            except Exception as e:
+                                st.error(f"Failed to push plan: {e}")
+                elif plan.status == "approved" and not notion_tok:
+                    st.error("Add Notion token in sidebar to push.")
+
+            if plan.status == "draft":
+                st.info("Review the plan in the Review tab, then approve here.")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # NAVIGATION
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -893,6 +1525,11 @@ pg = st.navigation({
         st.Page(page_content_plan,     title="Content Plan",     icon="✍️"),
         st.Page(page_outlet_matching,  title="Outlet Matching",  icon="🗞️"),
         st.Page(page_publication_roi,  title="Publication ROI",  icon="💰"),
+    ],
+    "Actions": [
+        st.Page(page_pr_generator,     title="PR Generator",     icon="📝"),
+        st.Page(page_monthly_eval,     title="Monthly Eval",     icon="📉"),
+        st.Page(page_monthly_planner,  title="Monthly Planner",  icon="🗓️"),
     ],
 })
 pg.run()
