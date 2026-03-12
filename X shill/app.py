@@ -282,7 +282,7 @@ Find posts that are: recent, have engagement potential, are NOT from competitor 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown('<div class="brand">𝕏 KOLO Comment Tool</div>', unsafe_allow_html=True)
-    st.markdown('<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.6rem;color:#404060;letter-spacing:0.12em;margin-bottom:1.2rem;">TWITTER GROWTH AUTOMATION</div>', unsafe_allow_html=True)
+    st.markdown("<div style=\"font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#404060;letter-spacing:0.12em;margin-bottom:1.2rem;\">TWITTER GROWTH AUTOMATION</div>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown('<div class="section-label">Active Account</div>', unsafe_allow_html=True)
@@ -354,7 +354,8 @@ with tab1:
 
     col_acc, col_btn = st.columns([2, 1])
     with col_acc:
-        st.markdown(f'<div style="font-family:\'IBM Plex Mono\',monospace; font-size:0.7rem; color:#606080; padding-top:0.6rem;">Drafting as: <span style="color:#a0a0e0">{account[\"handle\"]}</span></div>', unsafe_allow_html=True)
+        handle = account["handle"]
+        st.markdown(f"<div style=\"font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:#606080; padding-top:0.6rem;\">Drafting as: <span style=\"color:#a0a0e0\">{handle}</span></div>", unsafe_allow_html=True)
     with col_btn:
         search_btn = st.button("Search Twitter →", use_container_width=True)
 
@@ -419,7 +420,7 @@ with tab1:
 # ── TAB 2: Review Queue ───────────────────────────────────────────────────────
 with tab2:
     if not st.session_state.queue:
-        st.markdown('<div style="text-align:center; padding:3rem; color:#404060; font-family:\'IBM Plex Mono\',monospace; font-size:0.8rem;">Queue is empty — search for posts first</div>', unsafe_allow_html=True)
+        st.markdown("<div style=\"text-align:center; padding:3rem; color:#404060; font-family:'IBM Plex Mono',monospace; font-size:0.8rem;\">Queue is empty — search for posts first</div>", unsafe_allow_html=True)
     else:
         # Filter controls
         filter_col1, filter_col2 = st.columns(2)
@@ -470,7 +471,8 @@ with tab2:
                     lang_c = "tag-en" if acc["language"] == "English" else "tag-ru"
                     st.markdown(f'<span class="tag {lang_c}" style="display:inline-block;margin-top:0.4rem;">{acc["handle"]}</span>', unsafe_allow_html=True)
                     if item.get("post_url"):
-                        st.markdown(f'<a href="{item["post_url"]}" target="_blank" style="font-family:\'IBM Plex Mono\',monospace;font-size:0.6rem;color:#404080;text-decoration:none;">↗ open post</a>', unsafe_allow_html=True)
+                        post_url = item["post_url"]
+                        st.markdown(f"<a href=\"{post_url}\" target=\"_blank\" style=\"font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#404080;text-decoration:none;\">↗ open post</a>", unsafe_allow_html=True)
 
                 with col_approve:
                     if st.button("✓ Approve", key=f"approve_{idx}", use_container_width=True):
