@@ -715,7 +715,7 @@ def page_publication_roi():
 
         display_df = roi_df.drop(columns=["_roi"])
         st.dataframe(
-            display_df.style.apply(color_roi, axis=1),
+            roi_df.style.apply(color_roi, axis=1).hide(["_roi"], axis="columns"),
             use_container_width=True, hide_index=True,
             column_config={
                 "Price ($)":     st.column_config.NumberColumn("Price ($)",     format="$%d"),
