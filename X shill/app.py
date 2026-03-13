@@ -462,17 +462,22 @@ with tab2:
             idx = st.session_state.queue.index(item)
             acc = ACCOUNTS[item["account"]]
             status_class = f"status-{item['status']}"
+            post_url = item.get("post_url", "")
+            post_link_html = ""
+            if post_url:
+                post_link_html = f"""<a href="{post_url}" target="_blank" style="color:#60a5fa;text-decoration:none;font-size:0.72rem;">↗ {post_url[:60]}{'...' if len(post_url) > 60 else ''}</a>"""
 
             with st.container():
                 st.markdown(f"""
                 <div class="queue-item">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
                         <span style="font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#606080;">
                             #{item['id']} · {item['timestamp']} · <span style="color:#a0a0c8">@{item['post_author']}</span> · <span style="color:#8080c0">{item['topic']}</span>
                         </span>
                         <span class="queue-status {status_class}">{item['status']}</span>
                     </div>
-                    <div style="font-size:0.78rem; color:#606080; margin-bottom:0.6rem; font-style:italic;">"{item['post_text'][:120]}..."</div>
+                    <div style="margin-bottom:0.4rem;">{post_link_html}</div>
+                    <div style="font-size:0.78rem; color:#606080; margin-bottom:0.6rem; font-style:italic;">"{item['post_text'][:150]}{'...' if len(item['post_text']) > 150 else ''}"</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -487,13 +492,10 @@ with tab2:
                 st.session_state.queue[idx]["edited_comment"] = edited_comment
 
                 # Account badge + actions
-                col_acc_badge, col_approve, col_reject, col_copy = st.columns([2, 1, 1, 1])
+                col_acc_badge, col_approve, col_reject, col_post = st.columns([2, 1, 1, 1])
                 with col_acc_badge:
                     lang_c = "tag-en" if acc["language"] == "English" else "tag-ru"
                     st.markdown(f'<span class="tag {lang_c}" style="display:inline-block;margin-top:0.4rem;">{acc["handle"]}</span>', unsafe_allow_html=True)
-                    if item.get("post_url"):
-                        post_url = item["post_url"]
-                        st.markdown(f"<a href=\"{post_url}\" target=\"_blank\" style=\"font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:#404080;text-decoration:none;\">↗ open post</a>", unsafe_allow_html=True)
 
                 with col_approve:
                     if st.button("✓ Approve", key=f"approve_{idx}", use_container_width=True):
@@ -503,8 +505,27 @@ with tab2:
                     if st.button("✗ Skip", key=f"reject_{idx}", use_container_width=True):
                         st.session_state.queue[idx]["status"] = "rejected"
                         st.rerun()
-                with col_copy:
-                    st.code(edited_comment[:50] + "...", language=None)
+                with col_post:
+                    if item["status"] == "approved" and post_url:
+                        if st.button("📤 Post to X", key=f"post_{idx}", use_container_width=True):
+                            st.session_state[f"posting_{idx}"] = True
+                            st.rerun()
+
+                # Post to X flow — copies comment and opens the tweet
+                if st.session_state.get(f"posting_{idx}"):
+                    comment_to_post = edited_comment.replace("\n", "%0A")
+                    intent_url = f"https://twitter.com/intent/tweet?in_reply_to={post_url.split('/')[-1]}&text={comment_to_post}" if "/status/" in post_url else post_url
+                    st.markdown(f"""
+                    <div style="background:#0a1f0f; border:1px solid #16a34a; border-radius:8px; padding:0.8rem 1rem; margin:0.5rem 0;">
+                        <div style="font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#4ade80; margin-bottom:0.5rem;">READY TO POST</div>
+                        <div style="font-size:0.8rem; color:#b0d0b0; margin-bottom:0.6rem;">Comment copied below. Click the link to open the post, then paste your comment.</div>
+                        <div style="display:flex; gap:0.8rem; align-items:center;">
+                            <a href="{post_url}" target="_blank" style="background:#1d4ed8; color:white; padding:0.4rem 1rem; border-radius:6px; text-decoration:none; font-family:'IBM Plex Mono',monospace; font-size:0.7rem;">Open Post on X ↗</a>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.code(edited_comment, language=None)
+                    del st.session_state[f"posting_{idx}"]
 
                 st.markdown("---")
 
