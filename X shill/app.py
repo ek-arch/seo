@@ -1,4 +1,5 @@
 import os
+import time
 import streamlit as st
 import json
 import anthropic
@@ -216,6 +217,17 @@ def add_to_queue(post_url, post_text, post_author, comment_text, account_id, top
         "edited_comment": comment_text,
     })
 
+def _call_with_retry(fn, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            return fn()
+        except anthropic.RateLimitError:
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt * 5
+                time.sleep(wait)
+            else:
+                raise
+
 def generate_comment(post_text, post_author, account_id, topic):
     account = ACCOUNTS[account_id]
     system = SYSTEM_PROMPT_TEMPLATE.format(
@@ -228,24 +240,27 @@ def generate_comment(post_text, post_author, account_id, topic):
         topic=topic,
     )
     client = anthropic.Anthropic(api_key=api_key)
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=300,
-        system=system,
-        messages=[{
-            "role": "user",
-            "content": f"Post by @{post_author}:\n\n{post_text}\n\nWrite a comment for this post."
-        }]
-    )
+    def _call():
+        return client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            system=system,
+            messages=[{
+                "role": "user",
+                "content": f"Post by @{post_author}:\n\n{post_text}\n\nWrite a comment for this post."
+            }]
+        )
+    response = _call_with_retry(_call)
     return response.content[0].text.strip()
 
 def search_twitter_posts(topic, account_id, max_results):
     account = ACCOUNTS[account_id]
     client = anthropic.Anthropic(api_key=api_key)
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=2000,
-        system="""You search Twitter/X for relevant posts on a given topic.
+    def _call():
+        return client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2000,
+            system="""You search Twitter/X for relevant posts on a given topic.
 Use web_search to find recent Twitter posts matching the topic.
 Return results as a JSON array ONLY (no markdown, no explanation):
 [
@@ -257,12 +272,13 @@ Return results as a JSON array ONLY (no markdown, no explanation):
   }
 ]
 Find posts that are: recent, have engagement potential, are NOT from competitor crypto card products, and are suitable for a thoughtful comment that mentions KOLO naturally.""",
-        tools=[{"type": "web_search_20250305", "name": "web_search"}],
-        messages=[{
-            "role": "user",
-            "content": f"Search Twitter for recent posts about: {topic}\nLanguage preference: {account['language']}\nFind {max_results} posts suitable for commenting."
-        }]
-    )
+            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            messages=[{
+                "role": "user",
+                "content": f"Search Twitter for recent posts about: {topic}\nLanguage preference: {account['language']}\nFind {max_results} posts suitable for commenting."
+            }]
+        )
+    response = _call_with_retry(_call)
     # Extract text blocks
     text = ""
     for block in response.content:
@@ -387,14 +403,19 @@ with tab1:
 
                 with col_gen:
                     if st.button(f"✨ Generate Comment", key=f"gen_{i}", use_container_width=True):
-                        with st.spinner("Drafting comment..."):
-                            comment = generate_comment(
-                                post_text=post.get("text", ""),
-                                post_author=post.get("author", ""),
-                                account_id=st.session_state.active_account,
-                                topic=TOPICS[selected_topic]["label"],
-                            )
-                            st.session_state[draft_key] = comment
+                        with st.spinner("Drafting comment (retrying if rate-limited)..."):
+                            try:
+                                comment = generate_comment(
+                                    post_text=post.get("text", ""),
+                                    post_author=post.get("author", ""),
+                                    account_id=st.session_state.active_account,
+                                    topic=TOPICS[selected_topic]["label"],
+                                )
+                                st.session_state[draft_key] = comment
+                            except anthropic.RateLimitError:
+                                st.warning("⏳ Rate limited — wait 30s and try again.")
+                            except Exception as e:
+                                st.error(f"Error: {e}")
 
                 if draft_key in st.session_state:
                     draft_class = "comment-draft" if account["language"] == "English" else "comment-draft ru"
@@ -525,14 +546,19 @@ with tab3:
 
     if st.button("✨ Generate Comment for this Post", use_container_width=True):
         if m_text.strip():
-            with st.spinner("Generating..."):
-                comment = generate_comment(
-                    post_text=m_text,
-                    post_author=m_author.replace("@", ""),
-                    account_id=m_account,
-                    topic=TOPICS[m_topic]["label"],
-                )
-                st.session_state["manual_draft"] = comment
+            with st.spinner("Generating (retrying if rate-limited)..."):
+                try:
+                    comment = generate_comment(
+                        post_text=m_text,
+                        post_author=m_author.replace("@", ""),
+                        account_id=m_account,
+                        topic=TOPICS[m_topic]["label"],
+                    )
+                    st.session_state["manual_draft"] = comment
+                except anthropic.RateLimitError:
+                    st.warning("⏳ Rate limited — wait 30s and try again.")
+                except Exception as e:
+                    st.error(f"Error: {e}")
         else:
             st.warning("Paste a post first.")
 
