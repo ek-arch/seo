@@ -16,7 +16,7 @@ from publication_roi import (
     calculate_publication_roi, batch_roi, roi_label,
     LTV_BY_LANG, CONVERSION_RATE_BY_LANG, LTV_BY_MARKET_LANG,
 )
-from llm_client import generate_press_release, translate_press_release, recommend_monthly_plan, LANG_NAMES
+from llm_client import generate_press_release, revise_press_release, translate_press_release, recommend_monthly_plan, LANG_NAMES
 from notion_writer import (
     create_content_plan_entry, create_pr_draft_page,
     create_monthly_plan_page, log_publication_result,
@@ -913,13 +913,12 @@ BRIEFS = [
 
 def page_pr_generator():
     st.title("📝 Stage 6 · PR Generator")
-    st.caption("Generate press releases, translate to local languages, push to Notion")
+    st.caption("Generate press releases, revise with AI, translate, and track publications")
 
     api_key = st.session_state.get("anthropic_token")
-    notion_tok = st.session_state.get("notion_token")
 
-    tab_gen, tab_trans, tab_push, tab_track = st.tabs([
-        "Generate Draft", "Translate", "Push to Notion", "Track Publications"
+    tab_gen, tab_trans, tab_track = st.tabs([
+        "Generate Draft", "Translate", "Track Publications"
     ])
 
     # ── Tab 1: Generate Draft ─────────────────────────────────────────────
@@ -965,9 +964,27 @@ def page_pr_generator():
 
         draft = st.session_state.get("pr_en_draft", "")
         if draft:
-            edited = st.text_area("Edit draft", value=draft, height=500, key="pr_draft_editor")
+            edited = st.text_area("Edit draft", value=draft, height=400, key="pr_draft_editor")
             st.session_state["pr_en_draft"] = edited
             st.download_button("Download .md", data=edited, file_name="press_release_en.md", mime="text/markdown")
+
+            # ── AI Revision ────────────────────────────────────────────
+            st.divider()
+            st.subheader("Revise with AI")
+            revision_instructions = st.text_area(
+                "What should be changed?",
+                placeholder="e.g. Make it shorter, add more data about UAE market, change tone to more formal, remove the section about...",
+                height=100,
+                key="revision_instructions",
+            )
+            if st.button("✏️ Revise Draft", type="primary", disabled=not api_key or not revision_instructions):
+                with st.spinner("Revising..."):
+                    try:
+                        revised = revise_press_release(api_key, edited, revision_instructions)
+                        st.session_state["pr_en_draft"] = revised
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Revision failed: {e}")
 
     # ── Tab 2: Translate ──────────────────────────────────────────────────
     with tab_trans:
@@ -1009,89 +1026,57 @@ def page_pr_generator():
             if translations:
                 st.session_state["pr_translations"] = translations
 
-    # ── Tab 3: Push to Notion ─────────────────────────────────────────────
-    with tab_push:
-        st.subheader("Push to Notion Content Plan")
-        if not notion_tok:
-            st.error("Add your Notion API token in the sidebar to enable writes.")
-        else:
-            draft = st.session_state.get("pr_en_draft", "")
-            translations = st.session_state.get("pr_translations", {})
-            brief = st.session_state.get("pr_brief", {})
-
-            if not draft:
-                st.warning("Generate and translate a draft first.")
-            else:
-                all_versions = {"en": draft}
-                all_versions.update(translations)
-
-                st.markdown(f"**Brief:** {brief.get('Title', 'N/A')}")
-                st.markdown(f"**Versions ready:** {', '.join(k.upper() for k in all_versions.keys())}")
-
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    push_langs = st.multiselect("Push which versions", list(all_versions.keys()),
-                                                default=list(all_versions.keys()),
-                                                format_func=lambda x: LANG_NAMES.get(x, x).upper())
-                with col2:
-                    outlet = st.text_input("Outlet domain", placeholder="businessabc.net")
-                with col3:
-                    month = st.selectbox("Month", ["2026-03", "2026-04", "2026-05", "2026-06"])
-
-                priority = st.selectbox("Priority", ["High", "Medium", "Low"])
-
-                if st.button("📤 Push to Notion", type="primary"):
-                    pushed = st.session_state.get("pr_pushed_entries", [])
-                    en_page_url = None
-
-                    for lang in push_langs:
-                        text = all_versions[lang]
-                        title = brief.get("Title", "Untitled")
-                        with st.spinner(f"Pushing [{lang.upper()}] to Notion..."):
-                            try:
-                                # Create PR draft page
-                                page_resp = create_pr_draft_page(
-                                    notion_tok, title=title,
-                                    content_markdown=text, lang=lang.upper(),
-                                )
-                                page_url = page_resp.get("url", "")
-                                page_id = page_resp.get("id", "")
-
-                                if lang == "en":
-                                    en_page_url = page_url
-
-                                # Create Content Plan DB entry
-                                entry_resp = create_content_plan_entry(
-                                    notion_tok,
-                                    title=f"[{lang.upper()}] {title}",
-                                    lang=lang.upper(),
-                                    outlet=outlet,
-                                    month_tag=month,
-                                    priority=priority,
-                                    source_draft_url=en_page_url if lang != "en" else None,
-                                    price_usd=None,
-                                )
-                                entry_id = entry_resp.get("id", "")
-                                pushed.append({
-                                    "title": title, "lang": lang.upper(),
-                                    "outlet": outlet, "notion_page_id": entry_id,
-                                    "draft_url": page_url,
-                                })
-                                st.success(f"[{lang.upper()}] pushed — [Open in Notion]({page_url})")
-                            except Exception as e:
-                                st.error(f"[{lang.upper()}] failed: {e}")
-
-                    st.session_state["pr_pushed_entries"] = pushed
-
-    # ── Tab 4: Track Publications ─────────────────────────────────────────
+    # ── Tab 3: Track Publications ─────────────────────────────────────────
     with tab_track:
         st.subheader("Track Published Articles")
-        pushed = st.session_state.get("pr_pushed_entries", [])
-        if not pushed:
-            st.info("No entries pushed to Notion yet. Use Tab 3 to push PR drafts.")
-        else:
-            track_df = pd.DataFrame(pushed)
-            st.dataframe(track_df, use_container_width=True, hide_index=True)
+        st.caption("Add publication links when articles are paid and live. Data feeds into Monthly Evaluation.")
+
+        # Initialize tracking data
+        if "publications" not in st.session_state:
+            # Pre-fill with March outlets
+            rows = []
+            for lang_key, sites in DATA["march_outlets"].items():
+                for s in sites:
+                    if "TBD" in s["name"]:
+                        continue
+                    rows.append({
+                        "Outlet": s["name"],
+                        "Lang": lang_key.upper(),
+                        "Price ($)": s.get("price") or 0,
+                        "Status": "Planned",
+                        "Publication URL": "",
+                        "Post to X": "",
+                    })
+            st.session_state["publications"] = pd.DataFrame(rows)
+
+        pub_df = st.data_editor(
+            st.session_state["publications"],
+            use_container_width=True,
+            num_rows="dynamic",
+            column_config={
+                "Status": st.column_config.SelectboxColumn(
+                    options=["Planned", "Draft Sent", "Paid", "Published", "Rejected"],
+                    default="Planned",
+                ),
+                "Publication URL": st.column_config.LinkColumn("Publication URL"),
+                "Post to X": st.column_config.LinkColumn("Post to X"),
+            },
+            key="pub_editor",
+        )
+        st.session_state["publications"] = pub_df
+
+        # Summary metrics
+        if not pub_df.empty:
+            total = len(pub_df)
+            published = len(pub_df[pub_df["Status"] == "Published"])
+            paid = len(pub_df[pub_df["Status"] == "Paid"])
+            total_spent = pub_df[pub_df["Status"].isin(["Paid", "Published"])]["Price ($)"].sum()
+
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Total Articles", total)
+            col2.metric("Published", published)
+            col3.metric("Paid (awaiting)", paid)
+            col4.metric("Total Spent", f"${total_spent:,.0f}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1161,34 +1146,30 @@ def page_monthly_eval():
                 st.session_state[f"eval_results_{eval_month}"] = results
                 st.success(f"Saved {len(results)} results for {eval_month}")
 
+        # Auto-fill from Track Publications tab if available
         with col2:
-            if st.button("📤 Push Results to Notion", disabled=not notion_tok):
-                if not notion_tok:
-                    st.error("Add Notion token in sidebar.")
+            if st.button("📥 Import from Track Publications"):
+                pubs = st.session_state.get("publications")
+                if pubs is not None and not pubs.empty:
+                    published = pubs[pubs["Status"].isin(["Paid", "Published"])]
+                    if not published.empty:
+                        import_rows = []
+                        for _, row in published.iterrows():
+                            import_rows.append({
+                                "Outlet": row["Outlet"],
+                                "Lang": row["Lang"],
+                                "Price": float(row.get("Price ($)", 0)),
+                                "Publication URL": row.get("Publication URL", ""),
+                                "Referral Traffic": 0,
+                                "Registrations": 0,
+                                "Revenue ($)": 0.0,
+                            })
+                        st.session_state[f"eval_data_{eval_month}"] = pd.DataFrame(import_rows)
+                        st.rerun()
+                    else:
+                        st.warning("No paid/published articles found in Track Publications.")
                 else:
-                    pushed = st.session_state.get("pr_pushed_entries", [])
-                    results = st.session_state.get(f"eval_results_{eval_month}", [])
-                    matched = 0
-                    for r in results:
-                        # Find matching Notion entry
-                        match = next(
-                            (p for p in pushed if p["outlet"] == r.outlet and p["lang"] == r.lang.upper()),
-                            None
-                        )
-                        if match and match.get("notion_page_id") and r.publication_url:
-                            try:
-                                log_publication_result(
-                                    notion_tok,
-                                    match["notion_page_id"],
-                                    publication_url=r.publication_url,
-                                    actual_traffic=r.actual_referral_traffic,
-                                    actual_registrations=r.actual_registrations,
-                                    actual_revenue=r.actual_revenue,
-                                )
-                                matched += 1
-                            except Exception as e:
-                                st.error(f"Failed to update {r.outlet}: {e}")
-                    st.success(f"Updated {matched} entries in Notion")
+                    st.info("No tracking data yet. Add articles in PR Generator → Track Publications.")
 
     # ── Tab 2: Evaluation Report ──────────────────────────────────────────
     with tab_report:

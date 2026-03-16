@@ -146,6 +146,38 @@ def generate_press_release(
     return resp.content[0].text
 
 
+# ── Revision ──────────────────────────────────────────────────────────────────
+
+def revise_press_release(
+    api_key: str,
+    current_draft: str,
+    instructions: str,
+    *,
+    model: str = "claude-sonnet-4-20250514",
+    max_tokens: int = 4096,
+) -> str:
+    """Revise a press release based on user instructions."""
+    system = (
+        "You are a crypto fintech PR editor for Kolo (kolo.in). "
+        "Revise the press release according to the user's instructions. "
+        "Return the FULL revised article in Markdown — not just the changes. "
+        "Preserve proper nouns: Kolo, USDT, TRC20, Visa, Telegram."
+    )
+    user_msg = (
+        f"## Current Draft\n\n{current_draft}\n\n---\n\n"
+        f"## Revision Instructions\n\n{instructions}"
+    )
+    resp = _call_with_retry(
+        _client(api_key),
+        model=model,
+        max_tokens=max_tokens,
+        temperature=0.5,
+        system=system,
+        messages=[{"role": "user", "content": user_msg}],
+    )
+    return resp.content[0].text
+
+
 # ── Translation ────────────────────────────────────────────────────────────────
 
 def translate_press_release(
