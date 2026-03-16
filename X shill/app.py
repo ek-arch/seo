@@ -256,42 +256,76 @@ def generate_comment(post_text, post_author, account_id, topic):
 def search_twitter_posts(topic, account_id, max_results):
     account = ACCOUNTS[account_id]
     client = anthropic.Anthropic(api_key=api_key)
-    def _call():
-        return client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=2000,
-            system="""You search Twitter/X for relevant posts on a given topic.
-Use web_search to find recent Twitter posts matching the topic.
-Return results as a JSON array ONLY (no markdown, no explanation):
+
+    # Use an agentic loop: keep calling the model until it stops using tools
+    messages = [{
+        "role": "user",
+        "content": (
+            f"Search Twitter/X for {max_results} DIFFERENT recent posts about: {topic}\n"
+            f"Language preference: {account['language']}\n"
+            f"Do multiple web searches with different queries to find enough posts. "
+            f"Each post must be from a DIFFERENT author. "
+            f"Return exactly {max_results} posts if possible."
+        )
+    }]
+    system = f"""You search Twitter/X for relevant posts. Do multiple web_search calls with varied queries to find {max_results} distinct posts by different authors.
+
+After searching, return results as a JSON array ONLY (no markdown, no explanation):
 [
-  {
+  {{
     "author": "username",
     "text": "full post text",
-    "url": "https://twitter.com/...",
-    "relevance": "why this post is relevant for commenting"
-  }
+    "url": "https://x.com/username/status/...",
+    "relevance": "short reason this post is good for commenting"
+  }}
 ]
-Find posts that are: recent, have engagement potential, are NOT from competitor crypto card products, and are suitable for a thoughtful comment that mentions KOLO naturally.""",
-            tools=[{"type": "web_search_20250305", "name": "web_search"}],
-            messages=[{
-                "role": "user",
-                "content": f"Search Twitter for recent posts about: {topic}\nLanguage preference: {account['language']}\nFind {max_results} posts suitable for commenting."
-            }]
-        )
-    response = _call_with_retry(_call)
-    # Extract text blocks
+Find posts that: are recent (2025-2026), have engagement potential, are NOT from Kolo/kolohub, and are suitable for a comment that mentions @kolohub naturally."""
+
+    # Agentic loop — process tool_use blocks until model returns final text
+    final_response = None
+    for _ in range(10):  # max 10 rounds
+        def _call():
+            return client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=6000,
+                system=system,
+                tools=[{"type": "web_search_20250305", "name": "web_search"}],
+                messages=messages,
+            )
+        response = _call_with_retry(_call)
+        final_response = response
+
+        # If model stopped without wanting more tool calls, we're done
+        if response.stop_reason == "end_turn":
+            break
+
+        # Otherwise, feed tool results back and continue
+        messages.append({"role": "assistant", "content": response.content})
+        tool_results = []
+        for block in response.content:
+            if block.type == "tool_use":
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": "Search completed. Continue searching or return results.",
+                })
+        if not tool_results:
+            break
+        messages.append({"role": "user", "content": tool_results})
+
+    # Extract text blocks from final response
     text = ""
-    for block in response.content:
-        if hasattr(block, "text"):
-            text += block.text
+    if final_response:
+        for block in final_response.content:
+            if hasattr(block, "text"):
+                text += block.text
     try:
         clean = text.replace("```json", "").replace("```", "").strip()
-        # Find JSON array in text
         start = clean.find("[")
         end = clean.rfind("]") + 1
         if start >= 0 and end > start:
             return json.loads(clean[start:end])
-    except:
+    except Exception:
         pass
     return []
 
