@@ -9,9 +9,10 @@ calling the SDK directly.
 from __future__ import annotations
 
 import json
+import time
 from typing import Optional
 
-from anthropic import Anthropic
+from anthropic import Anthropic, RateLimitError
 
 # ── Language maps ──────────────────────────────────────────────────────────────
 
@@ -89,6 +90,18 @@ def _client(api_key: str) -> Anthropic:
     return Anthropic(api_key=api_key)
 
 
+def _call_with_retry(client: Anthropic, *, max_retries: int = 3, **kwargs):
+    """Call messages.create with exponential backoff on rate-limit errors."""
+    for attempt in range(max_retries + 1):
+        try:
+            return client.messages.create(**kwargs)
+        except RateLimitError as e:
+            if attempt == max_retries:
+                raise
+            wait = 2 ** attempt * 30  # 30s, 60s, 120s
+            time.sleep(wait)
+
+
 # ── Generation ─────────────────────────────────────────────────────────────────
 
 def generate_press_release(
@@ -122,7 +135,8 @@ def generate_press_release(
     if brief.get("hooks"):
         user_msg += f"**Hooks to include:** {brief['hooks']}\n"
 
-    resp = _client(api_key).messages.create(
+    resp = _call_with_retry(
+        _client(api_key),
         model=model,
         max_tokens=max_tokens,
         temperature=temperature,
@@ -145,7 +159,8 @@ def translate_press_release(
     """Translate an English press release to *target_lang* (e.g. "ru", "it")."""
     lang_name = LANG_NAMES.get(target_lang, target_lang)
     system = _SYSTEM_TRANSLATE.format(target_lang=lang_name)
-    resp = _client(api_key).messages.create(
+    resp = _call_with_retry(
+        _client(api_key),
         model=model,
         max_tokens=max_tokens,
         temperature=0.3,
@@ -177,7 +192,8 @@ def recommend_monthly_plan(
         f"## Budget\n${budget:,.0f}\n\n"
         f"Generate the JSON plan."
     )
-    resp = _client(api_key).messages.create(
+    resp = _call_with_retry(
+        _client(api_key),
         model=model,
         max_tokens=max_tokens,
         temperature=0.5,
