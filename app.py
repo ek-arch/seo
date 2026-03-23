@@ -17,7 +17,7 @@ from publication_roi import (
     calculate_publication_roi, batch_roi, roi_label,
     LTV_BY_LANG, CONVERSION_RATE_BY_LANG, LTV_BY_MARKET_LANG,
 )
-from llm_client import generate_press_release, revise_press_release, translate_press_release, recommend_monthly_plan, LANG_NAMES
+from llm_client import generate_press_release, revise_press_release, translate_press_release, recommend_monthly_plan, generate_distribution_post, LANG_NAMES
 from notion_writer import (
     create_content_plan_entry, create_pr_draft_page,
     create_monthly_plan_page, log_publication_result,
@@ -55,8 +55,9 @@ with st.sidebar:
     for name, status in [("Stage 1 · Market Intel", "✅"), ("Stage 2 · Kolo Metrics", "✅"),
                           ("Stage 3 · Content Plan", "✅"), ("Stage 4 · Outlet Match",  "✅"),
                           ("Stage 5 · Pub ROI",       "✅"),
-                          ("Stage 6 · PR Generator",  "🆕"), ("Stage 7 · Monthly Eval", "🆕"),
-                          ("Stage 8 · Monthly Planner","🆕")]:
+                          ("Stage 6 · PR Generator",  "🆕"), ("Stage 7 · Distribution", "🆕"),
+                          ("Stage 8 · Monthly Eval", "🆕"),
+                          ("Stage 9 · Monthly Planner","🆕")]:
         st.markdown(f"{status} {name}")
     st.divider()
     st.caption("Source: Hex BigQuery · exchanger2_db_looker\nOct 10, 2025 – Mar 1, 2026")
@@ -1568,6 +1569,182 @@ def page_monthly_planner():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# STAGE 9 — CONTENT DISTRIBUTION
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Suggested communities per platform
+DISTRIBUTION_CHANNELS = {
+    "Reddit": [
+        {"community": "r/cryptocurrency", "desc": "Main crypto sub, 7M+ members", "type": "general"},
+        {"community": "r/CryptoCards", "desc": "Crypto card comparison niche", "type": "niche"},
+        {"community": "r/TRON", "desc": "TRON/TRC20 ecosystem", "type": "niche"},
+        {"community": "r/digitalnomad", "desc": "Nomads needing multi-currency cards", "type": "audience"},
+        {"community": "r/ethfinance", "desc": "Ethereum finance community", "type": "general"},
+        {"community": "r/CryptoCurrency", "desc": "Alt crypto discussions", "type": "general"},
+        {"community": "r/Bybit", "desc": "Bybit community (competitor)", "type": "competitor"},
+    ],
+    "Quora": [
+        {"community": "Best crypto card 2026", "desc": "Direct product query — high GEO value", "type": "question"},
+        {"community": "How to spend USDT in real life", "desc": "Use-case query", "type": "question"},
+        {"community": "Crypto card vs traditional bank card", "desc": "Comparison query", "type": "question"},
+        {"community": "Is it safe to use crypto debit cards", "desc": "Trust query", "type": "question"},
+        {"community": "Best way to spend crypto in Europe", "desc": "Geo-targeted query", "type": "question"},
+    ],
+    "Telegram": [
+        {"community": "TRON Official", "desc": "TRON ecosystem group", "type": "ecosystem"},
+        {"community": "Crypto Cards Chat", "desc": "Card comparison groups", "type": "niche"},
+        {"community": "Digital Nomads Hub", "desc": "Nomad communities", "type": "audience"},
+    ],
+    "Hacker News": [
+        {"community": "Show HN", "desc": "Product launches / tech", "type": "launch"},
+        {"community": "Comment thread", "desc": "Reply on relevant fintech threads", "type": "comment"},
+    ],
+}
+
+
+def page_content_distribution():
+    st.title("📣 Stage 9 · Content Distribution")
+    st.caption("Generate organic community posts for Reddit, Quora, Telegram & HN to amplify published articles")
+
+    api_key = st.session_state.get("anthropic_token")
+
+    # ── Source article ────────────────────────────────────────────────
+    st.subheader("1. Select Published Article")
+    pub_df = st.session_state.get("publications")
+    published_articles = []
+    if pub_df is not None and not pub_df.empty:
+        mask = (pub_df["Status"] == "Published") & (pub_df["Publication URL"].astype(str).str.startswith("http"))
+        published_articles = pub_df[mask].to_dict("records")
+
+    if published_articles:
+        options = [f"{a['Outlet']} ({a['Lang']})" for a in published_articles]
+        sel_idx = st.selectbox("Published article", range(len(options)), format_func=lambda i: options[i])
+        selected = published_articles[sel_idx]
+        article_title = selected["Outlet"]
+        article_url = selected["Publication URL"]
+        article_lang = selected["Lang"]
+        st.markdown(f"**URL:** [{article_url}]({article_url})  ·  **Lang:** {article_lang}")
+    else:
+        st.info("No published articles with URLs found. Add publication URLs in PR Generator → Track Publications first.")
+        st.divider()
+        st.markdown("**Or enter manually:**")
+        article_title = st.text_input("Article title", placeholder="How to Spend Crypto in Europe with Kolo")
+        article_url = st.text_input("Article URL", placeholder="https://example.com/article")
+        article_lang = "EN"
+
+    if not article_title or not article_url:
+        return
+
+    st.divider()
+
+    # ── Distribution plan ─────────────────────────────────────────────
+    st.subheader("2. Distribution Channels")
+    st.markdown(
+        "Select where to post. **Reddit & Quora are highest GEO impact** — "
+        "AI engines frequently cite these platforms in generated answers."
+    )
+
+    # Channel selection with tabs
+    tab_reddit, tab_quora, tab_telegram, tab_hn = st.tabs(["Reddit", "Quora", "Telegram", "Hacker News"])
+
+    generated_posts = st.session_state.get("distribution_posts", {})
+
+    for tab, platform in [(tab_reddit, "Reddit"), (tab_quora, "Quora"),
+                           (tab_telegram, "Telegram"), (tab_hn, "Hacker News")]:
+        with tab:
+            channels = DISTRIBUTION_CHANNELS[platform]
+            for i, ch in enumerate(channels):
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.markdown(f"**{ch['community']}** — {ch['desc']}")
+                with col2:
+                    key = f"{platform}_{i}"
+                    if st.button("Generate Post", key=f"gen_{key}", disabled=not api_key, type="secondary"):
+                        with st.spinner(f"Writing {platform} post for {ch['community']}..."):
+                            try:
+                                post = generate_distribution_post(
+                                    api_key,
+                                    article_title=article_title,
+                                    article_url=article_url,
+                                    platform=platform,
+                                    target_community=ch["community"],
+                                )
+                                generated_posts[key] = {
+                                    "platform": platform,
+                                    "community": ch["community"],
+                                    "content": post,
+                                    "status": "draft",
+                                }
+                                st.session_state["distribution_posts"] = generated_posts
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Failed: {e}")
+
+                # Show generated post if exists
+                if key in generated_posts:
+                    with st.expander(f"📝 Draft for {ch['community']}", expanded=True):
+                        edited = st.text_area(
+                            "Edit post",
+                            value=generated_posts[key]["content"],
+                            height=200,
+                            key=f"edit_{key}",
+                        )
+                        generated_posts[key]["content"] = edited
+
+                        post_col1, post_col2, post_col3 = st.columns(3)
+                        with post_col1:
+                            generated_posts[key]["status"] = st.selectbox(
+                                "Status",
+                                ["draft", "posted", "skipped"],
+                                key=f"status_{key}",
+                                index=["draft", "posted", "skipped"].index(generated_posts[key].get("status", "draft")),
+                            )
+                        with post_col2:
+                            st.download_button(
+                                "📋 Copy as .txt",
+                                data=edited,
+                                file_name=f"{platform}_{ch['community'].replace('/', '_')}.txt",
+                                mime="text/plain",
+                                key=f"dl_{key}",
+                            )
+                        with post_col3:
+                            if platform == "Reddit" and ch["community"].startswith("r/"):
+                                sub = ch["community"].replace("r/", "")
+                                st.markdown(f"[Open {ch['community']}](https://reddit.com/{ch['community']}/submit)")
+                            elif platform == "Quora":
+                                st.markdown("[Open Quora](https://quora.com)")
+
+            st.session_state["distribution_posts"] = generated_posts
+
+    if not api_key:
+        st.info("Enter your Anthropic API key in the sidebar to generate posts.")
+
+    # ── Summary ───────────────────────────────────────────────────────
+    st.divider()
+    st.subheader("3. Distribution Tracker")
+    if generated_posts:
+        tracker_rows = []
+        for key, post in generated_posts.items():
+            tracker_rows.append({
+                "Platform": post["platform"],
+                "Community": post["community"],
+                "Status": post["status"],
+                "Length": len(post["content"].split()),
+            })
+        tracker_df = pd.DataFrame(tracker_rows)
+        st.dataframe(tracker_df, use_container_width=True, hide_index=True)
+
+        total = len(tracker_rows)
+        posted = sum(1 for r in tracker_rows if r["Status"] == "posted")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Drafts", total)
+        col2.metric("Posted", posted)
+        col3.metric("Pending", total - posted)
+    else:
+        st.info("Generate posts above — they'll appear here for tracking.")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # NAVIGATION
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1583,9 +1760,10 @@ pg = st.navigation({
         st.Page(page_publication_roi,  title="Publication ROI",  icon="💰"),
     ],
     "Actions": [
-        st.Page(page_pr_generator,     title="PR Generator",     icon="📝"),
-        st.Page(page_monthly_eval,     title="Monthly Eval",     icon="📉"),
-        st.Page(page_monthly_planner,  title="Monthly Planner",  icon="🗓️"),
+        st.Page(page_pr_generator,           title="PR Generator",     icon="📝"),
+        st.Page(page_content_distribution,   title="Distribution",     icon="📣"),
+        st.Page(page_monthly_eval,           title="Monthly Eval",     icon="📉"),
+        st.Page(page_monthly_planner,        title="Monthly Planner",  icon="🗓️"),
     ],
 })
 pg.run()

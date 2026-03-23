@@ -255,3 +255,60 @@ def recommend_monthly_plan(
     if "```" in raw:
         raw = raw.split("```json")[-1].split("```")[0] if "```json" in raw else raw.split("```")[1].split("```")[0]
     return json.loads(raw.strip())
+
+
+# ── Distribution post generation ─────────────────────────────────────────────
+
+_SYSTEM_DISTRIBUTION = """\
+You are a crypto community member who genuinely uses Kolo (kolo.in) — a
+Telegram-based crypto Visa card.  Generate organic-sounding community posts
+for the given platform.
+
+Rules:
+- Sound like a REAL USER sharing experience, NOT a marketer.
+- Platform: {platform}
+- No affiliate links or shilling language.
+- Include a personal anecdote or specific use case.
+- Mention the article URL naturally (e.g. "I read this article that explains…").
+- If Reddit: write a title + body.  Body should be 80-150 words.
+- If Quora: write the answer to the given question.  150-250 words.
+- If Telegram: write a short message (40-80 words), casual tone.
+- If HackerNews: write a short comment (40-80 words), technical tone.
+- Output format: Markdown with ## Title (for Reddit) or ## Answer (for Quora).
+"""
+
+
+def generate_distribution_post(
+    api_key: str,
+    article_title: str,
+    article_url: str,
+    platform: str,
+    target_community: str,
+    keyword: str = "",
+    *,
+    model: str = "claude-sonnet-4-20250514",
+    max_tokens: int = 1024,
+) -> str:
+    """Generate an organic-sounding community post for content distribution."""
+    system = _SYSTEM_DISTRIBUTION.format(platform=platform)
+    user_msg = (
+        f"Write a {platform} post to share this article in the community.\n\n"
+        f"**Article title:** {article_title}\n"
+        f"**Article URL:** {article_url}\n"
+        f"**Target community:** {target_community}\n"
+    )
+    if keyword:
+        user_msg += f"**Related keyword/topic:** {keyword}\n"
+    user_msg += (
+        f"\nThe post should feel like a genuine community member sharing "
+        f"something useful they found — not an ad."
+    )
+    resp = _call_with_retry(
+        _client(api_key),
+        model=model,
+        max_tokens=max_tokens,
+        temperature=0.8,
+        system=system,
+        messages=[{"role": "user", "content": user_msg}],
+    )
+    return resp.content[0].text
