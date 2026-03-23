@@ -1593,28 +1593,71 @@ SUBREDDITS = [
 ]
 
 
-_REDDIT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Accept": "application/json",
-}
+def _search_reddit_via_google(query: str, subreddit: str = "", limit: int = 10) -> list[dict]:
+    """Search for Reddit posts via Google (works from any server IP)."""
+    import re, html as _html
+    site_q = f"site:reddit.com/r/{subreddit}" if subreddit else "site:reddit.com"
+    search_q = f"{site_q} {query}"
+    url = "https://www.google.com/search"
+    params = {"q": search_q, "num": min(limit, 20)}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+    try:
+        resp = _requests.get(url, params=params, headers=headers, timeout=15)
+        if resp.status_code != 200:
+            return []
+        text = resp.text
+        posts = []
+        # Extract Reddit links from Google results
+        reddit_urls = re.findall(r'https?://(?:www\.)?reddit\.com/r/(\w+)/comments/(\w+)/([^/"&]+)', text)
+        seen = set()
+        for sub, post_id, slug in reddit_urls:
+            if post_id in seen:
+                continue
+            seen.add(post_id)
+            title = slug.replace("_", " ").strip()
+            # Try to get a cleaner title from the surrounding HTML
+            title_match = re.search(
+                rf'(?:<h3[^>]*>|<a[^>]*>)\s*([^<]*?)\s*(?::\s*r/{sub}|</)',
+                text[max(0, text.find(post_id) - 500):text.find(post_id) + 200],
+            )
+            if title_match:
+                title = _html.unescape(title_match.group(1)).strip()
+                # Remove "r/subreddit" prefix if present
+                title = re.sub(r'^r/\w+\s*[-·—]\s*', '', title)
+            posts.append({
+                "title": title[:120] if title else f"Post in r/{sub}",
+                "subreddit": sub,
+                "score": 0,
+                "num_comments": 0,
+                "url": f"https://reddit.com/r/{sub}/comments/{post_id}/{slug}",
+                "selftext": "",
+                "created_utc": 0,
+                "is_self": True,
+            })
+            if len(posts) >= limit:
+                break
+        return posts
+    except Exception:
+        return []
 
 
-def _search_reddit(query: str, subreddit: str = "", limit: int = 10, sort: str = "new") -> list[dict]:
-    """Search Reddit public JSON API with browser-like headers."""
-    # Build search query — include subreddit in query text for better results
+def _search_reddit_direct(query: str, subreddit: str = "", limit: int = 10, sort: str = "new") -> list[dict]:
+    """Search Reddit JSON API directly (may fail on cloud servers)."""
     if subreddit:
         full_query = f"{query} subreddit:{subreddit}"
     else:
         full_query = query
     url = "https://old.reddit.com/search.json"
     params = {"q": full_query, "sort": sort, "limit": limit, "t": "year", "type": "link"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+    }
     try:
-        resp = _requests.get(url, params=params, headers=_REDDIT_HEADERS, timeout=15)
-        if resp.status_code == 429:
-            # Rate limited — wait and retry once
-            import time
-            time.sleep(2)
-            resp = _requests.get(url, params=params, headers=_REDDIT_HEADERS, timeout=15)
+        resp = _requests.get(url, params=params, headers=headers, timeout=10)
         if resp.status_code != 200:
             return []
         data = resp.json()
@@ -1634,8 +1677,16 @@ def _search_reddit(query: str, subreddit: str = "", limit: int = 10, sort: str =
                 "is_self": d.get("is_self", True),
             })
         return posts
-    except Exception as e:
+    except Exception:
         return []
+
+
+def _search_reddit(query: str, subreddit: str = "", limit: int = 10, sort: str = "new") -> list[dict]:
+    """Try Reddit direct API first, fall back to Google site:reddit.com search."""
+    results = _search_reddit_direct(query, subreddit, limit, sort)
+    if results:
+        return results
+    return _search_reddit_via_google(query, subreddit, limit)
 
 
 def page_content_distribution():
