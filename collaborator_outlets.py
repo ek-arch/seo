@@ -1,9 +1,10 @@
 # collaborator_outlets.py
 # Scraped from Collaborator.pro catalog via browser API
 # Filters: categories=[Cryptocurrencies, Business & Finance], DR≥30, price≤$250
-# Scored with 5-dim model: search_pct + DR + price/DR + category_fit + traffic
+# Scored with 5-dim SEO model: search_pct + DR + price/DR + category_fit + traffic
+# Note: catalog scores are 0-15 (5-dim only); march_outlets use 0-18 (6-dim with GEO ai_citability)
 # Refreshed: 2026-03-11
-# Columns: domain, dr, price_usd, search_pct, monthly_traffic, score (0-15), has_crypto
+# Columns: domain, dr, price_usd, search_pct, monthly_traffic, score (0-15 catalog), has_crypto
 
 LANGUAGE_IDS = {
     "en": 1, "ru": 2, "it": 5, "es": 6, "pl": 11, "pt": 34, "id": 29
@@ -180,8 +181,9 @@ LANG_LABELS = {
 }
 
 SCORE_LABEL = {
-    15: "🏆 Perfect", 14: "⭐ Excellent", 13: "✅ Strong",
-    12: "👍 Good", 11: "👌 OK", 10: "⚠️ Borderline",
+    18: "🏆 Perfect", 17: "🏆 Perfect", 16: "⭐ Excellent", 15: "⭐ Excellent",
+    14: "✅ Strong", 13: "✅ Strong", 12: "👍 Good", 11: "👌 OK",
+    10: "⚠️ Borderline", 9: "⚠️ Borderline",
 }
 
 

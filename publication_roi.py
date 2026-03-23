@@ -1,10 +1,11 @@
 """
-publication_roi.py — Per-publication ROI model for Kolo SEO agent
-=================================================================
+publication_roi.py — Per-publication ROI model for Kolo SEO & GEO agent
+=======================================================================
 Three-layer model:
   1. Direct referral traffic  (UTM-trackable)
   2. SEO compound traffic     (backlink → ranking improvement, 90-day window)
-  3. Revenue                  = total visits × conversion rate × LTV
+  3. GEO / AI citation traffic (AI engines citing the outlet → additional visits)
+  4. Revenue = total visits × conversion rate × LTV
 
 LTV figures from Hex BigQuery (Oct 2025 – Mar 2026 cohort).
 Conversion rates calibrated to match observed SEO CAC range $18–55.
@@ -89,6 +90,7 @@ class PublicationScenario:
     label: str
     referral_visits: float
     seo_visits_90d: float
+    ai_visits_90d: float   # GEO: AI citation traffic
     registrations: float
     revenue: float
     roi_x: float          # revenue / price
@@ -133,6 +135,8 @@ def calculate_publication_roi(
     seo_months: int = 3,                  # window for SEO compound effect
     market: Optional[str] = None,         # override LTV with market-lang combo
     has_crypto_category: bool = True,
+    ai_citability: int = 1,              # GEO: 0-3 AI citation score
+    ai_share_of_search: float = 0.08,    # GEO: % of search now via AI engines
 ) -> PublicationROI:
     """
     Calculate conservative / mid / optimistic ROI for one publication.
@@ -151,6 +155,8 @@ def calculate_publication_roi(
     seo_months          : compound SEO window in months
     market              : ISO-3166 country code for market-specific LTV override
     has_crypto_category : whether outlet has crypto/finance category
+    ai_citability       : GEO score 0-3 (how likely AI engines cite this outlet)
+    ai_share_of_search  : fraction of search traffic now going through AI engines
     """
     # LTV — prefer market-lang combo if available
     if market:
@@ -178,16 +184,27 @@ def calculate_publication_roi(
 
     seo_base_90d = seo_base_monthly * seo_months
 
+    # ── Layer 3: AI citation traffic (GEO) ────────────────────────────────────
+    # Model: AI engines (ChatGPT, Perplexity, Google AI Overviews) cite
+    # high-authority outlets. Probability scales with DR and ai_citability score.
+    ai_cite_prob = min(ai_citability / 3.0, 1.0) * min(outlet_dr / 80.0, 1.0) * 0.15
+    if keyword_volume > 0:
+        ai_base_monthly = keyword_volume * ai_share_of_search * ai_cite_prob
+    else:
+        ai_base_monthly = outlet_traffic * 0.0001 * ai_citability
+    ai_base_90d = ai_base_monthly * seo_months
+
     # ── Scenarios ─────────────────────────────────────────────────────────────
     scenarios: dict[str, PublicationScenario] = {}
-    for label, (r_mult, s_mult, cr_mult) in {
-        "conservative": (0.50, 0.40, 0.75),
-        "mid":          (1.00, 1.00, 1.00),
-        "optimistic":   (1.60, 2.00, 1.30),
+    for label, (r_mult, s_mult, a_mult, cr_mult) in {
+        "conservative": (0.50, 0.40, 0.30, 0.75),
+        "mid":          (1.00, 1.00, 1.00, 1.00),
+        "optimistic":   (1.60, 2.00, 2.50, 1.30),
     }.items():
         ref_v   = referral_base * r_mult
         seo_v   = seo_base_90d  * s_mult
-        total_v = ref_v + seo_v
+        ai_v    = ai_base_90d   * a_mult
+        total_v = ref_v + seo_v + ai_v
         regs    = total_v * cr * cr_mult
         rev     = regs * ltv
         roi_x   = rev / price if price > 0 else 0.0
@@ -198,6 +215,7 @@ def calculate_publication_roi(
             label=label,
             referral_visits=round(ref_v),
             seo_visits_90d=round(seo_v),
+            ai_visits_90d=round(ai_v),
             registrations=round(regs, 1),
             revenue=round(rev),
             roi_x=round(roi_x, 1),
@@ -226,12 +244,13 @@ def batch_roi(
     article_ctr_pct: float = 0.20,
     referral_to_site_pct: float = 1.5,
     seo_months: int = 3,
+    ai_share_of_search: float = 0.08,
 ) -> list[PublicationROI]:
     """
     Calculate ROI for a list of outlet dicts.
 
     Each dict must have: outlet, lang, price, traffic, dr
-    Optional: keyword_volume, current_rank, market, has_crypto
+    Optional: keyword_volume, current_rank, market, has_crypto, ai_citability
     """
     results = []
     for o in outlet_list:
@@ -248,6 +267,8 @@ def batch_roi(
             seo_months=seo_months,
             market=o.get("market"),
             has_crypto_category=bool(o.get("has_crypto", True)),
+            ai_citability=int(o.get("ai_citability", 1)),
+            ai_share_of_search=ai_share_of_search,
         ))
     results.sort(key=lambda r: r.mid().roi_x, reverse=True)
     return results

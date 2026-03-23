@@ -1,7 +1,8 @@
 """
-app.py — Kolo SEO Intelligence Agent
+app.py — Kolo SEO & GEO Intelligence Agent
 Single-file Streamlit app using st.navigation().
 All data lives in data_sources.py.
+GEO = Generative Engine Optimization (AI answer visibility).
 """
 
 import streamlit as st
@@ -29,7 +30,7 @@ from monthly_cycle import (
 import ahrefs_hook
 
 st.set_page_config(
-    page_title="Kolo SEO Intelligence Agent",
+    page_title="Kolo SEO & GEO Intelligence Agent",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -38,7 +39,7 @@ st.set_page_config(
 # ── Shared Sidebar ─────────────────────────────────────────────────────────────
 with st.sidebar:
     st.image("https://kolo.in/favicon.ico", width=32)
-    st.title("Kolo SEO Agent")
+    st.title("Kolo SEO & GEO Agent")
     st.caption("kolo.in · crypto Visa card")
     st.divider()
     st.subheader("🔑 API Keys")
@@ -66,43 +67,45 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def page_dashboard():
-    st.title("🤖 Kolo SEO Intelligence Agent")
-    st.markdown("**March 2026 plan · \\$2,000 budget · 40+ countries · 1.9–5.9× ROI forecast**")
+    st.title("🤖 Kolo SEO & GEO Intelligence Agent")
+    st.markdown("**March 2026 plan · \\$2,000 budget · 40+ countries · SEO + AI engine optimization · 1.9–5.9× ROI forecast**")
 
     pc  = DATA["platform"]["post_cashback"]
     pnl = DATA["pnl"]
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric("Active B2C Users",   f"{pc['active_users']:,}",        "+90% vs pre-cashback")
     c2.metric("Monthly Card Spend", f"${pc['card_spend']/1e6:.2f}M",  "+111%")
     c3.metric("Avg Daily Spend",    f"${pc['avg_daily_spend']:,}",     "+57%")
     c4.metric("Net P&L (3-month)",  f"${sum(pnl['net_pnl']):,}",      "2.04× cashback coverage")
     c5.metric("Active Countries",   "99",                              "B2C USD cards")
+    c6.metric("AI Visibility",      "0 / 10",                          "queries in AI answers")
 
     st.divider()
     col_a, col_b = st.columns(2)
     with col_a:
         with st.container(border=True):
             st.subheader("📊 Stage 1 · Market Intel")
-            st.markdown("- 10 competitor profiles across 9 markets\n- **Oobit** = closest CIS threat\n- **Trustee Plus alternative** = #1 keyword opportunity\n- Romania (+183%) and Switzerland = breakout markets")
+            st.markdown("- 10 competitor profiles across 9 markets\n- **Oobit** = closest CIS threat\n- **Trustee Plus alternative** = #1 keyword opportunity\n- Romania (+183%) and Switzerland = breakout markets\n- **GEO audit:** Kolo invisible in all AI engines")
         with st.container(border=True):
             st.subheader("✍️ Stage 3 · Content Plan")
-            st.markdown("- 10 article briefs across 7 languages\n- Full EN draft ready (~1,500 words)\n- 90-day calendar March–May 2026\n- **Spain relocation hook** added to Russian pillar")
+            st.markdown("- 10 article briefs across 7 languages + GEO checklist\n- Full EN draft ready (~1,500 words)\n- 90-day calendar March–May 2026\n- **Spain relocation hook** added to Russian pillar")
     with col_b:
         with st.container(border=True):
             st.subheader("📈 Stage 2 · Kolo Metrics")
             st.markdown("- **Russian users** — \\$5,940/user vs English \\$3,467 (1.7×)\n- 🇸🇪 **Sweden whale** — \\$24,570/user (9 users, \\$221K)\n- 🇺🇾 Uruguay: \\$19,982/user, 99% conversion\n- Swap fees = **#1 revenue line** (\\$137K > card spend \\$81K)")
         with st.container(border=True):
             st.subheader("🗞️ Stage 4 · Outlet Matching")
-            st.markdown("- Scoring: **Notion guide 5-dimension 0–15** system\n- 9 outlets scored · **pt.egamersworld (13/15)** added · 2 unscored flagged\n- Collaborator.pro API: **⏳ pending support unlock**\n- Must-Have: search>35%, DR>40, price<\\$5/DR")
+            st.markdown("- Scoring: **6-dimension 0–18** system (SEO + GEO)\n- AI citability added as 6th scoring dimension\n- Collaborator.pro API: **⏳ pending support unlock**\n- Must-Have: search>35%, DR>40, price<\\$5/DR")
 
     st.divider()
-    st.subheader("💡 Top 3 Actions This Week")
+    st.subheader("💡 Top 4 Actions This Week")
     st.markdown("""
 | Priority | Action | Why |
 |---|---|---|
 | 🔴 **URGENT** | Lock Dubai RU expat outlet (Week 1, not Week 2) | ARE-ru = \\$21,640/user — highest expected-value placement |
 | 🟠 **HIGH** | Update Russian article hooks: remove ISR/KAZ angles, add Spain + CIS expat | ISR/KAZ card issuance suspended — hooks no longer valid |
 | 🟠 **HIGH** | Add UTM params before buying any outlet | Without attribution, 90-day ROI is unverifiable |
+| 🟠 **HIGH (GEO)** | Add FAQ sections + question headers to lead article | Kolo invisible in ChatGPT/Perplexity — GEO-optimized content gets AI citations |
 """)
 
 
@@ -112,7 +115,7 @@ def page_dashboard():
 
 def page_market_intel():
     st.title("📊 Stage 1 · Market Intel")
-    st.caption("Last run: 2026-03-10 · Web search + competitor analysis")
+    st.caption("Last run: 2026-03-10 · Web search + competitor analysis + AI engine audit")
 
     st.header("Competitor Map by Market")
     competitors = pd.DataFrame([
@@ -183,6 +186,35 @@ def page_market_intel():
 | 🇸🇪 Sweden whale | \\$24,570/user (9 users, \\$221K) — RU expat cluster, no competitor content targeting them |
 """)
     st.info("**Data source:** Web search, competitor sites, CoinGecko, Cryptopolitan · 2026-03-10")
+
+    st.header("🤖 AI Engine Visibility Audit (GEO)")
+    st.caption("Generative Engine Optimization — does Kolo appear when users ask AI about crypto cards?")
+    geo_audit = pd.DataFrame([
+        {"Query": "best crypto card 2026",        "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Crypto.com, Coinbase, Wirex, Bybit"},
+        {"Query": "crypto card UK",                "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Wirex, Coinbase, Nexo, Revolut"},
+        {"Query": "USDT card",                     "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Oobit, Bitget, Bybit"},
+        {"Query": "Trustee Plus alternative",      "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Minimal competition — high opportunity"},
+        {"Query": "how to spend crypto",           "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "MetaMask, CoinGecko guides, Crypto.com"},
+        {"Query": "crypto card Poland",            "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Binance, MetaMask Card"},
+        {"Query": "crypto card Italy",             "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Coinbase, Binance"},
+        {"Query": "crypto debit card UAE",         "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Oobit, Crypto.com, Bybit"},
+        {"Query": "TRC20 card",                    "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Bitget, minimal competition"},
+        {"Query": "crypto card for business",      "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Crypto.com, Coinbase, Ramp"},
+    ])
+    st.dataframe(geo_audit, use_container_width=True, hide_index=True)
+    st.error(
+        "**Kolo is invisible across all 10 target queries in ALL AI engines.** "
+        "GEO tactics needed: FAQ sections, stat-dense content, entity-rich intros, "
+        "and publication on high-authority outlets that AI engines cite."
+    )
+    st.markdown("""
+**GEO Action Plan:**
+1. **Restructure lead article** with FAQ section + question-format headers
+2. **Publish on high-DR outlets** (DR>65) that AI engines frequently cite
+3. **Include quotable stats** — AI engines extract self-contained factual sentences
+4. **Target "Trustee Plus alternative"** — minimal AI competition, high intent
+5. **Monitor monthly** — re-audit AI engine presence after each publication cycle
+""")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -298,7 +330,7 @@ def page_kolo_metrics():
 
 def page_content_plan():
     st.title("✍️ Stage 3 · Content Plan")
-    st.caption("Generated: 2026-03-10 · Based on Stage 1 competitor analysis + Hex live data")
+    st.caption("Generated: 2026-03-10 · Based on Stage 1 competitor analysis + Hex live data + GEO checklist")
 
     st.header("10 Article Briefs")
     briefs = pd.DataFrame([
@@ -320,6 +352,33 @@ def page_content_plan():
         if "🟠" in str(val):                            return "background-color: #fff9e6"
         return ""
     st.dataframe(briefs.style.applymap(color_priority, subset=["Priority"]), use_container_width=True, hide_index=True)
+
+    st.header("🤖 GEO Optimization Checklist")
+    st.caption("Generative Engine Optimization — ensure each article is structured to be cited by AI engines")
+    geo_checklist = pd.DataFrame([
+        {"#": 1,  "Article": "How to Spend Crypto with a Visa Card", "FAQ Section": "Required", "Question Headers": "Required", "Stat Density": "3+ quotable stats", "AI Query Target": "how to spend crypto, best crypto card 2026"},
+        {"#": 2,  "Article": "Best Crypto Debit Card UK 2026",       "FAQ Section": "Required", "Question Headers": "Required", "Stat Density": "3+ quotable stats", "AI Query Target": "crypto card UK, best crypto card UK"},
+        {"#": 3,  "Article": "Crypto Card UAE Expats",               "FAQ Section": "Required", "Question Headers": "Required", "Stat Density": "2+ quotable stats", "AI Query Target": "crypto card UAE, USDT card Dubai"},
+        {"#": 4,  "Article": "Najlepsza karta krypto Polska",        "FAQ Section": "Recommended", "Question Headers": "Recommended", "Stat Density": "2+ quotable stats", "AI Query Target": "karta krypto Polska"},
+        {"#": 5,  "Article": "Melhor Cartao Cripto Brasil",           "FAQ Section": "Recommended", "Question Headers": "Recommended", "Stat Density": "2+ quotable stats", "AI Query Target": "cartao cripto Brasil"},
+        {"#": 6,  "Article": "Migliore Carta Crypto Italia",          "FAQ Section": "Recommended", "Question Headers": "Recommended", "Stat Density": "2+ quotable stats", "AI Query Target": "carta crypto Italia"},
+        {"#": 7,  "Article": "Kartu Kripto Indonesia",                "FAQ Section": "Recommended", "Question Headers": "Recommended", "Stat Density": "2+ quotable stats", "AI Query Target": "kartu kripto Indonesia"},
+        {"#": 8,  "Article": "Alternativa Trustee Plus",              "FAQ Section": "Required", "Question Headers": "Required", "Stat Density": "3+ quotable stats", "AI Query Target": "Trustee Plus alternative, crypto card CIS"},
+        {"#": 9,  "Article": "Card crypto Romania",                   "FAQ Section": "Recommended", "Question Headers": "Recommended", "Stat Density": "2+ quotable stats", "AI Query Target": "card crypto Romania"},
+        {"#": 10, "Article": "Crypto Card for Business",              "FAQ Section": "Required", "Question Headers": "Required", "Stat Density": "3+ quotable stats", "AI Query Target": "crypto card business, USDT card B2B"},
+    ])
+
+    def color_geo(val):
+        if val == "Required": return "background-color: #fff0f0"
+        if val == "Recommended": return "background-color: #fff9e6"
+        return ""
+    st.dataframe(
+        geo_checklist.style.applymap(color_geo, subset=["FAQ Section", "Question Headers"]),
+        use_container_width=True, hide_index=True,
+    )
+    st.info("**GEO tip:** Articles marked 'Required' target high-competition AI queries. "
+            "These MUST include FAQ sections, question-format H2 headers, and at least 3 "
+            "self-contained stat sentences that AI engines can extract and cite.")
 
     st.header("🚨 Plan Revisions from Hex Live Data")
     col1, col2 = st.columns(2)
@@ -389,7 +448,7 @@ def page_content_plan():
 
 def page_outlet_matching():
     st.title("🗞️ Stage 4 · Outlet Matching")
-    st.caption("Scoring: Notion Media Outlet Selection Guide · 5-dimension 0–15 system · Source of truth for all outlet decisions")
+    st.caption("Scoring: 6-dimension 0–18 system (SEO + GEO) · Source of truth for all outlet decisions")
     st.success(
         "✅ **Catalog scraped via browser session** — "
         f"{sum(len(v) for v in RAW_OUTLETS.values())} sites across 7 languages "
@@ -397,7 +456,7 @@ def page_outlet_matching():
     )
 
     # ── Scoring Model (Notion guide) ──────────────────────────────────────────
-    with st.expander("📐 Scoring Model (Notion Guide)", expanded=False):
+    with st.expander("📐 Scoring Model (SEO + GEO)", expanded=False):
         col1, col2 = st.columns([3, 2])
         with col1:
             st.markdown("""
@@ -408,19 +467,22 @@ def page_outlet_matching():
 | **\\$/DR point** | <\\$2 | \\$2–4 | \\$4–6 | >\\$6 |
 | **Category fit** | Crypto+Finance | Crypto+Other | Finance only | Irrelevant |
 | **Monthly traffic** | >100K | 30–100K | 5–30K | <5K |
+| **AI Citability (GEO)** | Frequently cited | Occasionally | Rarely | Never cited |
 """)
         with col2:
             st.markdown("""
-**Score thresholds (max 15):**
-- **12–15** → ✅ Must buy
-- **9–11** → 🟡 Buy if budget allows
-- **6–8** → 🟠 Consider only
-- **<6** → 🔴 Skip
+**Score thresholds (max 18):**
+- **15–18** → ✅ Must buy
+- **11–14** → 🟡 Buy if budget allows
+- **7–10** → 🟠 Consider only
+- **<7** → 🔴 Skip
 
 **Must-Have (auto-disqualify):**
 - Search < 35% → **SKIP**
 - DR < 40 → **SKIP**
 - Price > \\$5/DR → **SKIP**
+
+*AI Citability = how often AI engines (ChatGPT, Perplexity, Google AI) cite this outlet*
 """)
 
     # ── Live Catalog Search ───────────────────────────────────────────────────
@@ -438,7 +500,7 @@ def page_outlet_matching():
     with fc3:
         max_price = st.slider("Max price ($)", min_value=20, max_value=250, value=200, step=10)
     with fc4:
-        min_score = st.slider("Min score", min_value=0, max_value=15, value=11, step=1)
+        min_score = st.slider("Min score", min_value=0, max_value=18, value=11, step=1)
     with fc5:
         crypto_only = st.toggle("Crypto category only", value=False)
 
@@ -464,9 +526,9 @@ def page_outlet_matching():
 
         def color_catalog(row):
             s = row["Score"]
-            if s >= 14: return ["background-color: #c3e6cb"] * len(row)
-            if s >= 12: return ["background-color: #d4edda"] * len(row)
-            if s >= 11: return ["background-color: #e8f4fd"] * len(row)
+            if s >= 16: return ["background-color: #c3e6cb"] * len(row)
+            if s >= 14: return ["background-color: #d4edda"] * len(row)
+            if s >= 12: return ["background-color: #e8f4fd"] * len(row)
             return [""] * len(row)
 
         st.dataframe(
@@ -479,19 +541,19 @@ def page_outlet_matching():
                 "Search %":   st.column_config.NumberColumn("Search %",   format="%d%%"),
                 "Traffic":    st.column_config.NumberColumn("Traffic",    format="%d"),
                 "DR":         st.column_config.NumberColumn("DR"),
-                "Score":      st.column_config.NumberColumn("Score /15"),
+                "Score":      st.column_config.NumberColumn("Score /18"),
             },
         )
         c1, c2, c3 = st.columns(3)
         c1.metric("Outlets shown", len(catalog_rows))
-        c2.metric("Avg score", f"{cat_df['Score'].mean():.1f} / 15")
+        c2.metric("Avg score", f"{cat_df['Score'].mean():.1f} / 18")
         c3.metric("Avg price", f"${cat_df['Price ($)'].mean():.0f}")
     else:
         st.info("No outlets match current filters — try relaxing DR or price constraints.")
 
     # ── Top Picks per Pillar ──────────────────────────────────────────────────
     st.header("🏆 Top Picks per Pillar")
-    st.caption("Best 5 per language · DR ≥ 40 · Price ≤ $200 · sorted by score then DR")
+    st.caption("Best 5 per language · DR ≥ 40 · Price ≤ $200 · sorted by score then DR · catalog scores 0-15 (add +0-3 for AI citability)")
     top = get_top_outlets_all_langs(min_dr=40, max_price=200, top_n=5)
     cols = st.columns(len([l for l in selected_langs if top.get(l)]) or 1)
     visible_langs = [l for l in selected_langs if top.get(l)]
@@ -543,8 +605,8 @@ def page_outlet_matching():
         if row["Status"] == "⏳ TBD":      return ["background-color: #f0f0f0"] * len(row)
         score = row["Score"]
         try:
-            if float(score) >= 12: return ["background-color: #d4edda"] * len(row)
-            if float(score) >= 9:  return ["background-color: #e8f4fd"] * len(row)
+            if float(score) >= 15: return ["background-color: #d4edda"] * len(row)
+            if float(score) >= 11: return ["background-color: #e8f4fd"] * len(row)
         except (TypeError, ValueError):
             pass
         return [""] * len(row)
@@ -623,7 +685,7 @@ def page_outlet_matching():
 def page_publication_roi():
     st.title("💰 Stage 5 · Publication ROI")
     st.caption(
-        "3-layer model: direct referral traffic + SEO compound value (90-day) × LTV by language · "
+        "3-layer model: direct referral + SEO compound + AI citation traffic (90-day) × LTV by language · "
         "LTV source: Hex BigQuery cohort Oct 2025–Mar 2026"
     )
 
@@ -642,6 +704,9 @@ def page_publication_roi():
                                      help="How many months to count the backlink traffic lift")
             default_rank = st.slider("Assumed current rank if unknown", 10, 30, 20,
                                      help="Where kolo.in ranks for target keyword without this link")
+            ai_search_share = st.slider("AI share of search (%)", 2, 20, 8,
+                                        help="% of search traffic now going through AI engines (ChatGPT, Perplexity, Google AI)")
+            ai_search_frac = ai_search_share / 100.0
         with ac3:
             st.markdown("**LTV by language (from Hex)**")
             for lang, ltv in LTV_BY_LANG.items():
@@ -691,9 +756,10 @@ def page_publication_roi():
                     "traffic": traffic,
                     "dr":     dr,
                     "has_crypto": True,
+                    "ai_citability": s.get("ai_citability", 1),
                 })
 
-        results = batch_roi(outlet_inputs, article_ctr, ref_ctr, seo_months)
+        results = batch_roi(outlet_inputs, article_ctr, ref_ctr, seo_months, ai_search_frac)
 
         rows = []
         for r in results:
@@ -801,6 +867,8 @@ def page_publication_roi():
                                          0, 500_000, 0, 500)
             c_rank     = st.slider("Current rank for that keyword", 1, 30, default_rank)
             c_market   = st.text_input("Market override (e.g. ARE, ISR, KAZ — optional)", "")
+            c_ai_cite  = st.slider("AI Citability (GEO)", 0, 3, 1,
+                                   help="0=Never cited by AI, 3=Frequently cited")
 
         roi = calculate_publication_roi(
             outlet=c_outlet, lang=c_lang, price=c_price,
@@ -809,6 +877,7 @@ def page_publication_roi():
             article_ctr_pct=article_ctr, referral_to_site_pct=ref_ctr,
             seo_months=seo_months, market=c_market or None,
             has_crypto_category=c_crypto,
+            ai_citability=c_ai_cite, ai_share_of_search=ai_search_frac,
         )
 
         st.divider()
@@ -822,7 +891,7 @@ def page_publication_roi():
                 st.metric("Registrations",   f"{s.registrations:.1f} users")
                 st.metric("CAC",             f"${s.cac:.0f}/user")
                 st.metric("Payback",         f"{s.payback_days} days")
-                st.caption(f"Referral: {s.referral_visits:,} visits · SEO: {s.seo_visits_90d:,} visits")
+                st.caption(f"Referral: {s.referral_visits:,} · SEO: {s.seo_visits_90d:,} · AI: {s.ai_visits_90d:,} visits")
 
         st.info(
             f"**Assumptions:** LTV = ${roi.ltv:,}/user · "
@@ -913,7 +982,7 @@ BRIEFS = [
 
 def page_pr_generator():
     st.title("📝 Stage 6 · PR Generator")
-    st.caption("Generate press releases, revise with AI, translate, and track publications")
+    st.caption("Generate SEO+GEO-optimized press releases, revise with AI, translate, and track publications")
 
     api_key = st.session_state.get("anthropic_token")
 

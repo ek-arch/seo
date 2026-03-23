@@ -1,9 +1,9 @@
 """
-llm_client.py — Anthropic Claude API wrapper for Kolo SEO Agent
-================================================================
-Handles press release generation, translation, and monthly plan
-recommendation.  Every other module imports from here rather than
-calling the SDK directly.
+llm_client.py — Anthropic Claude API wrapper for Kolo SEO & GEO Agent
+======================================================================
+Handles press release generation (SEO+GEO optimized), translation, and
+monthly plan recommendation.  Every other module imports from here rather
+than calling the SDK directly.
 """
 
 from __future__ import annotations
@@ -32,16 +32,27 @@ LANG_NAMES: dict[str, str] = {
 _SYSTEM_GENERATE = """\
 You are a crypto fintech PR writer for Kolo (kolo.in) — a Telegram-based
 crypto Visa card & wallet.  Write in *journalistic, third-person* style.
+Optimize for both SEO (search engines) and GEO (AI engine citations).
 
-Rules:
+SEO Rules:
 - Include at least 3 specific data points or product facts.
 - NO marketing fluff or superlatives ("revolutionary", "game-changing").
-- Structure: headline → lead paragraph → body (3-5 sections) → boiler-plate.
-- Use subheadings (##) for sections.
-- Mention USDT/TRC20 top-up, Visa card, Telegram mini-app where relevant.
 - Target audience: {audience}.
 - Target word count: ~{word_count} words.
 - Primary keyword: "{keyword}" — weave it in naturally 3-5 times.
+
+GEO Rules (Generative Engine Optimization):
+- Use question-format H2 headers (e.g. "How Does Kolo's Crypto Card Work?").
+- Write 3+ quotable stat sentences — clear, self-contained facts with numbers
+  that AI engines can extract and cite (e.g. "Kolo supports USDT spending in 99 countries").
+- Include a comparison table (Markdown) where relevant — AI engines parse tables well.
+- End with an FAQ section (## Frequently Asked Questions) with 3-5 Q&A pairs.
+- First paragraph must be entity-rich: [Brand] + [product category] + [key differentiator].
+
+Structure: headline → entity-rich lead → body (3-5 sections with question headers)
+→ comparison table (if applicable) → FAQ → boiler-plate.
+
+- Mention USDT/TRC20 top-up, Visa card, Telegram mini-app where relevant.
 - Output format: Markdown.
 """
 
@@ -58,10 +69,10 @@ Rules:
 """
 
 _SYSTEM_RECOMMEND = """\
-You are a data-driven SEO strategist for Kolo (kolo.in), a crypto Visa card.
+You are a data-driven SEO & GEO strategist for Kolo (kolo.in), a crypto Visa card.
 
 Given last month's performance data and available publication outlets, recommend
-next month's SEO publication plan.
+next month's SEO + GEO publication plan.
 
 Respond with valid JSON matching this schema:
 {{
@@ -70,6 +81,9 @@ Respond with valid JSON matching this schema:
   ],
   "content_angles": [
     {{"title": "...", "lang": "en", "market": "GBR", "keyword": "...", "priority": "High"}}
+  ],
+  "geo_tactics": [
+    {{"query": "best crypto card 2026", "target_article": "...", "optimization": "Add FAQ + comparison table"}}
   ],
   "pillar_budgets": {{"English": 420, "Russian": 500, "Local": 650}},
   "reasoning": "2-3 paragraph analysis of what worked, what didn't, and why this plan is better"
@@ -81,6 +95,10 @@ Rules:
 - Suggest alternatives for underperformers.
 - Use actual ROI data to justify every recommendation.
 - Include at least one new outlet not used last month.
+- GEO: Recommend which articles to restructure for AI citability (FAQ sections,
+  question headers, stat-dense paragraphs). Identify 3-5 AI queries where Kolo
+  should aim to appear in ChatGPT/Perplexity/Google AI Overviews.
+- Prefer outlets with higher AI citability (frequently cited by AI engines).
 """
 
 

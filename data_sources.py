@@ -141,100 +141,102 @@ DATA = {
         "updated": "2026-03-12",
     },
     "march_outlets": {
-        # notion_score / notion_dims = from Notion Media Outlet Selection Guide (outlet_guide)
-        # notion_score: None = not evaluated in the Notion guide
+        # notion_score / notion_dims = from Notion Media Outlet Selection Guide + GEO ai_citability
+        # notion_score: None = not evaluated; ai_citability: 0-3 (AI engine citation likelihood)
+        # Scores now 0-18 (6 dimensions) — thresholds: 15-18=Buy, 11-14=Budget, 7-10=Consider, <7=Skip
         "en": [
             {"name": "businessabc.net",      "price": 100, "dr": 81, "traffic_share": None, "pillar": "English",
-             "notion_score": 13, "notion_dims": {"search": 2, "dr": 3, "price_eff": 3, "category": 3, "traffic": 2}},
+             "notion_score": 15, "notion_dims": {"search": 2, "dr": 3, "price_eff": 3, "category": 3, "traffic": 2, "ai_citability": 2},
+             "ai_citability": 2},
             {"name": "businessage.com",      "price": 30,  "dr": 64, "traffic_share": 51,   "pillar": "English",
-             "notion_score": 12, "notion_dims": {"search": 3, "dr": 2, "price_eff": 3, "category": 3, "traffic": 1}},
+             "notion_score": 13, "notion_dims": {"search": 3, "dr": 2, "price_eff": 3, "category": 3, "traffic": 1, "ai_citability": 1},
+             "ai_citability": 1},
             {"name": "thetradable.com",      "price": 100, "dr": 54, "traffic_share": None, "pillar": "English",
-             "notion_score": 12, "notion_dims": {"search": 2, "dr": 2, "price_eff": 3, "category": 3, "traffic": 2}},
+             "notion_score": 13, "notion_dims": {"search": 2, "dr": 2, "price_eff": 3, "category": 3, "traffic": 2, "ai_citability": 1},
+             "ai_citability": 1},
             {"name": "newspioneer.co.uk",    "price": 65,  "dr": 54, "traffic_share": None, "pillar": "English",
-             "notion_score": 10, "notion_dims": {"search": 1, "dr": 2, "price_eff": 3, "category": 3, "traffic": 1}},
+             "notion_score": 11, "notion_dims": {"search": 1, "dr": 2, "price_eff": 3, "category": 3, "traffic": 1, "ai_citability": 1},
+             "ai_citability": 1},
             # financial-news.co.uk: in March plan but NOT scored in Notion guide — treat as unconfirmed
             {"name": "financial-news.co.uk", "price": 125, "dr": 54, "traffic_share": None, "pillar": "English",
-             "notion_score": None, "notion_dims": None, "notes": "Not in Notion guide — verify before buying"},
+             "notion_score": None, "notion_dims": None, "notes": "Not in Notion guide — verify before buying",
+             "ai_citability": 1},
         ],
         "it": [
             {"name": "viverepesaro.it",       "price": 100,   "dr": 40, "traffic_share": None, "pillar": "Italian",
-             "notion_score": 10, "notion_dims": {"search": 2, "dr": 1, "price_eff": 2, "category": 2, "traffic": 3}},
-            # Collaborator-found 2026-03-11 | PICK: DR77, 81% search, 248k/mo | $/DR=$1.75 — exceptional value
-            # Finance-only (no Crypto category); $35 over ~$100 sub-budget but score justifies
+             "notion_score": 11, "notion_dims": {"search": 2, "dr": 1, "price_eff": 2, "category": 2, "traffic": 3, "ai_citability": 1},
+             "ai_citability": 1},
             {"name": "it.kompass.com",        "price": 135,   "dr": 77, "traffic_share": 81,   "pillar": "Italian",
-             "notion_score": 13, "notion_dims": {"search": 3, "dr": 3, "price_eff": 3, "category": 1, "traffic": 3},
-             "notes": "PICK — only Italian Finance/DR>65 outlet with >35% search on Collaborator; $35 over sub-budget"},
-            # Backup: Finance+Crypto, DR58, 45% search, but 2.9k traffic (low)
+             "notion_score": 15, "notion_dims": {"search": 3, "dr": 3, "price_eff": 3, "category": 1, "traffic": 3, "ai_citability": 2},
+             "notes": "PICK — only Italian Finance/DR>65 outlet with >35% search on Collaborator; $35 over sub-budget",
+             "ai_citability": 2},
             {"name": "comunicati-stampa.net", "price": 110,   "dr": 58, "traffic_share": 45,   "pillar": "Italian",
-             "notion_score": 10, "notion_dims": {"search": 2, "dr": 2, "price_eff": 3, "category": 3, "traffic": 0},
-             "notes": "Backup — Finance+Crypto DR58 but only 2.9k traffic"},
+             "notion_score": 11, "notion_dims": {"search": 2, "dr": 2, "price_eff": 3, "category": 3, "traffic": 0, "ai_citability": 1},
+             "notes": "Backup — Finance+Crypto DR58 but only 2.9k traffic",
+             "ai_citability": 1},
         ],
         "es": [
             {"name": "crypto-economy.com",   "price": 130, "dr": None, "traffic_share": None, "pillar": "Spanish",
-             "notion_score": 11, "notion_dims": {"search": 2, "dr": 2, "price_eff": 2, "category": 3, "traffic": 2}},
-            # sevillaBN: in March plan but NOT scored in Notion guide
+             "notion_score": 12, "notion_dims": {"search": 2, "dr": 2, "price_eff": 2, "category": 3, "traffic": 2, "ai_citability": 1},
+             "ai_citability": 1},
             {"name": "sevillaBN",            "price": 133, "dr": None, "traffic_share": None, "pillar": "Spanish",
-             "notion_score": None, "notion_dims": None, "notes": "Not in Notion guide — verify before buying"},
+             "notion_score": None, "notion_dims": None, "notes": "Not in Notion guide — verify before buying",
+             "ai_citability": 0},
         ],
         "pl": [
-            # Real Collaborator data added 2026-03-11: DR48 (not 50-65 as Notion guide assumed), search=49%
             {"name": "netbe.pl",             "price": 24,    "dr": 48, "traffic_share": 49,   "pillar": "Polish",
-             "notion_score": 11, "notion_dims": {"search": 2, "dr": 1, "price_eff": 3, "category": 3, "traffic": 2},
-             "notes": "In plan. Score updated from 13→11 with real DR48/search49% data from Collaborator"},
-            # Collaborator-found 2026-03-11 | PICK: DR44, 45% search, Finance+Crypto, $71.51 — within $54-74 budget
+             "notion_score": 12, "notion_dims": {"search": 2, "dr": 1, "price_eff": 3, "category": 3, "traffic": 2, "ai_citability": 1},
+             "notes": "In plan. Score updated with real DR48/search49% data from Collaborator",
+             "ai_citability": 1},
             {"name": "nenws.com",            "price": 71.51, "dr": 44, "traffic_share": 45,   "pillar": "Polish",
-             "notion_score": 10, "notion_dims": {"search": 2, "dr": 1, "price_eff": 3, "category": 3, "traffic": 1},
-             "notes": "NEW PICK — Finance+Crypto, within $54-74 budget"},
-            # Backup: DR55 but Media/News category (not Finance), only 1.5k traffic
+             "notion_score": 11, "notion_dims": {"search": 2, "dr": 1, "price_eff": 3, "category": 3, "traffic": 1, "ai_citability": 1},
+             "notes": "NEW PICK — Finance+Crypto, within $54-74 budget",
+             "ai_citability": 1},
             {"name": "warsawski.eu",         "price": 67.93, "dr": 55, "traffic_share": 46,   "pillar": "Polish",
-             "notion_score": 9,  "notion_dims": {"search": 2, "dr": 2, "price_eff": 3, "category": 2, "traffic": 0},
-             "notes": "Backup — DR55 but Media/News, low traffic 1.5k"},
+             "notion_score": 10, "notion_dims": {"search": 2, "dr": 2, "price_eff": 3, "category": 2, "traffic": 0, "ai_citability": 1},
+             "notes": "Backup — DR55 but Media/News, low traffic 1.5k",
+             "ai_citability": 1},
         ],
         "pt": [
             {"name": "adital.com.br",        "price": 100, "dr": None, "traffic_share": None, "pillar": "Portuguese",
-             "notion_score": 11, "notion_dims": {"search": 2, "dr": 2, "price_eff": 3, "category": 3, "traffic": 1}},
-            # pt.egamersworld: score 13 in Notion guide (Must buy) — DR>65, >100K traffic, >50% search
+             "notion_score": 12, "notion_dims": {"search": 2, "dr": 2, "price_eff": 3, "category": 3, "traffic": 1, "ai_citability": 1},
+             "ai_citability": 1},
             {"name": "pt.egamersworld.com",  "price": None, "dr": None, "traffic_share": None, "pillar": "Portuguese",
-             "notion_score": 13, "notion_dims": {"search": 3, "dr": 3, "price_eff": 2, "category": 2, "traffic": 3},
-             "notes": "Added from Notion guide — price/DR TBD, gaming+crypto audience"},
+             "notion_score": 15, "notion_dims": {"search": 3, "dr": 3, "price_eff": 2, "category": 2, "traffic": 3, "ai_citability": 2},
+             "notes": "Added from Notion guide — price/DR TBD, gaming+crypto audience",
+             "ai_citability": 2},
         ],
         "id": [
-            # ALERT 2026-03-11: All 4 Indonesian crypto sites on Collaborator fail must-haves
-            # Best found: kanaljogja.id (DR13, 56% search, $35) — DR far below 40 threshold
-            # Highest DR: posmetropadang.co.id (DR28, only 8% search) — also fails
-            # RECOMMENDATION: Source Indonesian outlets via direct outreach or alternative platforms
             {"name": "TBD Indonesian outlet 1", "price": 40, "dr": None, "traffic_share": None, "pillar": "Indonesian",
              "notion_score": None, "notion_dims": None,
-             "notes": "ALERT: No qualifying ID crypto outlets on Collaborator (max DR=28). Source externally."},
+             "notes": "ALERT: No qualifying ID crypto outlets on Collaborator (max DR=28). Source externally.",
+             "ai_citability": 0},
             {"name": "TBD Indonesian outlet 2", "price": 40, "dr": None, "traffic_share": None, "pillar": "Indonesian",
              "notion_score": None, "notion_dims": None,
-             "notes": "ALERT: No qualifying ID crypto outlets on Collaborator (max DR=28). Source externally."},
+             "notes": "ALERT: No qualifying ID crypto outlets on Collaborator (max DR=28). Source externally.",
+             "ai_citability": 0},
         ],
         "ru": [
-            # ── SLOT 1: RU DR>50 ($150-200 budget) ─────────────────────────────────────────
-            # Collaborator-found 2026-03-11 | PICK: DR52, 81% search, 47.5k/mo, $5.96 — extreme value
             {"name": "moya-provinciya.com.ua", "price": 5.96,  "dr": 52, "traffic_share": 81, "pillar": "Russian",
-             "notion_score": 12, "notion_dims": {"search": 3, "dr": 2, "price_eff": 3, "category": 2, "traffic": 2},
-             "notes": "PICK DR>50 slot — 81% search, 47.5k traffic, exceptional $/DR. Far under $150-200 budget."},
-            # Alternative for DR>50 slot — same score, DR51, but $30 vs $6 (less efficient)
+             "notion_score": 13, "notion_dims": {"search": 3, "dr": 2, "price_eff": 3, "category": 2, "traffic": 2, "ai_citability": 1},
+             "notes": "PICK DR>50 slot — 81% search, 47.5k traffic, exceptional $/DR.",
+             "ai_citability": 1},
             {"name": "euroua.com",             "price": 30.00, "dr": 51, "traffic_share": 55, "pillar": "Russian",
-             "notion_score": 12, "notion_dims": {"search": 3, "dr": 2, "price_eff": 3, "category": 3, "traffic": 1},
-             "notes": "Alt DR>50 — Finance+Crypto, DR51, 55% search. 5x more expensive than moya-provinciya."},
-            # ── SLOT 2: RU DR>40 ($100-150 budget) ─────────────────────────────────────────
-            # Collaborator-found 2026-03-11 | PICK: DR54, 76% search, 22.6k/mo, $3.93
+             "notion_score": 13, "notion_dims": {"search": 3, "dr": 2, "price_eff": 3, "category": 3, "traffic": 1, "ai_citability": 1},
+             "notes": "Alt DR>50 — Finance+Crypto, DR51, 55% search.",
+             "ai_citability": 1},
             {"name": "track-package.com.ua",   "price": 3.93,  "dr": 54, "traffic_share": 76, "pillar": "Russian",
-             "notion_score": 11, "notion_dims": {"search": 3, "dr": 2, "price_eff": 3, "category": 2, "traffic": 1},
-             "notes": "PICK DR>40 slot — 76% search, 22.6k traffic. Far under $100-150 budget."},
-            # ── SLOT 3: Dubai RU Expat ($100-150 budget) ────────────────────────────────────
-            # ALERT: No Russian-language UAE crypto/finance sites exist on Collaborator
-            # Best available: uaehelper.com — English-language UAE expat general info, DR53
+             "notion_score": 12, "notion_dims": {"search": 3, "dr": 2, "price_eff": 3, "category": 2, "traffic": 1, "ai_citability": 1},
+             "notes": "PICK DR>40 slot — 76% search, 22.6k traffic.",
+             "ai_citability": 1},
             {"name": "uaehelper.com",          "price": 50.00, "dr": 53, "traffic_share": 86, "pillar": "Russian",
-             "notion_score": 10, "notion_dims": {"search": 3, "dr": 2, "price_eff": 3, "category": 1, "traffic": 1},
-             "notes": "Dubai expat PICK — English-lang UAE site (no RU-lang UAE crypto on Collaborator). DR53, 86% search, under budget."},
-            # Dubai backup: Finance site, DR44, within budget but weaker score
+             "notion_score": 11, "notion_dims": {"search": 3, "dr": 2, "price_eff": 3, "category": 1, "traffic": 1, "ai_citability": 1},
+             "notes": "Dubai expat PICK — English-lang UAE site. DR53, 86% search.",
+             "ai_citability": 1},
             {"name": "theemiratestimes.com",   "price": 99.00, "dr": 44, "traffic_share": 49, "pillar": "Russian",
-             "notion_score": 7,  "notion_dims": {"search": 2, "dr": 1, "price_eff": 2, "category": 2, "traffic": 0},
-             "notes": "Dubai backup — Business/Finance DR44, 49% search, near $100 budget ceiling"},
+             "notion_score": 8,  "notion_dims": {"search": 2, "dr": 1, "price_eff": 2, "category": 2, "traffic": 0, "ai_citability": 1},
+             "notes": "Dubai backup — Business/Finance DR44, 49% search",
+             "ai_citability": 1},
         ],
     },
 }
@@ -302,18 +304,20 @@ def score_outlet_notion(
     price: float,
     category_fit: int,
     monthly_traffic: Optional[int],
+    ai_citability: int = 0,
 ) -> int:
-    """Score outlet 0–15 using Notion Media Outlet Selection Guide 5-dimension system.
+    """Score outlet 0–18 using 6-dimension system (SEO + GEO).
 
     Dimension 1 – Search traffic %:  >50%=3, 40-50%=2, 35-40%=1, <35%=0
     Dimension 2 – DR:                >65=3,  50-65=2,  40-50=1,  <40=0
     Dimension 3 – Price / DR point:  <$2=3,  $2-4=2,   $4-6=1,   >$6=0
     Dimension 4 – Category fit:      Crypto+Finance=3, Crypto+Other=2, Finance=1, Irrelevant=0
     Dimension 5 – Monthly traffic:   >100K=3, 30-100K=2, 5-30K=1, <5K=0
+    Dimension 6 – AI Citability (GEO): Frequently cited=3, Occasionally=2, Rarely=1, Never=0
 
-    Score thresholds: 12-15=Buy immediately, 9-11=Buy if budget, 6-8=Consider, <6=Skip
+    Score thresholds: 15-18=Buy immediately, 11-14=Buy if budget, 7-10=Consider, <7=Skip
     Must-Have filters: search>35%, DR>40, Crypto/Finance/Business category, price<$5/DR
-    Source: Notion Media Outlet Selection Guide (31e255c3-552c-8001-9f11-fb11aae7c385)
+    Source: Notion Media Outlet Selection Guide + GEO extension
     """
     sp  = search_pct or 0
     d   = dr or 0
@@ -326,16 +330,17 @@ def score_outlet_notion(
     s3 = 3 if pdr < 2  else (2 if pdr <= 4 else (1 if pdr <= 6 else 0))
     s4 = min(max(category_fit, 0), 3)
     s5 = 3 if t > 100000 else (2 if t >= 30000 else (1 if t >= 5000 else 0))
+    s6 = min(max(ai_citability, 0), 3)
 
-    return s1 + s2 + s3 + s4 + s5
+    return s1 + s2 + s3 + s4 + s5 + s6
 
 
 def outlet_verdict(score: Optional[int]) -> str:
-    """Map Notion score (0-15) to buy/skip verdict."""
+    """Map score (0-18) to buy/skip verdict."""
     if score is None: return "— Unscored"
-    if score >= 12:   return "✅ Must buy"
-    if score >= 9:    return "🟡 Buy if budget"
-    if score >= 6:    return "🟠 Consider only"
+    if score >= 15:   return "✅ Must buy"
+    if score >= 11:   return "🟡 Buy if budget"
+    if score >= 7:    return "🟠 Consider only"
     return "🔴 Skip"
 
 
