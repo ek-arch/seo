@@ -1593,105 +1593,9 @@ SUBREDDITS = [
 ]
 
 
-def _search_reddit_via_google(query: str, subreddit: str = "", limit: int = 10) -> list[dict]:
-    """Search for Reddit posts via Google (works from any server IP)."""
-    import re, html as _html
-    site_q = f"site:reddit.com/r/{subreddit}" if subreddit else "site:reddit.com"
-    search_q = f"{site_q} {query}"
-    url = "https://www.google.com/search"
-    params = {"q": search_q, "num": min(limit, 20)}
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-    }
-    try:
-        resp = _requests.get(url, params=params, headers=headers, timeout=15)
-        if resp.status_code != 200:
-            return []
-        text = resp.text
-        posts = []
-        # Extract Reddit links from Google results
-        reddit_urls = re.findall(r'https?://(?:www\.)?reddit\.com/r/(\w+)/comments/(\w+)/([^/"&]+)', text)
-        seen = set()
-        for sub, post_id, slug in reddit_urls:
-            if post_id in seen:
-                continue
-            seen.add(post_id)
-            title = slug.replace("_", " ").strip()
-            # Try to get a cleaner title from the surrounding HTML
-            title_match = re.search(
-                rf'(?:<h3[^>]*>|<a[^>]*>)\s*([^<]*?)\s*(?::\s*r/{sub}|</)',
-                text[max(0, text.find(post_id) - 500):text.find(post_id) + 200],
-            )
-            if title_match:
-                title = _html.unescape(title_match.group(1)).strip()
-                # Remove "r/subreddit" prefix if present
-                title = re.sub(r'^r/\w+\s*[-·—]\s*', '', title)
-            posts.append({
-                "title": title[:120] if title else f"Post in r/{sub}",
-                "subreddit": sub,
-                "score": 0,
-                "num_comments": 0,
-                "url": f"https://reddit.com/r/{sub}/comments/{post_id}/{slug}",
-                "selftext": "",
-                "created_utc": 0,
-                "is_self": True,
-            })
-            if len(posts) >= limit:
-                break
-        return posts
-    except Exception:
-        return []
-
-
-def _search_reddit_direct(query: str, subreddit: str = "", limit: int = 10, sort: str = "new") -> list[dict]:
-    """Search Reddit JSON API directly (may fail on cloud servers)."""
-    if subreddit:
-        full_query = f"{query} subreddit:{subreddit}"
-    else:
-        full_query = query
-    url = "https://old.reddit.com/search.json"
-    params = {"q": full_query, "sort": sort, "limit": limit, "t": "year", "type": "link"}
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Accept": "application/json",
-    }
-    try:
-        resp = _requests.get(url, params=params, headers=headers, timeout=10)
-        if resp.status_code != 200:
-            return []
-        data = resp.json()
-        posts = []
-        for child in data.get("data", {}).get("children", []):
-            d = child.get("data", {})
-            if not d.get("title"):
-                continue
-            posts.append({
-                "title": d.get("title", ""),
-                "subreddit": d.get("subreddit", ""),
-                "score": d.get("score", 0),
-                "num_comments": d.get("num_comments", 0),
-                "url": f"https://reddit.com{d.get('permalink', '')}",
-                "selftext": (d.get("selftext", "") or "")[:300],
-                "created_utc": d.get("created_utc", 0),
-                "is_self": d.get("is_self", True),
-            })
-        return posts
-    except Exception:
-        return []
-
-
-def _search_reddit(query: str, subreddit: str = "", limit: int = 10, sort: str = "new") -> list[dict]:
-    """Try Reddit direct API first, fall back to Google site:reddit.com search."""
-    results = _search_reddit_direct(query, subreddit, limit, sort)
-    if results:
-        return results
-    return _search_reddit_via_google(query, subreddit, limit)
-
-
 def page_content_distribution():
     st.title("📣 Stage 9 · Social Listening & Distribution")
-    st.caption("Find relevant Reddit & Quora posts, draft helpful comments that naturally mention Kolo")
+    st.caption("Find relevant Reddit & Quora posts → draft helpful comments → track posting")
 
     api_key = st.session_state.get("anthropic_token")
 
@@ -1704,116 +1608,104 @@ def page_content_distribution():
 
     # ── Tab 1: Find Posts ─────────────────────────────────────────────
     with tab_find:
-        st.subheader("Find Relevant Posts")
+        st.subheader("1. Find Posts to Comment On")
         st.markdown(
-            "Search Reddit for posts where someone asks about crypto cards, "
-            "spending USDT, etc. — these are opportunities to leave a helpful "
-            "comment that naturally mentions Kolo. **High GEO value:** AI engines "
-            "index Reddit & Quora answers heavily."
+            "Click the search links below — they open Reddit/Quora/Google in your browser. "
+            "When you find a good post, **paste its URL** in the Draft Comments tab to generate a reply. "
+            "**High GEO value:** AI engines index Reddit & Quora answers heavily."
         )
 
-        col_search, col_filter = st.columns([2, 1])
-        with col_search:
-            search_mode = st.radio("Search mode", ["Quick queries", "Custom search"], horizontal=True)
-        with col_filter:
-            sort_by = st.selectbox("Sort", ["new", "relevance", "top", "comments"], index=0)
+        # ── Reddit Search Links ───────────────────────────────────
+        st.markdown("### 🔴 Reddit")
+        st.markdown("Click to open Reddit search in your browser:")
 
-        if search_mode == "Quick queries":
-            selected_queries = st.multiselect(
-                "Select search queries",
-                options=[q["label"] for q in LISTENING_QUERIES],
-                default=[q["label"] for q in LISTENING_QUERIES[:3]],
-            )
-            query_map = {q["label"]: q["q"] for q in LISTENING_QUERIES}
-            queries = [query_map[lbl] for lbl in selected_queries if lbl in query_map]
-        else:
-            custom_q = st.text_input("Search query", placeholder="best crypto card 2026")
-            queries = [custom_q] if custom_q else []
-
-        sub_filter = st.multiselect(
-            "Filter subreddits (empty = all)",
-            options=SUBREDDITS,
-            default=[],
-        )
-
-        if st.button("🔍 Search Reddit", type="primary", disabled=not queries):
-            import time as _time
-            all_posts = []
-            progress = st.progress(0)
-            # One search per query — subreddits are embedded in query string
-            total_searches = len(queries)
-            for i, q in enumerate(queries):
-                if sub_filter:
-                    # Search each subreddit separately but with delay
-                    for sub in sub_filter:
-                        results = _search_reddit(q, subreddit=sub, sort=sort_by, limit=15)
-                        all_posts.extend(results)
-                        _time.sleep(1.5)  # Avoid Reddit rate limits
-                else:
-                    results = _search_reddit(q, sort=sort_by, limit=25)
-                    all_posts.extend(results)
-                progress.progress((i + 1) / total_searches)
-                if i < total_searches - 1:
-                    _time.sleep(1.5)  # Rate limit buffer between queries
-
-            # Dedupe by URL
-            seen = set()
-            unique = []
-            for p in all_posts:
-                if p["url"] not in seen:
-                    seen.add(p["url"])
-                    unique.append(p)
-            # Filter by subreddit if selected
-            if sub_filter:
-                unique = [p for p in unique if p["subreddit"] in sub_filter]
-            # Sort by score desc
-            unique.sort(key=lambda x: x["score"], reverse=True)
-            st.session_state["found_posts"] = unique
-            if unique:
-                st.success(f"Found {len(unique)} unique posts")
-            else:
-                st.warning("No posts found. Try removing subreddit filters or use different search terms.")
-
-        # Display found posts
-        found = st.session_state.get("found_posts", [])
-        if found:
-            st.markdown(f"### {len(found)} Posts Found")
-            selected_for_reply = st.session_state.get("selected_posts", [])
-
-            for i, post in enumerate(found[:30]):
-                with st.container():
-                    c1, c2, c3 = st.columns([4, 1, 1])
-                    with c1:
-                        st.markdown(
-                            f"**[{post['title'][:80]}]({post['url']})** "
-                            f"— r/{post['subreddit']}"
-                        )
-                        if post["selftext"]:
-                            st.caption(post["selftext"][:150] + "..." if len(post["selftext"]) > 150 else post["selftext"])
-                    with c2:
-                        st.metric("Score", post["score"], label_visibility="collapsed")
-                        st.caption(f"💬 {post['num_comments']}")
-                    with c3:
-                        if st.button("➕ Queue", key=f"queue_{i}"):
-                            if post not in selected_for_reply:
-                                selected_for_reply.append(post)
-                                st.session_state["selected_posts"] = selected_for_reply
-                                st.rerun()
-                    st.divider()
-
-        # Also show Quora search links
-        st.subheader("Quora & Other Platforms")
-        st.markdown("Click to search manually — paste interesting question URLs into Draft Comments tab.")
-        quora_queries = [
-            "best crypto card 2026", "how to spend USDT", "crypto card Europe",
-            "USDT Visa card review", "crypto debit card comparison",
+        reddit_queries = [
+            ("best crypto card", ["cryptocurrency", "CryptoCards", "digitalnomad"]),
+            ("crypto debit card Europe", ["cryptocurrency", "CryptoCards", "ethfinance"]),
+            ("spend USDT real life", ["cryptocurrency", "TRON", "defi"]),
+            ("USDT Visa card", ["cryptocurrency", "CryptoCards"]),
+            ("crypto card fees comparison", ["cryptocurrency", "CryptoCards", "personalfinance"]),
+            ("crypto card digital nomad", ["digitalnomad", "cryptocurrency"]),
+            ("telegram crypto wallet", ["cryptocurrency", "TRON"]),
+            ("crypto card vs revolut", ["cryptocurrency", "CryptoCards"]),
+            ("TRC20 card", ["TRON", "cryptocurrency"]),
+            ("best way spend crypto", ["cryptocurrency", "Bitcoin", "defi"]),
         ]
-        cols = st.columns(3)
+
+        for query, subs in reddit_queries:
+            encoded = query.replace(" ", "+")
+            sub_links = " · ".join(
+                [f"[r/{s}](https://www.reddit.com/r/{s}/search/?q={encoded}&sort=new&t=month)" for s in subs]
+            )
+            st.markdown(f"**{query}:** [All Reddit](https://www.reddit.com/search/?q={encoded}&sort=new&t=month) · {sub_links}")
+
+        st.divider()
+
+        # ── Quora Search Links ────────────────────────────────────
+        st.markdown("### 🔵 Quora")
+        quora_queries = [
+            "best crypto card 2026", "how to spend USDT in real life",
+            "crypto card Europe", "USDT Visa card review",
+            "crypto debit card comparison", "is it safe to use crypto debit cards",
+            "best way to spend crypto abroad", "crypto card for digital nomads",
+        ]
+        cols = st.columns(2)
         for i, qq in enumerate(quora_queries):
-            with cols[i % 3]:
-                encoded = qq.replace(" ", "+")
-                st.markdown(f"[🔍 Quora: {qq}](https://www.quora.com/search?q={encoded})")
-                st.markdown(f"[🔍 Google: site:quora.com {qq}](https://www.google.com/search?q=site:quora.com+{encoded})")
+            encoded = qq.replace(" ", "+")
+            with cols[i % 2]:
+                st.markdown(f"[🔍 {qq}](https://www.quora.com/search?q={encoded})")
+
+        st.divider()
+
+        # ── Google Search Links (site:reddit.com + site:quora.com) ─
+        st.markdown("### 🟢 Google (finds Reddit + Quora posts)")
+        st.markdown("Google search with `site:` filter — often finds older, high-traffic posts:")
+        google_queries = [
+            "best crypto card", "spend USDT", "crypto Visa card",
+            "USDT debit card", "crypto card fees", "telegram crypto wallet",
+        ]
+        cols = st.columns(2)
+        for i, gq in enumerate(google_queries):
+            encoded = gq.replace(" ", "+")
+            with cols[i % 2]:
+                st.markdown(
+                    f"**{gq}:** "
+                    f"[Reddit](https://www.google.com/search?q=site:reddit.com+{encoded}) · "
+                    f"[Quora](https://www.google.com/search?q=site:quora.com+{encoded})"
+                )
+
+        st.divider()
+
+        # ── Quick Add from URL ────────────────────────────────────
+        st.markdown("### ➕ Quick Add Post")
+        st.markdown("Found a good post? Paste its URL here to add it to the Draft Comments queue:")
+        quick_url = st.text_input("Post URL", placeholder="https://www.reddit.com/r/cryptocurrency/comments/...", key="quick_add_url")
+        quick_title = st.text_input("Post title (what the person is asking)", placeholder="What's the best crypto card for Europe?", key="quick_add_title")
+        if st.button("Add to Queue", disabled=not quick_title):
+            import re
+            selected = st.session_state.get("selected_posts", [])
+            # Auto-detect platform and subreddit
+            platform = "Reddit"
+            subreddit = ""
+            if "quora.com" in quick_url:
+                platform = "Quora"
+            elif "news.ycombinator" in quick_url:
+                platform = "HackerNews"
+            reddit_match = re.search(r'reddit\.com/r/(\w+)', quick_url)
+            if reddit_match:
+                subreddit = reddit_match.group(1)
+            selected.append({
+                "title": quick_title,
+                "selftext": "",
+                "subreddit": subreddit,
+                "url": quick_url,
+                "score": 0,
+                "num_comments": 0,
+                "platform": platform,
+            })
+            st.session_state["selected_posts"] = selected
+            st.success(f"Added to queue! Go to Draft Comments tab to generate a reply.")
+            st.rerun()
 
     # ── Tab 2: Draft Comments ─────────────────────────────────────────
     with tab_drafts:
