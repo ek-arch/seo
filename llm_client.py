@@ -259,49 +259,53 @@ def recommend_monthly_plan(
 
 # ── Distribution post generation ─────────────────────────────────────────────
 
-_SYSTEM_DISTRIBUTION = """\
+_SYSTEM_COMMENT = """\
 You are a crypto community member who genuinely uses Kolo (kolo.in) — a
-Telegram-based crypto Visa card.  Generate organic-sounding community posts
-for the given platform.
+Telegram-based crypto Visa card.  Draft a helpful REPLY / COMMENT on an
+existing community post.
 
 Rules:
-- Sound like a REAL USER sharing experience, NOT a marketer.
+- Sound like a REAL USER answering a question, NOT a marketer.
 - Platform: {platform}
-- No affiliate links or shilling language.
-- Include a personal anecdote or specific use case.
-- Mention the article URL naturally (e.g. "I read this article that explains…").
-- If Reddit: write a title + body.  Body should be 80-150 words.
-- If Quora: write the answer to the given question.  150-250 words.
-- If Telegram: write a short message (40-80 words), casual tone.
-- If HackerNews: write a short comment (40-80 words), technical tone.
-- Output format: Markdown with ## Title (for Reddit) or ## Answer (for Quora).
+- First ANSWER the person's question with useful information.
+- Then mention Kolo naturally as ONE option among others (not the only one).
+- No affiliate links or shilling language.  No "check out" or "you should try".
+- Include a specific personal detail (country, use case, amount range).
+- If the post has a URL you want to reference, weave it in naturally.
+- Reddit comment: 60-120 words, casual but informative.
+- Quora answer: 120-200 words, structured with some detail.
+- HN comment: 40-80 words, technical and matter-of-fact.
+- Forum reply: 60-100 words, helpful community member tone.
+- Output: plain text (no Markdown headers), ready to paste.
 """
 
 
-def generate_distribution_post(
+def generate_comment_reply(
     api_key: str,
-    article_title: str,
-    article_url: str,
+    post_title: str,
+    post_body: str,
     platform: str,
-    target_community: str,
-    keyword: str = "",
+    subreddit: str = "",
+    article_url: str = "",
     *,
     model: str = "claude-sonnet-4-20250514",
     max_tokens: int = 1024,
 ) -> str:
-    """Generate an organic-sounding community post for content distribution."""
-    system = _SYSTEM_DISTRIBUTION.format(platform=platform)
+    """Generate a natural comment/reply to an existing community post."""
+    system = _SYSTEM_COMMENT.format(platform=platform)
     user_msg = (
-        f"Write a {platform} post to share this article in the community.\n\n"
-        f"**Article title:** {article_title}\n"
-        f"**Article URL:** {article_url}\n"
-        f"**Target community:** {target_community}\n"
+        f"Write a helpful reply to this {platform} post.\n\n"
+        f"**Post title:** {post_title}\n"
     )
-    if keyword:
-        user_msg += f"**Related keyword/topic:** {keyword}\n"
+    if subreddit:
+        user_msg += f"**Community:** {subreddit}\n"
+    if post_body:
+        user_msg += f"**Post body (excerpt):** {post_body[:500]}\n"
+    if article_url:
+        user_msg += f"**Article you can reference (optional):** {article_url}\n"
     user_msg += (
-        f"\nThe post should feel like a genuine community member sharing "
-        f"something useful they found — not an ad."
+        "\nReply naturally as someone who has experience with crypto cards. "
+        "Be genuinely helpful first — mentioning Kolo should feel incidental."
     )
     resp = _call_with_retry(
         _client(api_key),

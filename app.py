@@ -17,7 +17,7 @@ from publication_roi import (
     calculate_publication_roi, batch_roi, roi_label,
     LTV_BY_LANG, CONVERSION_RATE_BY_LANG, LTV_BY_MARKET_LANG,
 )
-from llm_client import generate_press_release, revise_press_release, translate_press_release, recommend_monthly_plan, generate_distribution_post, LANG_NAMES
+from llm_client import generate_press_release, revise_press_release, translate_press_release, recommend_monthly_plan, generate_comment_reply, LANG_NAMES
 from notion_writer import (
     create_content_plan_entry, create_pr_draft_page,
     create_monthly_plan_page, log_publication_result,
@@ -1569,179 +1569,324 @@ def page_monthly_planner():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STAGE 9 — CONTENT DISTRIBUTION
+# STAGE 9 — SOCIAL LISTENING & DISTRIBUTION
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Suggested communities per platform
-DISTRIBUTION_CHANNELS = {
-    "Reddit": [
-        {"community": "r/cryptocurrency", "desc": "Main crypto sub, 7M+ members", "type": "general"},
-        {"community": "r/CryptoCards", "desc": "Crypto card comparison niche", "type": "niche"},
-        {"community": "r/TRON", "desc": "TRON/TRC20 ecosystem", "type": "niche"},
-        {"community": "r/digitalnomad", "desc": "Nomads needing multi-currency cards", "type": "audience"},
-        {"community": "r/ethfinance", "desc": "Ethereum finance community", "type": "general"},
-        {"community": "r/CryptoCurrency", "desc": "Alt crypto discussions", "type": "general"},
-        {"community": "r/Bybit", "desc": "Bybit community (competitor)", "type": "competitor"},
-    ],
-    "Quora": [
-        {"community": "Best crypto card 2026", "desc": "Direct product query — high GEO value", "type": "question"},
-        {"community": "How to spend USDT in real life", "desc": "Use-case query", "type": "question"},
-        {"community": "Crypto card vs traditional bank card", "desc": "Comparison query", "type": "question"},
-        {"community": "Is it safe to use crypto debit cards", "desc": "Trust query", "type": "question"},
-        {"community": "Best way to spend crypto in Europe", "desc": "Geo-targeted query", "type": "question"},
-    ],
-    "Telegram": [
-        {"community": "TRON Official", "desc": "TRON ecosystem group", "type": "ecosystem"},
-        {"community": "Crypto Cards Chat", "desc": "Card comparison groups", "type": "niche"},
-        {"community": "Digital Nomads Hub", "desc": "Nomad communities", "type": "audience"},
-    ],
-    "Hacker News": [
-        {"community": "Show HN", "desc": "Product launches / tech", "type": "launch"},
-        {"community": "Comment thread", "desc": "Reply on relevant fintech threads", "type": "comment"},
-    ],
-}
+import requests as _requests
+
+# Search queries to find relevant posts where Kolo could be mentioned
+LISTENING_QUERIES = [
+    {"q": "best crypto card", "label": "Best crypto card", "geo": True},
+    {"q": "crypto debit card Europe", "label": "Crypto card Europe", "geo": True},
+    {"q": "spend USDT real life", "label": "Spend USDT IRL", "geo": True},
+    {"q": "crypto card vs revolut", "label": "Crypto vs Revolut", "geo": False},
+    {"q": "USDT Visa card", "label": "USDT Visa card", "geo": True},
+    {"q": "crypto card digital nomad", "label": "Nomad crypto card", "geo": True},
+    {"q": "TRC20 card", "label": "TRC20 card", "geo": True},
+    {"q": "crypto card fees comparison", "label": "Card fees comparison", "geo": False},
+    {"q": "telegram crypto wallet", "label": "Telegram wallet", "geo": True},
+    {"q": "crypto card no KYC", "label": "Crypto card KYC", "geo": False},
+]
+
+SUBREDDITS = [
+    "cryptocurrency", "CryptoCards", "TRON", "digitalnomad",
+    "ethfinance", "Bitcoin", "defi", "personalfinance",
+]
+
+
+def _search_reddit(query: str, subreddit: str = "", limit: int = 10, sort: str = "new") -> list[dict]:
+    """Search Reddit public JSON API. No auth needed."""
+    if subreddit:
+        url = f"https://www.reddit.com/r/{subreddit}/search.json"
+        params = {"q": query, "restrict_sr": "on", "sort": sort, "limit": limit, "t": "month"}
+    else:
+        url = "https://www.reddit.com/search.json"
+        params = {"q": query, "sort": sort, "limit": limit, "t": "month"}
+    try:
+        resp = _requests.get(url, params=params, headers={"User-Agent": "KoloSEOAgent/1.0"}, timeout=10)
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        posts = []
+        for child in data.get("data", {}).get("children", []):
+            d = child.get("data", {})
+            posts.append({
+                "title": d.get("title", ""),
+                "subreddit": d.get("subreddit", ""),
+                "score": d.get("score", 0),
+                "num_comments": d.get("num_comments", 0),
+                "url": f"https://reddit.com{d.get('permalink', '')}",
+                "selftext": (d.get("selftext", "") or "")[:300],
+                "created_utc": d.get("created_utc", 0),
+                "is_self": d.get("is_self", True),
+            })
+        return posts
+    except Exception:
+        return []
 
 
 def page_content_distribution():
-    st.title("📣 Stage 9 · Content Distribution")
-    st.caption("Generate organic community posts for Reddit, Quora, Telegram & HN to amplify published articles")
+    st.title("📣 Stage 9 · Social Listening & Distribution")
+    st.caption("Find relevant Reddit & Quora posts, draft helpful comments that naturally mention Kolo")
 
     api_key = st.session_state.get("anthropic_token")
 
-    # ── Source article ────────────────────────────────────────────────
-    st.subheader("1. Select Published Article")
-    pub_df = st.session_state.get("publications")
-    published_articles = []
-    if pub_df is not None and not pub_df.empty:
-        mask = (pub_df["Status"] == "Published") & (pub_df["Publication URL"].astype(str).str.startswith("http"))
-        published_articles = pub_df[mask].to_dict("records")
+    # Optional article URL to reference
+    st.sidebar.divider()
+    st.sidebar.subheader("📣 Distribution")
+    ref_url = st.sidebar.text_input("Article URL to reference (optional)", placeholder="https://...", key="dist_ref_url")
 
-    if published_articles:
-        options = [f"{a['Outlet']} ({a['Lang']})" for a in published_articles]
-        sel_idx = st.selectbox("Published article", range(len(options)), format_func=lambda i: options[i])
-        selected = published_articles[sel_idx]
-        article_title = selected["Outlet"]
-        article_url = selected["Publication URL"]
-        article_lang = selected["Lang"]
-        st.markdown(f"**URL:** [{article_url}]({article_url})  ·  **Lang:** {article_lang}")
-    else:
-        st.info("No published articles with URLs found. Add publication URLs in PR Generator → Track Publications first.")
-        st.divider()
-        st.markdown("**Or enter manually:**")
-        article_title = st.text_input("Article title", placeholder="How to Spend Crypto in Europe with Kolo")
-        article_url = st.text_input("Article URL", placeholder="https://example.com/article")
-        article_lang = "EN"
+    tab_find, tab_drafts, tab_tracker = st.tabs(["🔍 Find Posts", "✏️ Draft Comments", "📊 Tracker"])
 
-    if not article_title or not article_url:
-        return
+    # ── Tab 1: Find Posts ─────────────────────────────────────────────
+    with tab_find:
+        st.subheader("Find Relevant Posts")
+        st.markdown(
+            "Search Reddit for posts where someone asks about crypto cards, "
+            "spending USDT, etc. — these are opportunities to leave a helpful "
+            "comment that naturally mentions Kolo. **High GEO value:** AI engines "
+            "index Reddit & Quora answers heavily."
+        )
 
-    st.divider()
+        col_search, col_filter = st.columns([2, 1])
+        with col_search:
+            search_mode = st.radio("Search mode", ["Quick queries", "Custom search"], horizontal=True)
+        with col_filter:
+            sort_by = st.selectbox("Sort", ["new", "relevance", "top", "comments"], index=0)
 
-    # ── Distribution plan ─────────────────────────────────────────────
-    st.subheader("2. Distribution Channels")
-    st.markdown(
-        "Select where to post. **Reddit & Quora are highest GEO impact** — "
-        "AI engines frequently cite these platforms in generated answers."
-    )
+        if search_mode == "Quick queries":
+            selected_queries = st.multiselect(
+                "Select search queries",
+                options=[q["label"] for q in LISTENING_QUERIES],
+                default=[q["label"] for q in LISTENING_QUERIES[:3]],
+            )
+            query_map = {q["label"]: q["q"] for q in LISTENING_QUERIES}
+            queries = [query_map[lbl] for lbl in selected_queries if lbl in query_map]
+        else:
+            custom_q = st.text_input("Search query", placeholder="best crypto card 2026")
+            queries = [custom_q] if custom_q else []
 
-    # Channel selection with tabs
-    tab_reddit, tab_quora, tab_telegram, tab_hn = st.tabs(["Reddit", "Quora", "Telegram", "Hacker News"])
+        sub_filter = st.multiselect(
+            "Filter subreddits (empty = all)",
+            options=SUBREDDITS,
+            default=[],
+        )
 
-    generated_posts = st.session_state.get("distribution_posts", {})
+        if st.button("🔍 Search Reddit", type="primary", disabled=not queries):
+            all_posts = []
+            progress = st.progress(0)
+            total_searches = len(queries) * (len(sub_filter) if sub_filter else 1)
+            done = 0
+            for q in queries:
+                if sub_filter:
+                    for sub in sub_filter:
+                        results = _search_reddit(q, subreddit=sub, sort=sort_by)
+                        all_posts.extend(results)
+                        done += 1
+                        progress.progress(done / total_searches)
+                else:
+                    results = _search_reddit(q, sort=sort_by)
+                    all_posts.extend(results)
+                    done += 1
+                    progress.progress(done / total_searches)
 
-    for tab, platform in [(tab_reddit, "Reddit"), (tab_quora, "Quora"),
-                           (tab_telegram, "Telegram"), (tab_hn, "Hacker News")]:
-        with tab:
-            channels = DISTRIBUTION_CHANNELS[platform]
-            for i, ch in enumerate(channels):
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.markdown(f"**{ch['community']}** — {ch['desc']}")
-                with col2:
-                    key = f"{platform}_{i}"
-                    if st.button("Generate Post", key=f"gen_{key}", disabled=not api_key, type="secondary"):
-                        with st.spinner(f"Writing {platform} post for {ch['community']}..."):
+            # Dedupe by URL
+            seen = set()
+            unique = []
+            for p in all_posts:
+                if p["url"] not in seen:
+                    seen.add(p["url"])
+                    unique.append(p)
+            # Sort by score desc
+            unique.sort(key=lambda x: x["score"], reverse=True)
+            st.session_state["found_posts"] = unique
+            st.success(f"Found {len(unique)} unique posts")
+
+        # Display found posts
+        found = st.session_state.get("found_posts", [])
+        if found:
+            st.markdown(f"### {len(found)} Posts Found")
+            selected_for_reply = st.session_state.get("selected_posts", [])
+
+            for i, post in enumerate(found[:30]):
+                with st.container():
+                    c1, c2, c3 = st.columns([4, 1, 1])
+                    with c1:
+                        st.markdown(
+                            f"**[{post['title'][:80]}]({post['url']})** "
+                            f"— r/{post['subreddit']}"
+                        )
+                        if post["selftext"]:
+                            st.caption(post["selftext"][:150] + "..." if len(post["selftext"]) > 150 else post["selftext"])
+                    with c2:
+                        st.metric("Score", post["score"], label_visibility="collapsed")
+                        st.caption(f"💬 {post['num_comments']}")
+                    with c3:
+                        if st.button("➕ Queue", key=f"queue_{i}"):
+                            if post not in selected_for_reply:
+                                selected_for_reply.append(post)
+                                st.session_state["selected_posts"] = selected_for_reply
+                                st.rerun()
+                    st.divider()
+
+        # Also show Quora search links
+        st.subheader("Quora & Other Platforms")
+        st.markdown("Click to search manually — paste interesting question URLs into Draft Comments tab.")
+        quora_queries = [
+            "best crypto card 2026", "how to spend USDT", "crypto card Europe",
+            "USDT Visa card review", "crypto debit card comparison",
+        ]
+        cols = st.columns(3)
+        for i, qq in enumerate(quora_queries):
+            with cols[i % 3]:
+                encoded = qq.replace(" ", "+")
+                st.markdown(f"[🔍 Quora: {qq}](https://www.quora.com/search?q={encoded})")
+                st.markdown(f"[🔍 Google: site:quora.com {qq}](https://www.google.com/search?q=site:quora.com+{encoded})")
+
+    # ── Tab 2: Draft Comments ─────────────────────────────────────────
+    with tab_drafts:
+        st.subheader("Draft Comment Replies")
+        st.markdown("Generate helpful comments for queued posts. Comments are written as a genuine user — not an ad.")
+
+        selected = st.session_state.get("selected_posts", [])
+
+        if not selected:
+            st.info("Queue posts from the Find Posts tab, or add manually below.")
+
+        # Manual post entry
+        with st.expander("Add post manually"):
+            manual_title = st.text_input("Post title", key="manual_title")
+            manual_body = st.text_area("Post body (optional)", key="manual_body", height=80)
+            manual_platform = st.selectbox("Platform", ["Reddit", "Quora", "HackerNews", "Forum"], key="manual_platform")
+            manual_sub = st.text_input("Subreddit / community", key="manual_sub")
+            manual_url = st.text_input("Post URL", key="manual_url")
+            if st.button("Add to queue"):
+                if manual_title:
+                    selected.append({
+                        "title": manual_title,
+                        "selftext": manual_body,
+                        "subreddit": manual_sub,
+                        "url": manual_url,
+                        "score": 0,
+                        "num_comments": 0,
+                        "platform": manual_platform,
+                    })
+                    st.session_state["selected_posts"] = selected
+                    st.rerun()
+
+        # Generate comments for queued posts
+        drafts = st.session_state.get("comment_drafts", {})
+
+        for i, post in enumerate(selected):
+            platform = post.get("platform", "Reddit")
+            with st.expander(
+                f"{'✅' if str(i) in drafts else '⬜'} {post['title'][:60]} — "
+                f"{post.get('subreddit', platform)}",
+                expanded=str(i) not in drafts,
+            ):
+                st.markdown(f"**[{post['title']}]({post.get('url', '#')})**")
+                if post.get("selftext"):
+                    st.caption(post["selftext"][:200])
+
+                col_gen, col_remove = st.columns([3, 1])
+                with col_gen:
+                    if st.button("🤖 Generate Comment", key=f"gencomment_{i}", disabled=not api_key):
+                        with st.spinner("Drafting comment..."):
                             try:
-                                post = generate_distribution_post(
+                                comment = generate_comment_reply(
                                     api_key,
-                                    article_title=article_title,
-                                    article_url=article_url,
+                                    post_title=post["title"],
+                                    post_body=post.get("selftext", ""),
                                     platform=platform,
-                                    target_community=ch["community"],
+                                    subreddit=post.get("subreddit", ""),
+                                    article_url=ref_url,
                                 )
-                                generated_posts[key] = {
-                                    "platform": platform,
-                                    "community": ch["community"],
-                                    "content": post,
+                                drafts[str(i)] = {
+                                    "content": comment,
                                     "status": "draft",
+                                    "post_url": post.get("url", ""),
+                                    "platform": platform,
+                                    "community": post.get("subreddit", ""),
                                 }
-                                st.session_state["distribution_posts"] = generated_posts
+                                st.session_state["comment_drafts"] = drafts
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Failed: {e}")
+                with col_remove:
+                    if st.button("🗑️ Remove", key=f"remove_{i}"):
+                        selected.pop(i)
+                        drafts.pop(str(i), None)
+                        st.session_state["selected_posts"] = selected
+                        st.session_state["comment_drafts"] = drafts
+                        st.rerun()
 
-                # Show generated post if exists
-                if key in generated_posts:
-                    with st.expander(f"📝 Draft for {ch['community']}", expanded=True):
-                        edited = st.text_area(
-                            "Edit post",
-                            value=generated_posts[key]["content"],
-                            height=200,
-                            key=f"edit_{key}",
+                # Show/edit generated comment
+                if str(i) in drafts:
+                    edited = st.text_area(
+                        "Edit comment before posting",
+                        value=drafts[str(i)]["content"],
+                        height=150,
+                        key=f"editcomment_{i}",
+                    )
+                    drafts[str(i)]["content"] = edited
+
+                    dc1, dc2, dc3 = st.columns(3)
+                    with dc1:
+                        drafts[str(i)]["status"] = st.selectbox(
+                            "Status", ["draft", "posted", "skipped"],
+                            key=f"commentstatus_{i}",
+                            index=["draft", "posted", "skipped"].index(drafts[str(i)].get("status", "draft")),
                         )
-                        generated_posts[key]["content"] = edited
+                    with dc2:
+                        st.download_button(
+                            "📋 Copy .txt", data=edited,
+                            file_name=f"comment_{i}.txt", mime="text/plain",
+                            key=f"dlcomment_{i}",
+                        )
+                    with dc3:
+                        if post.get("url"):
+                            st.markdown(f"[Open post ↗]({post['url']})")
 
-                        post_col1, post_col2, post_col3 = st.columns(3)
-                        with post_col1:
-                            generated_posts[key]["status"] = st.selectbox(
-                                "Status",
-                                ["draft", "posted", "skipped"],
-                                key=f"status_{key}",
-                                index=["draft", "posted", "skipped"].index(generated_posts[key].get("status", "draft")),
-                            )
-                        with post_col2:
-                            st.download_button(
-                                "📋 Copy as .txt",
-                                data=edited,
-                                file_name=f"{platform}_{ch['community'].replace('/', '_')}.txt",
-                                mime="text/plain",
-                                key=f"dl_{key}",
-                            )
-                        with post_col3:
-                            if platform == "Reddit" and ch["community"].startswith("r/"):
-                                sub = ch["community"].replace("r/", "")
-                                st.markdown(f"[Open {ch['community']}](https://reddit.com/{ch['community']}/submit)")
-                            elif platform == "Quora":
-                                st.markdown("[Open Quora](https://quora.com)")
+        st.session_state["comment_drafts"] = drafts
 
-            st.session_state["distribution_posts"] = generated_posts
+        if not api_key:
+            st.info("Enter your Anthropic API key in the sidebar to generate comments.")
 
-    if not api_key:
-        st.info("Enter your Anthropic API key in the sidebar to generate posts.")
+    # ── Tab 3: Tracker ────────────────────────────────────────────────
+    with tab_tracker:
+        st.subheader("Distribution Tracker")
+        drafts = st.session_state.get("comment_drafts", {})
 
-    # ── Summary ───────────────────────────────────────────────────────
-    st.divider()
-    st.subheader("3. Distribution Tracker")
-    if generated_posts:
-        tracker_rows = []
-        for key, post in generated_posts.items():
-            tracker_rows.append({
-                "Platform": post["platform"],
-                "Community": post["community"],
-                "Status": post["status"],
-                "Length": len(post["content"].split()),
-            })
-        tracker_df = pd.DataFrame(tracker_rows)
-        st.dataframe(tracker_df, use_container_width=True, hide_index=True)
+        if drafts:
+            rows = []
+            for key, d in drafts.items():
+                rows.append({
+                    "Platform": d.get("platform", "Reddit"),
+                    "Community": d.get("community", ""),
+                    "Status": d.get("status", "draft"),
+                    "Post URL": d.get("post_url", ""),
+                    "Words": len(d.get("content", "").split()),
+                })
+            df = pd.DataFrame(rows)
+            st.dataframe(df, use_container_width=True, hide_index=True,
+                         column_config={"Post URL": st.column_config.LinkColumn()})
 
-        total = len(tracker_rows)
-        posted = sum(1 for r in tracker_rows if r["Status"] == "posted")
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Drafts", total)
-        col2.metric("Posted", posted)
-        col3.metric("Pending", total - posted)
-    else:
-        st.info("Generate posts above — they'll appear here for tracking.")
+            total = len(rows)
+            posted = sum(1 for r in rows if r["Status"] == "posted")
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total Drafted", total)
+            col2.metric("Posted", posted)
+            col3.metric("Pending", total - posted)
+
+            st.divider()
+            st.markdown(
+                "**GEO Impact:** Reddit & Quora comments are heavily indexed by "
+                "ChatGPT, Perplexity, and Google AI Overviews. Each posted comment "
+                "increases the chance Kolo appears in AI-generated answers for "
+                "crypto card queries."
+            )
+        else:
+            st.info("No comments drafted yet. Use Find Posts → Queue → Draft Comments.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
