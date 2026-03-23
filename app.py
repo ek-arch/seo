@@ -1593,22 +1593,36 @@ SUBREDDITS = [
 ]
 
 
+_REDDIT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+}
+
+
 def _search_reddit(query: str, subreddit: str = "", limit: int = 10, sort: str = "new") -> list[dict]:
-    """Search Reddit public JSON API. No auth needed."""
+    """Search Reddit public JSON API with browser-like headers."""
+    # Build search query — include subreddit in query text for better results
     if subreddit:
-        url = f"https://www.reddit.com/r/{subreddit}/search.json"
-        params = {"q": query, "restrict_sr": "on", "sort": sort, "limit": limit, "t": "month"}
+        full_query = f"{query} subreddit:{subreddit}"
     else:
-        url = "https://www.reddit.com/search.json"
-        params = {"q": query, "sort": sort, "limit": limit, "t": "month"}
+        full_query = query
+    url = "https://old.reddit.com/search.json"
+    params = {"q": full_query, "sort": sort, "limit": limit, "t": "year", "type": "link"}
     try:
-        resp = _requests.get(url, params=params, headers={"User-Agent": "KoloSEOAgent/1.0"}, timeout=10)
+        resp = _requests.get(url, params=params, headers=_REDDIT_HEADERS, timeout=15)
+        if resp.status_code == 429:
+            # Rate limited — wait and retry once
+            import time
+            time.sleep(2)
+            resp = _requests.get(url, params=params, headers=_REDDIT_HEADERS, timeout=15)
         if resp.status_code != 200:
             return []
         data = resp.json()
         posts = []
         for child in data.get("data", {}).get("children", []):
             d = child.get("data", {})
+            if not d.get("title"):
+                continue
             posts.append({
                 "title": d.get("title", ""),
                 "subreddit": d.get("subreddit", ""),
@@ -1620,7 +1634,7 @@ def _search_reddit(query: str, subreddit: str = "", limit: int = 10, sort: str =
                 "is_self": d.get("is_self", True),
             })
         return posts
-    except Exception:
+    except Exception as e:
         return []
 
 
@@ -1672,22 +1686,24 @@ def page_content_distribution():
         )
 
         if st.button("🔍 Search Reddit", type="primary", disabled=not queries):
+            import time as _time
             all_posts = []
             progress = st.progress(0)
-            total_searches = len(queries) * (len(sub_filter) if sub_filter else 1)
-            done = 0
-            for q in queries:
+            # One search per query — subreddits are embedded in query string
+            total_searches = len(queries)
+            for i, q in enumerate(queries):
                 if sub_filter:
+                    # Search each subreddit separately but with delay
                     for sub in sub_filter:
-                        results = _search_reddit(q, subreddit=sub, sort=sort_by)
+                        results = _search_reddit(q, subreddit=sub, sort=sort_by, limit=15)
                         all_posts.extend(results)
-                        done += 1
-                        progress.progress(done / total_searches)
+                        _time.sleep(1.5)  # Avoid Reddit rate limits
                 else:
-                    results = _search_reddit(q, sort=sort_by)
+                    results = _search_reddit(q, sort=sort_by, limit=25)
                     all_posts.extend(results)
-                    done += 1
-                    progress.progress(done / total_searches)
+                progress.progress((i + 1) / total_searches)
+                if i < total_searches - 1:
+                    _time.sleep(1.5)  # Rate limit buffer between queries
 
             # Dedupe by URL
             seen = set()
@@ -1696,10 +1712,16 @@ def page_content_distribution():
                 if p["url"] not in seen:
                     seen.add(p["url"])
                     unique.append(p)
+            # Filter by subreddit if selected
+            if sub_filter:
+                unique = [p for p in unique if p["subreddit"] in sub_filter]
             # Sort by score desc
             unique.sort(key=lambda x: x["score"], reverse=True)
             st.session_state["found_posts"] = unique
-            st.success(f"Found {len(unique)} unique posts")
+            if unique:
+                st.success(f"Found {len(unique)} unique posts")
+            else:
+                st.warning("No posts found. Try removing subreddit filters or use different search terms.")
 
         # Display found posts
         found = st.session_state.get("found_posts", [])
