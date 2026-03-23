@@ -8,6 +8,7 @@ GEO = Generative Engine Optimization (AI answer visibility).
 import streamlit as st
 import pandas as pd
 import altair as alt
+import requests as _requests
 from data_sources import DATA, score_outlet_notion, outlet_verdict
 from collaborator_outlets import (
     get_outlets, get_top_outlets_all_langs,
@@ -1571,8 +1572,6 @@ def page_monthly_planner():
 # ══════════════════════════════════════════════════════════════════════════════
 # STAGE 9 — SOCIAL LISTENING & DISTRIBUTION
 # ══════════════════════════════════════════════════════════════════════════════
-
-import requests as _requests
 
 # Search queries to find relevant posts where Kolo could be mentioned
 LISTENING_QUERIES = [
