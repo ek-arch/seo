@@ -49,9 +49,8 @@ with st.sidebar:
     collab_token = st.text_input("Collaborator.pro token", type="password", placeholder="etVxo-...", help="collaborator.pro/user/api")
     notion_token = st.text_input("Notion token", type="password", placeholder="secret_...", help="Required for writing to Notion")
     anthropic_token = st.text_input("Anthropic API key", type="password", placeholder="sk-ant-...", help="console.anthropic.com → API keys")
-    google_cse_key = st.text_input("Google CSE API key", type="password", placeholder="AIza...", help="Google Cloud → Credentials → API key")
-    google_cse_cx = st.text_input("Google CSE Engine ID", placeholder="a1b2c3...", help="programmablesearchengine.google.com → your engine ID")
-    for k, v in [("hex_token", hex_token), ("collab_token", collab_token), ("notion_token", notion_token), ("anthropic_token", anthropic_token), ("google_cse_key", google_cse_key), ("google_cse_cx", google_cse_cx)]:
+    serpapi_key = st.text_input("SerpAPI key", type="password", placeholder="...", help="serpapi.com → free 100 searches/month")
+    for k, v in [("hex_token", hex_token), ("collab_token", collab_token), ("notion_token", notion_token), ("anthropic_token", anthropic_token), ("serpapi_key", serpapi_key)]:
         if v:
             st.session_state[k] = v
     st.divider()
@@ -1888,21 +1887,19 @@ def page_content_distribution():
 
 def page_geo_visibility():
     st.title("🔍 Stage 8 · GEO Visibility Audit")
-    st.caption("Track Kolo's presence in Google search results vs competitors · 100 free queries/day")
+    st.caption("Track Kolo's presence in Google search results vs competitors · SerpAPI free 100/month")
 
-    cse_key = st.session_state.get("google_cse_key")
-    cse_cx = st.session_state.get("google_cse_cx")
+    serp_key = st.session_state.get("serpapi_key")
 
-    if not cse_key or not cse_cx:
-        st.warning("Add your **Google CSE API key** and **Search Engine ID** in the sidebar to run audits.")
+    if not serp_key:
+        st.warning("Add your **SerpAPI key** in the sidebar to run audits.")
         st.markdown("""
-**Setup (2 minutes):**
-1. Go to [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials)
-2. Click **Create Credentials → API Key** → copy it
-3. Go to [Programmable Search Engine](https://programmablesearchengine.google.com/controlpanel/all)
-4. Click **Add** → name it "Kolo GEO Audit" → toggle **Search the entire web** → Create
-5. Copy the **Search Engine ID** (cx)
-6. Paste both in the sidebar
+**Setup (1 minute):**
+1. Go to [serpapi.com](https://serpapi.com/) → Sign up (free)
+2. Copy your **API key** from the dashboard
+3. Paste it in the sidebar under "SerpAPI key"
+
+Free tier: **100 searches/month** — enough for 6 full audits.
         """)
         return
 
@@ -1934,7 +1931,7 @@ def page_geo_visibility():
 
             for i, q in enumerate(queries_to_run):
                 status.text(f"Searching: {q}")
-                result = audit_query(cse_key, cse_cx, q)
+                result = audit_query(serp_key, q)
                 results.append(result)
                 progress.progress((i + 1) / len(queries_to_run))
 
