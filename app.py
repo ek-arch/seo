@@ -644,20 +644,55 @@ def page_outlet_matching():
     with c1:
         st.warning("**Unresolved items before buying:**\n- Price/DR for **pt.egamersworld.com** (score 13 — price TBD)\n- Verify **financial-news.co.uk** + **sevillaBN** independently\n- Lock Dubai RU expat outlet (ARE-ru = \\$21,640/user — Week 1!)")
     with c2:
-        st.markdown("**🔗 UTM Link Builder**")
-        utm_base = st.text_input("Landing page URL", value="https://kolo.xyz", key="utm_base")
-        utm_outlet = st.text_input("Outlet name (for utm_content)", placeholder="e.g. businessabc.net", key="utm_outlet")
+        st.markdown("**🔗 UTM Link Generator**")
+        utm_base = st.text_input("Landing page", value="https://kolo.xyz", key="utm_base")
         utm_campaign = st.text_input("Campaign", value="march2026", key="utm_campaign")
-        if utm_outlet:
-            clean_outlet = utm_outlet.strip().replace(" ", "_").lower()
-            utm_link = (
-                f"{utm_base.rstrip('/')}?"
-                f"utm_source=collaborator&utm_medium=sponsored"
-                f"&utm_campaign={utm_campaign}&utm_content={clean_outlet}"
+
+        # Auto-generate UTM links for all confirmed outlets
+        all_outlets = []
+        for lang_key, sites in DATA["march_outlets"].items():
+            for s in sites:
+                if "TBD" not in s["name"]:
+                    all_outlets.append({"outlet": s["name"], "lang": lang_key})
+
+        if all_outlets:
+            utm_rows = []
+            for o in all_outlets:
+                slug = o["outlet"].strip().replace(" ", "_").lower()
+                link = (
+                    f"{utm_base.rstrip('/')}?"
+                    f"utm_source={slug}"
+                    f"&utm_medium=sponsored_article"
+                    f"&utm_campaign={utm_campaign}"
+                    f"&utm_content={o['lang']}"
+                )
+                utm_rows.append({"Outlet": o["outlet"], "Lang": o["lang"].upper(), "UTM Link": link})
+
+            utm_df = pd.DataFrame(utm_rows)
+            st.dataframe(
+                utm_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={"UTM Link": st.column_config.LinkColumn("UTM Link", width="large")},
             )
-            st.code(utm_link, language=None)
-        else:
-            st.caption("Enter an outlet name above to generate the UTM link.")
+            # Copy-all block
+            all_links = "\n".join([f"{r['Outlet']}: {r['UTM Link']}" for r in utm_rows])
+            st.download_button("📋 Download all UTM links", data=all_links, file_name="utm_links.txt", mime="text/plain")
+
+        # Custom UTM for outlets not in the list
+        with st.expander("Custom UTM"):
+            custom_outlet = st.text_input("Outlet domain", placeholder="e.g. newsite.com", key="utm_custom_outlet")
+            custom_lang = st.selectbox("Language", ["en", "ru", "it", "es", "pl", "pt", "id", "ro"], key="utm_custom_lang")
+            if custom_outlet:
+                slug = custom_outlet.strip().replace(" ", "_").lower()
+                link = (
+                    f"{utm_base.rstrip('/')}?"
+                    f"utm_source={slug}"
+                    f"&utm_medium=sponsored_article"
+                    f"&utm_campaign={utm_campaign}"
+                    f"&utm_content={custom_lang}"
+                )
+                st.code(link, language=None)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
