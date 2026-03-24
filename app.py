@@ -19,6 +19,7 @@ from publication_roi import (
     LTV_BY_LANG, CONVERSION_RATE_BY_LANG, LTV_BY_MARKET_LANG,
 )
 from llm_client import generate_press_release, revise_press_release, translate_press_release, recommend_monthly_plan, generate_comment_reply, LANG_NAMES
+from geo_visibility import DEFAULT_QUERIES, audit_query, run_full_audit, summarize_audit
 from notion_writer import (
     create_content_plan_entry, create_pr_draft_page,
     create_monthly_plan_page, log_publication_result,
@@ -48,7 +49,9 @@ with st.sidebar:
     collab_token = st.text_input("Collaborator.pro token", type="password", placeholder="etVxo-...", help="collaborator.pro/user/api")
     notion_token = st.text_input("Notion token", type="password", placeholder="secret_...", help="Required for writing to Notion")
     anthropic_token = st.text_input("Anthropic API key", type="password", placeholder="sk-ant-...", help="console.anthropic.com → API keys")
-    for k, v in [("hex_token", hex_token), ("collab_token", collab_token), ("notion_token", notion_token), ("anthropic_token", anthropic_token)]:
+    google_cse_key = st.text_input("Google CSE API key", type="password", placeholder="AIza...", help="Google Cloud → Credentials → API key")
+    google_cse_cx = st.text_input("Google CSE Engine ID", placeholder="a1b2c3...", help="programmablesearchengine.google.com → your engine ID")
+    for k, v in [("hex_token", hex_token), ("collab_token", collab_token), ("notion_token", notion_token), ("anthropic_token", anthropic_token), ("google_cse_key", google_cse_key), ("google_cse_cx", google_cse_cx)]:
         if v:
             st.session_state[k] = v
     st.divider()
@@ -57,8 +60,9 @@ with st.sidebar:
                           ("Stage 3 · Content Plan", "✅"), ("Stage 4 · Outlet Match",  "✅"),
                           ("Stage 5 · Pub ROI",       "✅"),
                           ("Stage 6 · PR Generator",  "🆕"), ("Stage 7 · Distribution", "🆕"),
-                          ("Stage 8 · Monthly Eval", "🆕"),
-                          ("Stage 9 · Monthly Planner","🆕")]:
+                          ("Stage 8 · GEO Visibility","🆕"),
+                          ("Stage 9 · Monthly Eval", "🆕"),
+                          ("Stage 10 · Monthly Planner","🆕")]:
         st.markdown(f"{status} {name}")
     st.divider()
     st.caption("Source: Hex BigQuery · exchanger2_db_looker\n180-day window · F&F excluded · Refreshed 2026-03-24")
@@ -1879,6 +1883,158 @@ def page_content_distribution():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# STAGE 10 — GEO VISIBILITY AUDIT
+# ══════════════════════════════════════════════════════════════════════════════
+
+def page_geo_visibility():
+    st.title("🔍 Stage 8 · GEO Visibility Audit")
+    st.caption("Track Kolo's presence in Google search results vs competitors · 100 free queries/day")
+
+    cse_key = st.session_state.get("google_cse_key")
+    cse_cx = st.session_state.get("google_cse_cx")
+
+    if not cse_key or not cse_cx:
+        st.warning("Add your **Google CSE API key** and **Search Engine ID** in the sidebar to run audits.")
+        st.markdown("""
+**Setup (2 minutes):**
+1. Go to [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials)
+2. Click **Create Credentials → API Key** → copy it
+3. Go to [Programmable Search Engine](https://programmablesearchengine.google.com/controlpanel/all)
+4. Click **Add** → name it "Kolo GEO Audit" → toggle **Search the entire web** → Create
+5. Copy the **Search Engine ID** (cx)
+6. Paste both in the sidebar
+        """)
+        return
+
+    tab_audit, tab_history = st.tabs(["🔍 Run Audit", "📊 History"])
+
+    with tab_audit:
+        st.subheader("Visibility Audit")
+        st.markdown(
+            f"Queries **{len(DEFAULT_QUERIES)}** target keywords on Google. "
+            f"Checks if Kolo appears in top 10 results and which competitors rank."
+        )
+
+        # Show queries
+        with st.expander("Target queries", expanded=False):
+            for i, q in enumerate(DEFAULT_QUERIES):
+                st.markdown(f"{i+1}. **{q['q']}** — {q['intent']} · {q['geo']}")
+
+        # Custom queries
+        custom_q = st.text_input("Add custom query (optional)", placeholder="e.g. crypto card Poland")
+
+        queries_to_run = [q["q"] for q in DEFAULT_QUERIES]
+        if custom_q:
+            queries_to_run.append(custom_q)
+
+        if st.button(f"🚀 Run Audit ({len(queries_to_run)} queries)", type="primary"):
+            results = []
+            progress = st.progress(0)
+            status = st.empty()
+
+            for i, q in enumerate(queries_to_run):
+                status.text(f"Searching: {q}")
+                result = audit_query(cse_key, cse_cx, q)
+                results.append(result)
+                progress.progress((i + 1) / len(queries_to_run))
+
+            st.session_state["geo_audit_results"] = results
+            status.empty()
+            progress.empty()
+            st.success(f"Audit complete! Searched {len(results)} queries.")
+
+        # Display results
+        results = st.session_state.get("geo_audit_results", [])
+        if results:
+            summary = summarize_audit(results)
+
+            # Top metrics
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Kolo Visible", summary["visibility_score"],
+                       f"{summary['kolo_visible_pct']}% of queries")
+            c2.metric("Avg Position", summary["avg_kolo_position"] or "Not found")
+            c3.metric("Queries Audited", summary["total_queries"])
+            c4.metric("Errors", summary["errors"])
+
+            st.divider()
+
+            # Competitor leaderboard
+            st.subheader("🏆 Competitor Visibility")
+            if summary["top_competitors"]:
+                comp_df = pd.DataFrame(summary["top_competitors"], columns=["Competitor", "Queries Visible"])
+                comp_df["Share"] = comp_df["Queries Visible"].apply(
+                    lambda x: f"{x}/{summary['total_queries'] - summary['errors']}"
+                )
+                st.dataframe(comp_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("No known competitors found in results.")
+
+            st.divider()
+
+            # Per-query breakdown
+            st.subheader("📋 Query-by-Query Results")
+            rows = []
+            for r in results:
+                if r.get("error"):
+                    rows.append({
+                        "Query": r["query"],
+                        "Kolo": "❌ Error",
+                        "Position": "—",
+                        "Top Result": r["error"][:50],
+                        "Competitors": "—",
+                    })
+                else:
+                    kolo_status = f"✅ #{r['kolo_position']}" if r["kolo_visible"] else "❌"
+                    rows.append({
+                        "Query": r["query"],
+                        "Kolo": kolo_status,
+                        "Position": r["kolo_position"] or "—",
+                        "Top Result": f"{r['top_result_domain']}",
+                        "Competitors": ", ".join(r["competitors_found"][:3]) or "None",
+                    })
+
+            results_df = pd.DataFrame(rows)
+            st.dataframe(results_df, use_container_width=True, hide_index=True)
+
+            # Detailed view per query
+            with st.expander("Detailed results (top 10 per query)"):
+                for r in results:
+                    if r.get("error"):
+                        continue
+                    st.markdown(f"**{r['query']}**")
+                    for res in r.get("results", []):
+                        icon = "🟢" if res["kolo_domain"] else ("🟡" if res["kolo_mentioned"] else ("🔴" if res["competitor"] else "⚪"))
+                        label = "KOLO" if res["kolo_domain"] or res["kolo_mentioned"] else (res["competitor"] or "")
+                        st.markdown(f"{icon} #{res['position']} [{res['title'][:60]}]({res['link']}) {f'**{label}**' if label else ''}")
+                    st.divider()
+
+    with tab_history:
+        st.subheader("Audit History")
+        st.info("Run audits regularly (weekly) to track visibility improvements over time. Results are stored in session — for persistence, download as CSV.")
+
+        results = st.session_state.get("geo_audit_results", [])
+        if results:
+            summary = summarize_audit(results)
+            # Export
+            export_rows = []
+            for r in results:
+                export_rows.append({
+                    "date": pd.Timestamp.now().strftime("%Y-%m-%d"),
+                    "query": r["query"],
+                    "kolo_visible": r.get("kolo_visible", False),
+                    "kolo_position": r.get("kolo_position"),
+                    "competitors": ", ".join(r.get("competitors_found", [])),
+                    "top_result": r.get("top_result_domain", ""),
+                })
+            export_df = pd.DataFrame(export_rows)
+            csv = export_df.to_csv(index=False)
+            st.download_button("📥 Download audit as CSV", data=csv, file_name=f"geo_audit_{pd.Timestamp.now().strftime('%Y%m%d')}.csv", mime="text/csv")
+            st.dataframe(export_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("No audit results yet. Run an audit in the first tab.")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # NAVIGATION
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1896,6 +2052,7 @@ pg = st.navigation({
     "Actions": [
         st.Page(page_pr_generator,           title="PR Generator",     icon="📝"),
         st.Page(page_content_distribution,   title="Distribution",     icon="📣"),
+        st.Page(page_geo_visibility,         title="GEO Visibility",   icon="🔍"),
         st.Page(page_monthly_eval,           title="Monthly Eval",     icon="📉"),
         st.Page(page_monthly_planner,        title="Monthly Planner",  icon="🗓️"),
     ],
