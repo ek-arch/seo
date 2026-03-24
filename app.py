@@ -1018,7 +1018,6 @@ def page_pr_generator():
         with col2:
             brief["hooks"] = st.text_input("Hooks to include (optional)", placeholder="e.g. USDT TRC20, Telegram mini-app")
 
-        gen_ok = False
         if st.button("🚀 Generate EN Draft", type="primary", disabled=not api_key):
             if not api_key:
                 st.error("Add your Anthropic API key in the sidebar.")
@@ -1027,24 +1026,19 @@ def page_pr_generator():
                     try:
                         draft = generate_press_release(api_key, brief)
                         st.session_state["pr_en_draft"] = draft
-                        st.session_state["pr_draft_editor"] = draft
+                        st.session_state["pr_draft_version"] = st.session_state.get("pr_draft_version", 0) + 1
                         st.session_state["pr_brief"] = brief
-                        gen_ok = True
                     except Exception as e:
                         st.error(f"Generation failed: {e}")
-        if gen_ok:
-            st.rerun()
 
         if not api_key:
             st.info("Enter your Anthropic API key in the sidebar to enable generation.")
 
         draft = st.session_state.get("pr_en_draft", "")
         if draft:
-            # Use widget key as the source of truth — sync it before rendering
-            if "pr_draft_editor" not in st.session_state:
-                st.session_state["pr_draft_editor"] = draft
-            edited = st.text_area("Edit draft", height=400, key="pr_draft_editor")
-            # Keep pr_en_draft in sync with whatever the user types
+            # Use version counter as part of key to force widget refresh on new content
+            ver = st.session_state.get("pr_draft_version", 0)
+            edited = st.text_area("Edit draft", value=draft, height=400, key=f"pr_draft_editor_{ver}")
             st.session_state["pr_en_draft"] = edited
             st.download_button("Download .md", data=edited, file_name="press_release_en.md", mime="text/markdown")
 
@@ -1057,19 +1051,15 @@ def page_pr_generator():
                 height=100,
                 key="revision_instructions",
             )
-            rev_ok = False
             if st.button("✏️ Revise Draft", type="primary", disabled=not api_key or not revision_instructions):
                 with st.spinner("Revising..."):
                     try:
                         revised = revise_press_release(api_key, edited, revision_instructions)
-                        # Update BOTH keys so the text_area picks up the new text
                         st.session_state["pr_en_draft"] = revised
-                        st.session_state["pr_draft_editor"] = revised
-                        rev_ok = True
+                        st.session_state["pr_draft_version"] = ver + 1
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Revision failed: {e}")
-            if rev_ok:
-                st.rerun()
 
     # ── Tab 2: Translate ──────────────────────────────────────────────────
     with tab_trans:
