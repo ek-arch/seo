@@ -247,45 +247,7 @@ def page_market_intel():
 
 def page_kolo_metrics():
     st.title("📈 Stage 2 · Kolo Metrics")
-    st.caption("Source: Hex.tech BigQuery · exchanger2_db_looker · Oct 10, 2025 – Mar 1, 2026")
-
-    pre  = DATA["platform"]["pre_cashback"]
-    post = DATA["platform"]["post_cashback"]
-    st.header("Platform Growth: Before vs After Cashback")
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Active B2C Users",  f"{post['active_users']:,}",              f"+{round((post['active_users']/pre['active_users']-1)*100)}%")
-    c2.metric("Transactions",      f"{post['transactions']:,}",              f"+{round((post['transactions']/pre['transactions']-1)*100)}%")
-    c3.metric("Card Spend",        f"${post['card_spend']/1e6:.2f}M",        f"+{round((post['card_spend']/pre['card_spend']-1)*100)}%")
-    c4.metric("Avg Daily Spend",   f"${post['avg_daily_spend']:,}",          f"+{round((post['avg_daily_spend']/pre['avg_daily_spend']-1)*100)}%")
-    c5.metric("Avg Daily Txs",     f"{post['avg_daily_tx']:,}",              f"+{round((post['avg_daily_tx']/pre['avg_daily_tx']-1)*100)}%")
-
-    st.header("Monthly P&L")
-    pnl = DATA["pnl"]
-    pnl_df = pd.DataFrame({
-        "Month": pnl["months"] * 2,
-        "Amount": pnl["total_revenue"] + [abs(x) for x in pnl["cashback_cost"]],
-        "Type": ["Revenue"] * 3 + ["Cashback Cost"] * 3,
-    })
-    bars = alt.Chart(pnl_df).mark_bar().encode(
-        x=alt.X("Month:N", sort=None), y=alt.Y("Amount:Q", title="USD"),
-        color=alt.Color("Type:N", scale=alt.Scale(domain=["Revenue","Cashback Cost"], range=["#2196F3","#FF5252"])),
-        xOffset="Type:N", tooltip=["Month","Type", alt.Tooltip("Amount:Q", format="$,.0f")],
-    ).properties(height=300)
-    net_df = pd.DataFrame({"Month": pnl["months"], "Net P&L": pnl["net_pnl"]})
-    line = alt.Chart(net_df).mark_line(color="#4CAF50", strokeWidth=2, point=True).encode(
-        x=alt.X("Month:N", sort=None), y="Net P&L:Q",
-        tooltip=["Month", alt.Tooltip("Net P&L:Q", format="$,.0f")],
-    )
-    st.altair_chart((bars + line).resolve_scale(y="independent"), use_container_width=True)
-
-    rev_total  = sum(pnl["total_revenue"])
-    cost_total = sum(abs(x) for x in pnl["cashback_cost"])
-    net_total  = sum(pnl["net_pnl"])
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("3-Month Revenue", f"${rev_total:,}")
-    c2.metric("Cashback Cost",   f"${cost_total:,}")
-    c3.metric("Net P&L",         f"${net_total:,}", "2.04× coverage")
-    c4.metric("Swap / Card fees", f"${sum(pnl['swap_fees']):,} / ${sum(pnl['card_spend_fee']):,}", "Swap = #1 revenue line")
+    st.caption("Language & country analysis for SEO/GEO targeting")
 
     st.header("Language Cluster Analysis")
     st.info("🔑 **Russian users spend 1.7× per user vs English** (\\$5,940 vs \\$3,467) — the \\$500 Russian pillar is the highest-ROI allocation.")
@@ -329,22 +291,6 @@ def page_kolo_metrics():
     )
     st.caption("🟢 = ≥80% conversion")
 
-    st.header("Acquisition Channel Economics")
-    ue = DATA["cashback_unit_economics"]
-    fc = DATA["seo_forecast"]
-    c1, c2, c3 = st.columns(3)
-    c1.metric("BTC Cashback CAC",        f"${ue['cac_cashback']}/card",                      f"ROI +{ue['roi_pct']}%")
-    c1.caption("\\$142K spent · one-time · expires")
-    c2.metric("CPA Influencers CAC",     f"${ue['cac_cpa']}/card",                           "Zero risk · ongoing")
-    c3.metric("SEO/Local Media (est.)",  f"${ue['cac_seo_low']}–${ue['cac_seo_high']}/card", f"{fc['conservative']['roi']}–{fc['optimistic']['roi']}× ROI in 90 days")
-    c3.caption("\\$2K total · compounds 12+ months")
-    st.divider()
-    st.subheader("90-Day SEO Forecast")
-    st.dataframe(pd.DataFrame([
-        {"Scenario": "Conservative", "Revenue": f"${fc['conservative']['revenue']:,}", "Cost": "$2,000", "ROI": f"{fc['conservative']['roi']}×"},
-        {"Scenario": "Mid-range",    "Revenue": f"${fc['mid']['revenue']:,}",          "Cost": "$2,000", "ROI": f"{fc['mid']['roi']}×"},
-        {"Scenario": "Optimistic",   "Revenue": f"${fc['optimistic']['revenue']:,}",   "Cost": "$2,000", "ROI": f"{fc['optimistic']['roi']}×"},
-    ]), use_container_width=True, hide_index=True)
     st.caption("Articles remain indexed 12+ months. Year-one ROI: estimated 4–15×.")
 
 
