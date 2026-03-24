@@ -9,7 +9,9 @@ from typing import Optional
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STATIC DATA  (source: Hex.tech BigQuery · exchanger2_db_looker · Mar 2026)
-# Refreshed: 2026-03-12 — ISR, KAZ & TUR excluded (card issuance no longer available)
+# Refreshed: 2026-03-24 — ISR, KAZ & TUR excluded (card issuance no longer available)
+# IMPORTANT: Friends & Family users excluded (referral_profile_type = 'STANDARD' only)
+# This means PRT, ARE, and other markets show organic users only — more accurate for SEO ROI.
 # ─────────────────────────────────────────────────────────────────────────────
 
 DATA = {

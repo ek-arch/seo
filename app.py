@@ -61,7 +61,7 @@ with st.sidebar:
                           ("Stage 9 · Monthly Planner","🆕")]:
         st.markdown(f"{status} {name}")
     st.divider()
-    st.caption("Source: Hex BigQuery · exchanger2_db_looker\nOct 10, 2025 – Mar 1, 2026")
+    st.caption("Source: Hex BigQuery · exchanger2_db_looker\n180-day window · F&F excluded · Refreshed 2026-03-24")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -247,10 +247,16 @@ def page_market_intel():
 
 def page_kolo_metrics():
     st.title("📈 Stage 2 · Kolo Metrics")
-    st.caption("Language & country analysis for SEO/GEO targeting")
+    st.caption("Language & country analysis for SEO/GEO targeting · F&F excluded · STANDARD referrals only")
+
+    st.warning(
+        "⚠️ **Friends & Family users excluded** from all metrics. "
+        "Data shows organic/standard users only — PRT, ARE and other markets "
+        "may show lower numbers than before but are more accurate for SEO ROI projections."
+    )
 
     st.header("Language Cluster Analysis")
-    st.info("🔑 **Russian users spend 1.7× per user vs English** (\\$5,940 vs \\$3,467) — the \\$500 Russian pillar is the highest-ROI allocation.")
+    st.info("🔑 **Russian users spend 1.7× per user vs English** (\\$6,357 vs \\$3,792) — the Russian pillar is the highest-ROI allocation.")
     langs = pd.DataFrame(DATA["languages"])
     langs["spend_fmt"] = langs["spend_per_user"].apply(lambda x: f"${x:,}")
     langs["total_fmt"] = langs["total_spend"].apply(lambda x: f"${x/1e3:.0f}K")
@@ -356,7 +362,7 @@ def page_content_plan():
         st.warning("**Revision 1 — Spanish cluster targets wrong language**\n\nESP-ru = \\$7,302/user vs ESP-en = \\$4,233/user. Add 4th Russian outlet with Spain/relocation angle. Reallocate \\$100 from IDN pillar.")
         st.info("**Revision 2 — Dubai RU outlet = Week 1, not Week 2**\n\nARE-ru = \\$21,640/user. Single highest expected-value placement. Must lock in Week 1.")
     with col2:
-        st.info("**Revision 3 — Portugal is Tier 2 only (cleaned data)**\n\nPRT = \\$105K, \\$1,696/user, 47% conversion after removing company accounts and UA friends/family. Brazil (\\$138K, 56% conv.) is the correct Portuguese-language market.")
+        st.info("**Revision 3 — Portugal data cleaned (F&F excluded)**\n\nPRT = \\$1.13M, \\$6,215/user, 94% conversion — STANDARD users only. F&F users removed from all markets. Brazil (\\$326K, 183 users) is the correct PT-BR content market.")
 
     st.header("Localization Notes (7 Languages)")
     t1, t2, t3, t4, t5, t6, t7 = st.tabs(["🇷🇺 Russian","🇮🇹 Italian","🇪🇸 Spanish","🇵🇱 Polish","🇵🇹 Portuguese","🇮🇩 Indonesian","🇷🇴 Romanian"])
@@ -369,7 +375,7 @@ def page_content_plan():
     with t4:
         st.markdown("**Angle:** Polish IT freelancer paid in EUR, tired of PLN conversion fees\n\n**Tone:** Very practical, numbers-first. Polish readers trust data over claims.\n\n**Add:** Direct fee comparison: Bleap (local brand) vs Kolo\n\n**Keywords:** karta krypto Polska, płatności USDT Polska, najlepsza karta bitcoin")
     with t5:
-        st.markdown("**Primary market: Brazil (PT-BR)**\n\nBRA = \\$138K, 86 users, \\$1,601/user, 56% conversion — adital.com.br in plan\n\n**PRT status:** \\$105K, 47% conv., cleaned (excludes company accounts + UA friends/family) — **NOT a priority market**\n\n**Angle (PT-BR):** USDT card for Brazil — inflation protection, no BRL exposure\n\n**Keywords:** cartão cripto Brasil, cartão USDT 2026, gastar bitcoin Brasil")
+        st.markdown("**Primary market: Brazil (PT-BR)**\n\nBRA = \\$326K, 183 card users, \\$1,781/user — adital.com.br in plan\n\n**PRT status:** \\$1.13M, 182 users, \\$6,215/user — high-value market but F&F excluded. PRT organic users are high spenders.\n\n**Angle (PT-BR):** USDT card for Brazil — inflation protection, no BRL exposure\n\n**Keywords:** cartão cripto Brasil, cartão USDT 2026, gastar bitcoin Brasil")
     with t6:
         st.markdown("**Angle:** USDT TRC20 = dominant rail in Indonesia/SEA\n\n**Tone:** Mobile-first, social proof. Indonesian audience responds to community validation.\n\n**Add:** TRC20 top-up tutorial (cheap, fast, popular with IDN users)\n\n**Keywords:** kartu kripto Indonesia, bayar USDT Indonesia, kartu debit bitcoin\n\n**Note:** IDN has high user count (160) but low \\$/user (\\$1,455) vs CIS — consider reallocating \\$100 to RU pillar")
     with t7:
