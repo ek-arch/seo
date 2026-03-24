@@ -644,8 +644,20 @@ def page_outlet_matching():
     with c1:
         st.warning("**Unresolved items before buying:**\n- Price/DR for **pt.egamersworld.com** (score 13 — price TBD)\n- Verify **financial-news.co.uk** + **sevillaBN** independently\n- Lock Dubai RU expat outlet (ARE-ru = \\$21,640/user — Week 1!)")
     with c2:
-        st.info("**UTM before ANY purchase**\n```\n?utm_source=collaborator&utm_medium=sponsored\n&utm_campaign=march2026&utm_content={outlet}\n```")
-        st.success("**Workflow:** Use filters above → pick top score per pillar → verify on Collaborator → add to March plan")
+        st.markdown("**🔗 UTM Link Builder**")
+        utm_base = st.text_input("Landing page URL", value="https://kolo.in", key="utm_base")
+        utm_outlet = st.text_input("Outlet name (for utm_content)", placeholder="e.g. businessabc.net", key="utm_outlet")
+        utm_campaign = st.text_input("Campaign", value="march2026", key="utm_campaign")
+        if utm_outlet:
+            clean_outlet = utm_outlet.strip().replace(" ", "_").lower()
+            utm_link = (
+                f"{utm_base.rstrip('/')}?"
+                f"utm_source=collaborator&utm_medium=sponsored"
+                f"&utm_campaign={utm_campaign}&utm_content={clean_outlet}"
+            )
+            st.code(utm_link, language=None)
+        else:
+            st.caption("Enter an outlet name above to generate the UTM link.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
