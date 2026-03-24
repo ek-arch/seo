@@ -72,13 +72,6 @@ def page_dashboard():
     st.title("🤖 Kolo SEO & GEO Intelligence Agent")
     st.markdown("**March 2026 · \\$2,000 budget · SEO + GEO (AI visibility) + Social Distribution**")
 
-    # ── Action-oriented metrics ─────────────────────────────────
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("AI Visibility",      "0 / 10",    "queries where Kolo appears")
-    c2.metric("Reddit Threads Found", "0",        "awaiting first search")
-    c3.metric("Comments Posted",     "0",         "across Reddit + Quora")
-    c4.metric("Articles Published",  "0",         "with GEO optimization")
-
     st.divider()
 
     # ── Weekly Actions ──────────────────────────────────────────
