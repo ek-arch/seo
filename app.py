@@ -359,6 +359,62 @@ def page_content_plan():
             "These MUST include FAQ sections, question-format H2 headers, and at least 3 "
             "self-contained stat sentences that AI engines can extract and cite.")
 
+    # ── GEO Audit-driven briefs ─────────────────────────────────────
+    geo_results = st.session_state.get("geo_audit_results", [])
+    if geo_results:
+        not_visible = [r for r in geo_results if not r.get("error") and not r.get("kolo_visible")]
+        visible_low = [r for r in geo_results if r.get("kolo_position") and r["kolo_position"] > 5]
+
+        if not_visible or visible_low:
+            st.header("🔍 GEO Audit Gaps → New Briefs")
+            st.caption("Auto-generated from your latest GEO Visibility Audit — queries where Kolo is missing or low-ranked")
+
+            gap_rows = []
+            existing_kws = {b["KW"].lower() for _, b in briefs.iterrows()}
+
+            for i, r in enumerate(not_visible):
+                q = r["query"]
+                # Skip if already covered by existing briefs
+                if any(q.lower() in kw for kw in existing_kws):
+                    continue
+                competitors = ", ".join(r.get("competitors_found", [])[:2]) or "—"
+                gap_rows.append({
+                    "#": f"G{i+1}",
+                    "Title": f"{q.replace('crypto', 'Crypto').title()} — Complete Guide 2026",
+                    "KW": q,
+                    "Status": "🔴 NOT VISIBLE",
+                    "Top Competitor": r.get("top_result_domain", "—"),
+                    "Action": "Write new article + publish on DR 40+ outlet",
+                    "GEO": "FAQ + comparison table + question headers",
+                })
+
+            for i, r in enumerate(visible_low):
+                q = r["query"]
+                if any(q.lower() in kw for kw in existing_kws):
+                    continue
+                gap_rows.append({
+                    "#": f"B{i+1}",
+                    "Title": f"Boost: {q.title()}",
+                    "KW": q,
+                    "Status": f"🟡 Position #{r['kolo_position']}",
+                    "Top Competitor": r.get("top_result_domain", "—"),
+                    "Action": "Reddit/Quora answers + backlinks to existing article",
+                    "GEO": "Add FAQ to existing article if missing",
+                })
+
+            if gap_rows:
+                gap_df = pd.DataFrame(gap_rows)
+                st.dataframe(gap_df, use_container_width=True, hide_index=True)
+                st.info(f"**{len([r for r in gap_rows if '🔴' in r['Status']])} new articles needed** + "
+                        f"**{len([r for r in gap_rows if '🟡' in r['Status']])} existing articles to boost** "
+                        f"based on your GEO audit.")
+            else:
+                st.success("All audit queries are already covered by existing briefs!")
+        else:
+            st.success("🎉 GEO Audit shows Kolo is visible in all target queries!")
+    else:
+        st.info("💡 Run a **GEO Visibility Audit** (Stage 8) to auto-generate content gap briefs here.")
+
     st.header("🚨 Plan Revisions from Hex Live Data")
     col1, col2 = st.columns(2)
     with col1:
@@ -1006,6 +1062,29 @@ BRIEFS = [
     {"#": 10, "Title": "Crypto Card for Business 2026: Pay with USDT",          "Lang": "EN",    "Market": "Global B2B",  "KW": "crypto card business / USDT card B2B",  "Words": 1400, "Priority": "Medium"},
 ]
 
+def _get_all_briefs():
+    """Return BRIEFS + any gap briefs from GEO audit."""
+    all_briefs = list(BRIEFS)
+    geo_results = st.session_state.get("geo_audit_results", [])
+    if geo_results:
+        existing_kws = {b["KW"].lower() for b in BRIEFS}
+        not_visible = [r for r in geo_results if not r.get("error") and not r.get("kolo_visible")]
+        for i, r in enumerate(not_visible):
+            q = r["query"]
+            if any(q.lower() in kw for kw in existing_kws):
+                continue
+            all_briefs.append({
+                "#": 100 + i,
+                "Title": f"{q.replace('crypto', 'Crypto').title()} — Complete Guide 2026",
+                "Lang": "EN",
+                "Market": "Global",
+                "KW": q,
+                "Words": 1200,
+                "Priority": "GEO Gap",
+            })
+    return all_briefs
+
+
 def page_pr_generator():
     st.title("📝 Stage 6 · PR Generator")
     st.caption("Generate SEO+GEO-optimized press releases, revise with AI, translate, and track publications")
@@ -1022,11 +1101,13 @@ def page_pr_generator():
         mode = st.radio("Source", ["Pick from briefs", "Custom brief"], horizontal=True)
 
         if mode == "Pick from briefs":
-            brief_titles = [f"#{b['#']} — {b['Title']}" for b in BRIEFS]
+            all_briefs = _get_all_briefs()
+            brief_titles = [f"{'🔍 GEO GAP — ' if b['#'] >= 100 else ''}#{b['#']} — {b['Title']}" for b in all_briefs]
             sel = st.selectbox("Select brief", brief_titles)
-            idx = int(sel.split("#")[1].split(" ")[0]) - 1
-            brief = BRIEFS[idx]
-            st.markdown(f"**KW:** {brief['KW']} · **Market:** {brief['Market']} · **Words:** ~{brief['Words']}")
+            idx = brief_titles.index(sel)
+            brief = all_briefs[idx]
+            label = "**🔍 GEO Gap** · " if brief.get("Priority") == "GEO Gap" else ""
+            st.markdown(f"{label}**KW:** {brief['KW']} · **Market:** {brief['Market']} · **Words:** ~{brief['Words']}")
         else:
             brief = {
                 "Title": st.text_input("Title", placeholder="Best crypto card for..."),
