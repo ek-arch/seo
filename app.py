@@ -70,44 +70,73 @@ with st.sidebar:
 
 def page_dashboard():
     st.title("🤖 Kolo SEO & GEO Intelligence Agent")
-    st.markdown("**March 2026 plan · \\$2,000 budget · 40+ countries · SEO + AI engine optimization · 1.9–5.9× ROI forecast**")
+    st.markdown("**March 2026 · \\$2,000 budget · SEO + GEO (AI visibility) + Social Distribution**")
 
-    pc  = DATA["platform"]["post_cashback"]
-    pnl = DATA["pnl"]
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
-    c1.metric("Active B2C Users",   f"{pc['active_users']:,}",        "+90% vs pre-cashback")
-    c2.metric("Monthly Card Spend", f"${pc['card_spend']/1e6:.2f}M",  "+111%")
-    c3.metric("Avg Daily Spend",    f"${pc['avg_daily_spend']:,}",     "+57%")
-    c4.metric("Net P&L (3-month)",  f"${sum(pnl['net_pnl']):,}",      "2.04× cashback coverage")
-    c5.metric("Active Countries",   "99",                              "B2C USD cards")
-    c6.metric("AI Visibility",      "0 / 10",                          "queries in AI answers")
+    # ── Action-oriented metrics ─────────────────────────────────
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("AI Visibility",      "0 / 10",    "queries where Kolo appears")
+    c2.metric("Reddit Threads Found", "0",        "awaiting first search")
+    c3.metric("Comments Posted",     "0",         "across Reddit + Quora")
+    c4.metric("Articles Published",  "0",         "with GEO optimization")
 
     st.divider()
+
+    # ── Weekly Actions ──────────────────────────────────────────
+    st.subheader("🎯 This Week's Actions")
+
     col_a, col_b = st.columns(2)
     with col_a:
         with st.container(border=True):
-            st.subheader("📊 Stage 1 · Market Intel")
-            st.markdown("- 10 competitor profiles across 9 markets\n- **Oobit** = closest CIS threat\n- **Trustee Plus alternative** = #1 keyword opportunity\n- Romania (+183%) and Switzerland = breakout markets\n- **GEO audit:** Kolo invisible in all AI engines")
+            st.markdown("### 📣 Social Distribution")
+            st.markdown("""
+- [ ] Search Reddit for "best crypto card" threads → draft 3 comments
+- [ ] Answer 2 Quora questions ("how to spend USDT", "crypto card Europe")
+- [ ] Find r/digitalnomad posts about multi-currency cards → comment
+- [ ] Post in Telegram crypto card groups (3 communities)
+- [ ] Monitor r/CryptoCards for new questions daily
+""")
         with st.container(border=True):
-            st.subheader("✍️ Stage 3 · Content Plan")
-            st.markdown("- 10 article briefs across 7 languages + GEO checklist\n- Full EN draft ready (~1,500 words)\n- 90-day calendar March–May 2026\n- **Spain relocation hook** added to Russian pillar")
+            st.markdown("### 🤖 GEO Optimization")
+            st.markdown("""
+- [ ] Test 10 AI queries (ChatGPT, Perplexity, Google AI) — log Kolo mentions
+- [ ] Add FAQ section to every published article
+- [ ] Add comparison tables (Kolo vs Binance Card, vs Revolut)
+- [ ] Create stat-dense paragraphs AI engines can cite
+- [ ] Submit articles to sources AI engines crawl (Reddit, Quora, Wikipedia refs)
+""")
+
     with col_b:
         with st.container(border=True):
-            st.subheader("📈 Stage 2 · Kolo Metrics")
-            st.markdown("- **Russian users** — \\$5,940/user vs English \\$3,467 (1.7×)\n- 🇸🇪 **Sweden whale** — \\$24,570/user (9 users, \\$221K)\n- 🇺🇾 Uruguay: \\$19,982/user, 99% conversion\n- Swap fees = **#1 revenue line** (\\$137K > card spend \\$81K)")
+            st.markdown("### ✍️ Content & PR")
+            st.markdown("""
+- [ ] Generate EN article with GEO-optimized structure
+- [ ] Translate to RU, ES, ID, IT (top markets by LTV)
+- [ ] Publish via outlets from Track Publications
+- [ ] Add UTM params to every publication link
+- [ ] Use AI Revise to add question headers + quotable stats
+""")
         with st.container(border=True):
-            st.subheader("🗞️ Stage 4 · Outlet Matching")
-            st.markdown("- Scoring: **6-dimension 0–18** system (SEO + GEO)\n- AI citability added as 6th scoring dimension\n- Collaborator.pro API: **⏳ pending support unlock**\n- Must-Have: search>35%, DR>40, price<\\$5/DR")
+            st.markdown("### 📊 Track & Measure")
+            st.markdown("""
+- [ ] Log all published article URLs in Track Publications
+- [ ] Check referral traffic from published articles (GA4)
+- [ ] Track Reddit comment karma / engagement
+- [ ] Record which AI queries show Kolo in answers
+- [ ] Monthly eval: compare ROI by channel (SEO vs GEO vs Social)
+""")
 
     st.divider()
-    st.subheader("💡 Top 4 Actions This Week")
+
+    # ── Quick Links ─────────────────────────────────────────────
+    st.subheader("🚀 Quick Start")
     st.markdown("""
-| Priority | Action | Why |
+| Step | Where | What to do |
 |---|---|---|
-| 🔴 **URGENT** | Lock Dubai RU expat outlet (Week 1, not Week 2) | ARE-ru = \\$21,640/user — highest expected-value placement |
-| 🟠 **HIGH** | Update Russian article hooks: remove ISR/KAZ angles, add Spain + CIS expat | ISR/KAZ card issuance suspended — hooks no longer valid |
-| 🟠 **HIGH** | Add UTM params before buying any outlet | Without attribution, 90-day ROI is unverifiable |
-| 🟠 **HIGH (GEO)** | Add FAQ sections + question headers to lead article | Kolo invisible in ChatGPT/Perplexity — GEO-optimized content gets AI citations |
+| 1 | **Distribution** → Find Posts | Search Reddit/Quora for crypto card threads |
+| 2 | **Distribution** → Draft Comments | Paste post URL → generate helpful reply |
+| 3 | **PR Generator** → Generate Draft | Create GEO-optimized article |
+| 4 | **PR Generator** → Track Publications | Log published articles + URLs |
+| 5 | **Distribution** → Tracker | Monitor comment posting status |
 """)
 
 
