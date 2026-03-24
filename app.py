@@ -1026,7 +1026,9 @@ def page_pr_generator():
                     try:
                         draft = generate_press_release(api_key, brief)
                         st.session_state["pr_en_draft"] = draft
+                        st.session_state["pr_draft_editor"] = draft
                         st.session_state["pr_brief"] = brief
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Generation failed: {e}")
 
@@ -1035,7 +1037,11 @@ def page_pr_generator():
 
         draft = st.session_state.get("pr_en_draft", "")
         if draft:
-            edited = st.text_area("Edit draft", value=draft, height=400, key="pr_draft_editor")
+            # Use widget key as the source of truth — sync it before rendering
+            if "pr_draft_editor" not in st.session_state:
+                st.session_state["pr_draft_editor"] = draft
+            edited = st.text_area("Edit draft", height=400, key="pr_draft_editor")
+            # Keep pr_en_draft in sync with whatever the user types
             st.session_state["pr_en_draft"] = edited
             st.download_button("Download .md", data=edited, file_name="press_release_en.md", mime="text/markdown")
 
@@ -1052,7 +1058,9 @@ def page_pr_generator():
                 with st.spinner("Revising..."):
                     try:
                         revised = revise_press_release(api_key, edited, revision_instructions)
+                        # Update BOTH keys so the text_area picks up the new text
                         st.session_state["pr_en_draft"] = revised
+                        st.session_state["pr_draft_editor"] = revised
                         st.rerun()
                     except Exception as e:
                         st.error(f"Revision failed: {e}")
