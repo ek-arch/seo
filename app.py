@@ -1903,7 +1903,7 @@ Free tier: **100 searches/month** — enough for 6 full audits.
         """)
         return
 
-    tab_audit, tab_history = st.tabs(["🔍 Run Audit", "📊 History"])
+    tab_audit, tab_plan, tab_history = st.tabs(["🔍 Run Audit", "🎯 Action Plan", "📊 History"])
 
     with tab_audit:
         st.subheader("Visibility Audit")
@@ -2004,6 +2004,119 @@ Free tier: **100 searches/month** — enough for 6 full audits.
                         label = "KOLO" if res["kolo_domain"] or res["kolo_mentioned"] else (res["competitor"] or "")
                         st.markdown(f"{icon} #{res['position']} [{res['title'][:60]}]({res['link']}) {f'**{label}**' if label else ''}")
                     st.divider()
+
+    # ── Tab 2: Action Plan ────────────────────────────────────────────
+    with tab_plan:
+        results = st.session_state.get("geo_audit_results", [])
+        if not results:
+            st.info("Run an audit first (tab 1) to generate an action plan.")
+        else:
+            summary = summarize_audit(results)
+            st.subheader(f"GEO Action Plan — Kolo visible in {summary['visibility_score']} queries")
+
+            # Categorize queries
+            not_visible = [r for r in results if not r.get("error") and not r.get("kolo_visible")]
+            visible_low = [r for r in results if r.get("kolo_position") and r["kolo_position"] > 5]
+            visible_high = [r for r in results if r.get("kolo_position") and r["kolo_position"] <= 5]
+            has_ai_overview = [r for r in results if r.get("ai_overview")]
+
+            # ── Priority 1: Not visible at all ────────────────────
+            if not_visible:
+                st.markdown("### 🔴 Priority 1: Not Visible — Create Content")
+                st.markdown("Kolo doesn't appear in top 10 for these queries. **Action: publish targeted articles.**")
+                for r in not_visible:
+                    competitors = ", ".join(r.get("competitors_found", [])[:3]) or "No known competitors"
+                    top = r.get("top_result_domain", "—")
+                    st.markdown(
+                        f"- **\"{r['query']}\"** — Top result: `{top}` · Competitors: {competitors}\n"
+                        f"  → Write article targeting this keyword · Publish on high-DR outlet · Add FAQ + comparison table"
+                    )
+
+                # Generate briefs suggestion
+                st.divider()
+                st.markdown("**Suggested article briefs:**")
+                for i, r in enumerate(not_visible[:5]):
+                    q = r["query"]
+                    st.markdown(
+                        f"{i+1}. **Title:** \"Best {q.title()} in 2026 — Complete Guide\" · "
+                        f"**KW:** `{q}` · **Structure:** question headers + FAQ + comparison table + stat paragraphs"
+                    )
+
+            # ── Priority 2: Visible but low position ──────────────
+            if visible_low:
+                st.divider()
+                st.markdown("### 🟡 Priority 2: Low Position (#6-10) — Optimize Existing")
+                st.markdown("Kolo appears but below the fold. **Action: boost with backlinks + Reddit/Quora mentions.**")
+                for r in visible_low:
+                    st.markdown(
+                        f"- **\"{r['query']}\"** — Position #{r['kolo_position']}\n"
+                        f"  → Post on Reddit/Quora answering this query · Link to existing article · Add internal links"
+                    )
+
+            # ── Priority 3: Good position ─────────────────────────
+            if visible_high:
+                st.divider()
+                st.markdown("### 🟢 Priority 3: Strong Position (#1-5) — Defend & Expand")
+                st.markdown("Kolo ranks well. **Action: maintain + create related content.**")
+                for r in visible_high:
+                    st.markdown(
+                        f"- ✅ **\"{r['query']}\"** — Position #{r['kolo_position']}"
+                    )
+
+            # ── Competitor Analysis ────────────────────────────────
+            if summary["top_competitors"]:
+                st.divider()
+                st.markdown("### 🏆 Competitor Dominance — Where to Attack")
+                for comp, count in summary["top_competitors"]:
+                    total_valid = summary["total_queries"] - summary["errors"]
+                    pct = round(count / max(total_valid, 1) * 100)
+                    if pct > 50:
+                        action = "**High threat** — create comparison articles (Kolo vs " + comp + ")"
+                    elif pct > 25:
+                        action = "Moderate presence — mention in Reddit/Quora answers as alternative"
+                    else:
+                        action = "Low presence — monitor"
+                    st.markdown(f"- **{comp}** visible in {count}/{total_valid} queries ({pct}%) → {action}")
+
+            # ── AI Overview Strategy ──────────────────────────────
+            if has_ai_overview:
+                st.divider()
+                st.markdown("### 🤖 AI Overview Detected")
+                ai_kolo = sum(1 for r in has_ai_overview if r["ai_overview"].get("kolo_mentioned"))
+                st.markdown(
+                    f"Google AI Overviews appeared for **{len(has_ai_overview)}** queries. "
+                    f"Kolo mentioned in **{ai_kolo}** of them."
+                )
+                if ai_kolo < len(has_ai_overview):
+                    st.markdown(
+                        "**Action:** Restructure articles for AI citability:\n"
+                        "- Add FAQ sections with exact target queries as questions\n"
+                        "- Use question-format H2 headers\n"
+                        "- Include self-contained stat sentences (\"Kolo supports USDT spending in 99 countries\")\n"
+                        "- Post answers on Reddit/Quora — AI engines heavily cite these"
+                    )
+
+            # ── Weekly Action Checklist ────────────────────────────
+            st.divider()
+            st.markdown("### 📋 This Week's GEO Checklist")
+            n_missing = len(not_visible)
+            n_low = len(visible_low)
+            top_comp = summary["top_competitors"][0][0] if summary["top_competitors"] else "Crypto.com"
+
+            checklist = []
+            if n_missing > 0:
+                checklist.append(f"Write {min(n_missing, 3)} articles targeting missing queries (see Priority 1 above)")
+            if n_missing > 0:
+                checklist.append(f"Publish on outlets with DR 40+ for missing keyword coverage")
+            if n_low > 0:
+                checklist.append(f"Post {min(n_low, 3)} Reddit/Quora answers for low-position queries")
+            checklist.append(f"Create comparison article: Kolo vs {top_comp}")
+            checklist.append("Add FAQ sections to all published articles that don't have them")
+            checklist.append("Test 5 queries on ChatGPT + Perplexity — log if Kolo appears")
+            checklist.append(f"Re-run GEO audit next week to track progress")
+
+            for item in checklist:
+                st.markdown(f"- [ ] {item}")
 
     with tab_history:
         st.subheader("Audit History")
