@@ -1018,6 +1018,7 @@ def page_pr_generator():
         with col2:
             brief["hooks"] = st.text_input("Hooks to include (optional)", placeholder="e.g. USDT TRC20, Telegram mini-app")
 
+        gen_ok = False
         if st.button("🚀 Generate EN Draft", type="primary", disabled=not api_key):
             if not api_key:
                 st.error("Add your Anthropic API key in the sidebar.")
@@ -1028,9 +1029,11 @@ def page_pr_generator():
                         st.session_state["pr_en_draft"] = draft
                         st.session_state["pr_draft_editor"] = draft
                         st.session_state["pr_brief"] = brief
-                        st.rerun()
+                        gen_ok = True
                     except Exception as e:
                         st.error(f"Generation failed: {e}")
+        if gen_ok:
+            st.rerun()
 
         if not api_key:
             st.info("Enter your Anthropic API key in the sidebar to enable generation.")
@@ -1054,6 +1057,7 @@ def page_pr_generator():
                 height=100,
                 key="revision_instructions",
             )
+            rev_ok = False
             if st.button("✏️ Revise Draft", type="primary", disabled=not api_key or not revision_instructions):
                 with st.spinner("Revising..."):
                     try:
@@ -1061,9 +1065,11 @@ def page_pr_generator():
                         # Update BOTH keys so the text_area picks up the new text
                         st.session_state["pr_en_draft"] = revised
                         st.session_state["pr_draft_editor"] = revised
-                        st.rerun()
+                        rev_ok = True
                     except Exception as e:
                         st.error(f"Revision failed: {e}")
+            if rev_ok:
+                st.rerun()
 
     # ── Tab 2: Translate ──────────────────────────────────────────────────
     with tab_trans:
