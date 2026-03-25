@@ -321,7 +321,7 @@ def page_content_plan():
         {"#": 6,  "Title": "Melhor Cartão Cripto no Brasil 2026: Gaste USDT",       "Lang": "PT-BR", "Market": "🇧🇷 BRA",    "KW": "cartão cripto Brasil / cartão USDT",    "Words": 1000, "Priority": "🟠",        "Outlet": "adital.com.br"},
         {"#": 7,  "Title": "Migliore Carta Crypto in Italia 2026",                  "Lang": "IT",    "Market": "🇮🇹 ITA",    "KW": "carta crypto Italia",                   "Words": 1000, "Priority": "🟠",        "Outlet": "it.kompass.com + viverepesaro.it"},
         {"#": 8,  "Title": "Kartu Kripto Terbaik di Indonesia 2026",                "Lang": "ID",    "Market": "🇮🇩 IDN",    "KW": "kartu kripto Indonesia",                "Words": 1000, "Priority": "🟠",        "Outlet": "TBD Indonesian outlets"},
-        {"#": 9,  "Title": "Альтернатива Trustee Plus: лучшая крипто-карта 2026",  "Lang": "RU+UK", "Market": "🌍 CIS/UKR", "KW": "альтернатива trustee plus",             "Words": 1200, "Priority": "🔴 URGENT", "Outlet": "moya-provinciya + euroua.com + track-package"},
+        {"#": 9,  "Title": "Альтернатива Trustee Plus: лучшая крипто-карта 2026",  "Lang": "UA",    "Market": "🌍 CIS/UKR", "KW": "альтернатива trustee plus",             "Words": 1200, "Priority": "🔴 URGENT", "Outlet": "moya-provinciya + euroua.com + track-package (all UA)"},
         {"#": 10, "Title": "Cel mai bun card crypto în România 2026",               "Lang": "RO",    "Market": "🇷🇴 ROU",    "KW": "card crypto Romania",                   "Words": 1000, "Priority": "🔴 BREAKOUT","Outlet": "TBD Romanian outlet"},
         {"#": 11, "Title": "Crypto Card for Business 2026: Pay with USDT",          "Lang": "EN+RU", "Market": "Global B2B", "KW": "crypto card business / USDT card B2B",  "Words": 1400, "Priority": "🟡",        "Outlet": "businessabc.net"},
         {"#": 12, "Title": "Kolo vs Crypto.com vs Coinbase: Card Comparison 2026",  "Lang": "EN",    "Market": "Global",      "KW": "crypto card comparison 2026",           "Words": 1500, "Priority": "🔴 GEO",    "Outlet": "businessabc.net + newspioneer.co.uk"},
@@ -692,7 +692,7 @@ def page_outlet_matching():
         .reset_index()
     )
     pillar_budget.columns = ["Pillar", "Spent"]
-    caps = {"English": 500, "Russian": 500, "Italian": 200, "Spanish": 300,
+    caps = {"English": 500, "Russian": 200, "RU/UA": 500, "Italian": 200, "Spanish": 300,
             "Polish": 100, "Portuguese": 200, "Indonesian": 100, "Romanian": 100, "UAE": 350}
     pillar_budget["Cap"]       = pillar_budget["Pillar"].map(caps).fillna(200)
     pillar_budget["Remaining"] = pillar_budget["Cap"] - pillar_budget["Spent"]
