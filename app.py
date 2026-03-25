@@ -50,7 +50,13 @@ with st.sidebar:
     collab_token = st.text_input("Collaborator.pro token", type="password", placeholder="etVxo-...", help="collaborator.pro/user/api")
     notion_token = st.text_input("Notion token", type="password", placeholder="secret_...", help="Required for writing to Notion")
     anthropic_token = st.text_input("Anthropic API key", type="password", placeholder="sk-ant-...", help="console.anthropic.com → API keys")
-    serpapi_key = st.text_input("SerpAPI key", type="password", placeholder="...", help="serpapi.com → free 100 searches/month")
+    # Auto-load SerpAPI key from secrets, fallback to sidebar input
+    _serpapi_default = ""
+    try:
+        _serpapi_default = st.secrets.get("SERPAPI_KEY", "")
+    except Exception:
+        pass
+    serpapi_key = st.text_input("SerpAPI key", type="password", value=_serpapi_default, placeholder="...", help="serpapi.com → free 100 searches/month")
     # Auto-load Google Sheets credentials from Streamlit secrets
     import json as _json
     _gsheets_creds = ""
@@ -1708,42 +1714,57 @@ def page_content_distribution():
 
     tab_search, tab_drafts, tab_tracker = st.tabs(["🔍 Find Posts", "✏️ Draft Comments", "📋 Queue"])
 
-    # ── Tab 0: Find Posts (SerpAPI-powered Reddit search) ───────────
+    # ── Tab 0: Find Posts (SerpAPI — Reddit / Quora / Twitter) ──────
     with tab_search:
         import re as _re_s
         import requests as _req_s
 
-        st.subheader("Find Relevant Reddit Posts")
-        st.markdown("Search Google for Reddit posts about crypto cards via SerpAPI.")
-
         serpapi_key = st.session_state.get("serpapi_key", "")
-
-        REDDIT_QUERIES = [
-            "site:reddit.com crypto card recommendation",
-            "site:reddit.com which crypto card do you use",
-            "site:reddit.com best crypto debit card",
-            "site:reddit.com USDT card spend",
-            "site:reddit.com crypto card digital nomad",
-            "site:reddit.com crypto card Europe",
-            "site:reddit.com TRC20 USDT card",
-            "site:reddit.com crypto card fees comparison",
-        ]
-
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            custom_search = st.text_input("Custom search (optional)", placeholder="e.g. spend USDT abroad", key="reddit_custom_q")
-        with col2:
-            num_queries = st.number_input("Queries to run", value=3, min_value=1, max_value=8, key="num_q",
-                                          help="Each query uses 1 SerpAPI credit (100/month free)")
 
         if not serpapi_key:
             st.warning("Add your **SerpAPI key** in the sidebar to search.")
 
-        if st.button("🔍 Search Reddit", type="primary", disabled=not serpapi_key):
+        # Platform sub-tabs
+        plat_reddit, plat_quora, plat_twitter = st.tabs(["🔴 Reddit", "🔵 Quora", "🐦 Twitter / X"])
+
+        PLATFORM_QUERIES = {
+            "Reddit": [
+                "site:reddit.com crypto card recommendation",
+                "site:reddit.com which crypto card do you use",
+                "site:reddit.com best crypto debit card",
+                "site:reddit.com USDT card spend",
+                "site:reddit.com crypto card digital nomad",
+                "site:reddit.com crypto card Europe",
+                "site:reddit.com TRC20 USDT card",
+                "site:reddit.com crypto card fees comparison",
+            ],
+            "Quora": [
+                "site:quora.com best crypto card",
+                "site:quora.com how to spend USDT",
+                "site:quora.com crypto debit card review",
+                "site:quora.com crypto card Europe",
+                "site:quora.com USDT Visa card",
+                "site:quora.com crypto card vs bank card",
+                "site:quora.com best way to spend cryptocurrency",
+                "site:quora.com Telegram crypto wallet",
+            ],
+            "Twitter": [
+                "site:twitter.com OR site:x.com crypto card recommendation",
+                "site:twitter.com OR site:x.com best crypto debit card",
+                "site:twitter.com OR site:x.com USDT card",
+                "site:twitter.com OR site:x.com crypto card review",
+                "site:twitter.com OR site:x.com crypto card Europe",
+                "site:twitter.com OR site:x.com crypto card fees",
+            ],
+        }
+
+        def _serpapi_search(platform, custom_q, num_q, state_key):
+            """Shared search function for all platforms."""
             queries = []
-            if custom_search:
-                queries.append(f"site:reddit.com {custom_search}")
-            queries.extend(REDDIT_QUERIES[:num_queries])
+            site_prefix = {"Reddit": "site:reddit.com", "Quora": "site:quora.com", "Twitter": "site:twitter.com OR site:x.com"}[platform]
+            if custom_q:
+                queries.append(f"{site_prefix} {custom_q}")
+            queries.extend(PLATFORM_QUERIES[platform][:num_q])
 
             all_posts = []
             seen = set()
@@ -1758,55 +1779,108 @@ def page_content_distribution():
                         data = resp.json()
                         for item in data.get("organic_results", []):
                             link = item.get("link", "")
-                            reddit_match = _re_s.search(r'reddit\.com/r/(\w+)/comments/', link)
-                            if not reddit_match or link in seen:
+                            if link in seen:
                                 continue
                             seen.add(link)
+                            # Extract community name
+                            community = ""
+                            if platform == "Reddit":
+                                m = _re_s.search(r'reddit\.com/r/(\w+)', link)
+                                community = f"r/{m.group(1)}" if m else ""
+                                if not m or "/comments/" not in link:
+                                    continue
+                            elif platform == "Quora":
+                                community = "Quora"
+                            elif platform == "Twitter":
+                                m = _re_s.search(r'(?:twitter|x)\.com/(\w+)/status', link)
+                                community = f"@{m.group(1)}" if m else ""
+                                if not m:
+                                    continue
+
                             all_posts.append({
                                 "title": item.get("title", "")[:120],
-                                "subreddit": reddit_match.group(1),
+                                "community": community,
                                 "snippet": item.get("snippet", "")[:200],
                                 "url": link,
-                                "score": 0,
-                                "num_comments": 0,
-                                "is_self": True,
+                                "platform": platform,
                             })
                 except Exception:
                     pass
                 progress.progress((i + 1) / len(queries))
 
-            st.session_state["reddit_found"] = all_posts[:30]
+            st.session_state[state_key] = all_posts[:30]
             _save_distribution_state()
             progress.empty()
-            st.success(f"Found {len(all_posts)} Reddit posts using {len(queries)} queries")
-            st.rerun()
+            return all_posts
 
-        found = st.session_state.get("reddit_found", [])
-        if found:
-            st.success(f"Found {len(found)} relevant posts")
+        def _show_results(state_key, platform, prefix):
+            """Shared display function for search results."""
+            found = st.session_state.get(state_key, [])
+            if found:
+                st.success(f"Found {len(found)} {platform} posts")
+                selected_urls = []
+                for i, post in enumerate(found):
+                    with st.container(border=True):
+                        col1, col2 = st.columns([5, 1])
+                        with col1:
+                            st.markdown(f"**{post['title'][:80]}** — {post['community']}")
+                            if post.get("snippet"):
+                                st.caption(post["snippet"][:120] + "...")
+                        with col2:
+                            if st.checkbox("Select", key=f"{prefix}_{i}", value=False):
+                                selected_urls.append(post["url"])
 
-            # Select posts to send to Draft Comments
-            selected_urls = []
-            for i, post in enumerate(found):
-                with st.container(border=True):
-                    col1, col2, col3 = st.columns([5, 1, 1])
-                    with col1:
-                        st.markdown(f"**{post['title'][:80]}** — r/{post['subreddit']}")
-                        if post.get("body"):
-                            st.caption(post["body"][:120] + "...")
-                    with col2:
-                        st.caption(f"⬆️ {post['score']}")
-                        st.caption(f"💬 {post['num_comments']}")
-                    with col3:
-                        if st.checkbox("Select", key=f"sel_{i}", value=False):
-                            selected_urls.append(post["url"])
+                if selected_urls:
+                    if st.button(f"📋 Send {len(selected_urls)} to Draft Comments", type="primary", key=f"send_{prefix}"):
+                        existing = st.session_state.get("prefilled_urls", "")
+                        new_urls = "\n".join(selected_urls)
+                        st.session_state["prefilled_urls"] = (existing + "\n" + new_urls).strip()
+                        st.success(f"Added {len(selected_urls)} URLs! Switch to **Draft Comments** tab.")
 
-            if selected_urls:
-                if st.button(f"📋 Send {len(selected_urls)} to Draft Comments", type="primary"):
-                    st.session_state["prefilled_urls"] = "\n".join(selected_urls)
-                    st.success(f"Copied {len(selected_urls)} URLs! Switch to **Draft Comments** tab.")
-        else:
-            st.info("Click **Search Reddit** to find posts across crypto subreddits.")
+        # ── Reddit ────────────────────────────────────────────────
+        with plat_reddit:
+            st.subheader("Find Reddit Posts")
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                reddit_q = st.text_input("Custom search", placeholder="e.g. spend USDT abroad", key="reddit_q")
+            with col2:
+                reddit_n = st.number_input("Queries", value=3, min_value=1, max_value=8, key="reddit_n",
+                                           help="1 SerpAPI credit per query")
+            if st.button("🔍 Search Reddit", type="primary", disabled=not serpapi_key, key="btn_reddit"):
+                results = _serpapi_search("Reddit", reddit_q, reddit_n, "reddit_found")
+                st.success(f"Found {len(results)} Reddit posts")
+                st.rerun()
+            _show_results("reddit_found", "Reddit", "rsel")
+
+        # ── Quora ─────────────────────────────────────────────────
+        with plat_quora:
+            st.subheader("Find Quora Questions")
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                quora_q = st.text_input("Custom search", placeholder="e.g. crypto card for travel", key="quora_q")
+            with col2:
+                quora_n = st.number_input("Queries", value=3, min_value=1, max_value=8, key="quora_n",
+                                          help="1 SerpAPI credit per query")
+            if st.button("🔍 Search Quora", type="primary", disabled=not serpapi_key, key="btn_quora"):
+                results = _serpapi_search("Quora", quora_q, quora_n, "quora_found")
+                st.success(f"Found {len(results)} Quora questions")
+                st.rerun()
+            _show_results("quora_found", "Quora", "qsel")
+
+        # ── Twitter / X ──────────────────────────────────────────
+        with plat_twitter:
+            st.subheader("Find Twitter / X Posts")
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                twitter_q = st.text_input("Custom search", placeholder="e.g. crypto card review", key="twitter_q")
+            with col2:
+                twitter_n = st.number_input("Queries", value=3, min_value=1, max_value=6, key="twitter_n",
+                                            help="1 SerpAPI credit per query")
+            if st.button("🔍 Search Twitter", type="primary", disabled=not serpapi_key, key="btn_twitter"):
+                results = _serpapi_search("Twitter", twitter_q, twitter_n, "twitter_found")
+                st.success(f"Found {len(results)} tweets")
+                st.rerun()
+            _show_results("twitter_found", "Twitter", "tsel")
 
     # ── Tab 1: Draft Comments ─────────────────────────────────────────
     with tab_drafts:
