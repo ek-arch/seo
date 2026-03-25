@@ -693,10 +693,10 @@ def page_outlet_matching():
     )
     pillar_budget.columns = ["Pillar", "Spent"]
     caps = {"English": 500, "Russian": 500, "Italian": 200, "Spanish": 300,
-            "Polish": 100, "Portuguese": 200, "Indonesian": 100, "Romanian": 100}
-    pillar_budget["Cap"]       = pillar_budget["Pillar"].map(caps)
+            "Polish": 100, "Portuguese": 200, "Indonesian": 100, "Romanian": 100, "UAE": 350}
+    pillar_budget["Cap"]       = pillar_budget["Pillar"].map(caps).fillna(200)
     pillar_budget["Remaining"] = pillar_budget["Cap"] - pillar_budget["Spent"]
-    pillar_budget["Util %"]    = (pillar_budget["Spent"] / pillar_budget["Cap"] * 100).round(0).astype(int)
+    pillar_budget["Util %"]    = (pillar_budget["Spent"] / pillar_budget["Cap"].replace(0, 1) * 100).round(0).fillna(0).astype(int)
     def color_util(val):
         if val >= 90: return "background-color: #ffd6d6"
         if val >= 60: return "background-color: #fff3cd"
