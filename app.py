@@ -1700,82 +1700,9 @@ def page_content_distribution():
     st.sidebar.subheader("📣 Distribution")
     ref_url = st.sidebar.text_input("Article URL to reference (optional)", placeholder="https://...", key="dist_ref_url")
 
-    tab_find, tab_drafts, tab_tracker = st.tabs(["🔍 Find Posts", "✏️ Draft Comments", "📊 Tracker"])
+    tab_drafts, tab_tracker = st.tabs(["✏️ Draft Comments", "📋 Queue"])
 
-    # ── Tab 1: Find Posts ─────────────────────────────────────────────
-    with tab_find:
-        st.subheader("1. Find Posts to Comment On")
-        st.markdown(
-            "Click the search links below — they open Reddit/Quora/Google in your browser. "
-            "When you find a good post, **paste its URL** in the Draft Comments tab to generate a reply. "
-            "**High GEO value:** AI engines index Reddit & Quora answers heavily."
-        )
-
-        # ── Reddit Search Links ───────────────────────────────────
-        st.markdown("### 🔴 Reddit")
-        st.markdown("Click to open Reddit search in your browser:")
-
-        reddit_queries = [
-            ("best crypto card", ["cryptocurrency", "CryptoCards", "digitalnomad"]),
-            ("crypto debit card Europe", ["cryptocurrency", "CryptoCards", "ethfinance"]),
-            ("spend USDT real life", ["cryptocurrency", "TRON", "defi"]),
-            ("USDT Visa card", ["cryptocurrency", "CryptoCards"]),
-            ("crypto card fees comparison", ["cryptocurrency", "CryptoCards", "personalfinance"]),
-            ("crypto card digital nomad", ["digitalnomad", "cryptocurrency"]),
-            ("telegram crypto wallet", ["cryptocurrency", "TRON"]),
-            ("crypto card vs revolut", ["cryptocurrency", "CryptoCards"]),
-            ("TRC20 card", ["TRON", "cryptocurrency"]),
-            ("best way spend crypto", ["cryptocurrency", "Bitcoin", "defi"]),
-        ]
-
-        for query, subs in reddit_queries:
-            encoded = query.replace(" ", "+")
-            sub_links = " · ".join(
-                [f"[r/{s}](https://www.reddit.com/r/{s}/search/?q={encoded}&sort=new&t=month)" for s in subs]
-            )
-            st.markdown(f"**{query}:** [All Reddit](https://www.reddit.com/search/?q={encoded}&sort=new&t=month) · {sub_links}")
-
-        st.divider()
-
-        # ── Quora Search Links ────────────────────────────────────
-        st.markdown("### 🔵 Quora")
-        quora_queries = [
-            "best crypto card 2026", "how to spend USDT in real life",
-            "crypto card Europe", "USDT Visa card review",
-            "crypto debit card comparison", "is it safe to use crypto debit cards",
-            "best way to spend crypto abroad", "crypto card for digital nomads",
-        ]
-        cols = st.columns(2)
-        for i, qq in enumerate(quora_queries):
-            encoded = qq.replace(" ", "+")
-            with cols[i % 2]:
-                st.markdown(f"[🔍 {qq}](https://www.quora.com/search?q={encoded})")
-
-        st.divider()
-
-        # ── Google Search Links (site:reddit.com + site:quora.com) ─
-        st.markdown("### 🟢 Google (finds Reddit + Quora posts)")
-        st.markdown("Google search with `site:` filter — often finds older, high-traffic posts:")
-        google_queries = [
-            "best crypto card", "spend USDT", "crypto Visa card",
-            "USDT debit card", "crypto card fees", "telegram crypto wallet",
-        ]
-        cols = st.columns(2)
-        for i, gq in enumerate(google_queries):
-            encoded = gq.replace(" ", "+")
-            with cols[i % 2]:
-                st.markdown(
-                    f"**{gq}:** "
-                    f"[Reddit](https://www.google.com/search?q=site:reddit.com+{encoded}) · "
-                    f"[Quora](https://www.google.com/search?q=site:quora.com+{encoded})"
-                )
-
-        st.divider()
-
-        st.divider()
-        st.caption("💡 Use the **Draft Comments** tab to paste Reddit/Quora URLs and generate comments.")
-
-    # ── Tab 2: Draft Comments ─────────────────────────────────────────
+    # ── Tab 1: Draft Comments ─────────────────────────────────────────
     with tab_drafts:
         import re as _re
         import requests as _requests
