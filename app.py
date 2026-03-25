@@ -1966,23 +1966,41 @@ def page_content_distribution():
 # STAGE 10 — GEO VISIBILITY AUDIT
 # ══════════════════════════════════════════════════════════════════════════════
 
+_AUDIT_CACHE_FILE = "geo_audit_cache.json"
+
+
+def _save_audit_results(results):
+    """Persist audit results to a local JSON file."""
+    import json
+    with open(_AUDIT_CACHE_FILE, "w") as f:
+        json.dump({"saved_at": pd.Timestamp.now().isoformat(), "results": results}, f, default=str)
+
+
+def _load_audit_results():
+    """Load cached audit results from disk."""
+    import json, os
+    if not os.path.exists(_AUDIT_CACHE_FILE):
+        return None, None
+    try:
+        with open(_AUDIT_CACHE_FILE) as f:
+            data = json.load(f)
+        return data.get("results"), data.get("saved_at", "unknown")
+    except Exception:
+        return None, None
+
+
 def page_geo_visibility():
     st.title("🔍 Stage 8 · GEO Visibility Audit")
     st.caption("Track Kolo's presence in Google search results vs competitors · SerpAPI free 100/month")
 
     serp_key = st.session_state.get("serpapi_key")
 
-    if not serp_key:
-        st.warning("Add your **SerpAPI key** in the sidebar to run audits.")
-        st.markdown("""
-**Setup (1 minute):**
-1. Go to [serpapi.com](https://serpapi.com/) → Sign up (free)
-2. Copy your **API key** from the dashboard
-3. Paste it in the sidebar under "SerpAPI key"
-
-Free tier: **100 searches/month** — enough for 6 full audits.
-        """)
-        return
+    # Load cached results on first visit (persists across sessions)
+    if "geo_audit_results" not in st.session_state:
+        cached, saved_at = _load_audit_results()
+        if cached:
+            st.session_state["geo_audit_results"] = cached
+            st.session_state["geo_audit_saved_at"] = saved_at
 
     tab_audit, tab_plan, tab_history = st.tabs(["🔍 Run Audit", "🎯 Action Plan", "📊 History"])
 
@@ -1992,6 +2010,9 @@ Free tier: **100 searches/month** — enough for 6 full audits.
             f"Queries **{len(DEFAULT_QUERIES)}** target keywords on Google. "
             f"Checks if Kolo appears in top 10 results and which competitors rank."
         )
+
+        if not serp_key:
+            st.warning("Add your **SerpAPI key** in the sidebar to run new audits. The Action Plan tab works without it if you've run an audit before.")
 
         # Show queries
         with st.expander("Target queries", expanded=False):
@@ -2005,7 +2026,7 @@ Free tier: **100 searches/month** — enough for 6 full audits.
         if custom_q:
             queries_to_run.append(custom_q)
 
-        if st.button(f"🚀 Run Audit ({len(queries_to_run)} queries)", type="primary"):
+        if st.button(f"🚀 Run Audit ({len(queries_to_run)} queries)", type="primary", disabled=not serp_key):
             results = []
             progress = st.progress(0)
             status = st.empty()
@@ -2017,9 +2038,11 @@ Free tier: **100 searches/month** — enough for 6 full audits.
                 progress.progress((i + 1) / len(queries_to_run))
 
             st.session_state["geo_audit_results"] = results
+            st.session_state["geo_audit_saved_at"] = pd.Timestamp.now().isoformat()
+            _save_audit_results(results)
             status.empty()
             progress.empty()
-            st.success(f"Audit complete! Searched {len(results)} queries.")
+            st.success(f"Audit complete! Results saved — Action Plan tab is ready.")
 
         # Display results
         results = st.session_state.get("geo_audit_results", [])
@@ -2086,14 +2109,16 @@ Free tier: **100 searches/month** — enough for 6 full audits.
                         st.markdown(f"{icon} #{res['position']} [{res['title'][:60]}]({res['link']}) {f'**{label}**' if label else ''}")
                     st.divider()
 
-    # ── Tab 2: Action Plan ────────────────────────────────────────────
+    # ── Tab 2: Action Plan (persists without re-running) ─────────────
     with tab_plan:
         results = st.session_state.get("geo_audit_results", [])
         if not results:
-            st.info("Run an audit first (tab 1) to generate an action plan.")
+            st.info("Run an audit first (Run Audit tab) to generate an action plan. Results are saved to disk — you only need to run once.")
         else:
+            saved_at = st.session_state.get("geo_audit_saved_at", "unknown")
             summary = summarize_audit(results)
             st.subheader(f"GEO Action Plan — Kolo visible in {summary['visibility_score']} queries")
+            st.caption(f"Based on audit from: {saved_at[:16] if saved_at != 'unknown' else 'this session'} · No API key needed to view")
 
             # Categorize queries
             not_visible = [r for r in results if not r.get("error") and not r.get("kolo_visible")]
