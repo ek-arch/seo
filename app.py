@@ -2035,6 +2035,48 @@ def page_content_distribution():
             st.session_state["comment_queue"] = queue
 
             st.divider()
+
+            # Export to CSV (Google Sheets compatible)
+            export_rows = []
+            for item in queue:
+                export_rows.append({
+                    "Post URL": item["url"],
+                    "Post Title": item["title"],
+                    "Platform": item["platform"],
+                    "Subreddit": item.get("subreddit", ""),
+                    "Comment": item["comment"],
+                    "Status": item["status"],
+                    "Date": pd.Timestamp.now().strftime("%Y-%m-%d"),
+                })
+            export_df = pd.DataFrame(export_rows)
+            csv_data = export_df.to_csv(index=False)
+
+            col_exp1, col_exp2 = st.columns(2)
+            with col_exp1:
+                st.download_button(
+                    "📥 Export All to CSV",
+                    data=csv_data,
+                    file_name=f"reddit_comments_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    key="export_queue_csv",
+                )
+            with col_exp2:
+                # Export only drafts (not yet posted)
+                draft_rows = [r for r in export_rows if r["Status"] == "draft"]
+                if draft_rows:
+                    draft_csv = pd.DataFrame(draft_rows).to_csv(index=False)
+                    st.download_button(
+                        f"📥 Export {len(draft_rows)} Drafts Only",
+                        data=draft_csv,
+                        file_name=f"reddit_drafts_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        key="export_drafts_csv",
+                    )
+
+            st.caption(
+                "**Tip:** Import CSV into Google Sheets → each new export, paste below existing rows. "
+                "Columns: Post URL, Post Title, Platform, Subreddit, Comment, Status, Date."
+            )
             st.caption(
                 "**GEO Impact:** Reddit & Quora comments are indexed by "
                 "ChatGPT, Perplexity, and Google AI Overviews."
