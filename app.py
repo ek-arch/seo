@@ -1829,17 +1829,22 @@ def page_content_distribution():
         st.subheader("Draft Comments")
         st.markdown("Paste Reddit/Quora URLs → fetch → generate comments → all go to the Queue.")
 
-        if not api_key:
-            st.info("Enter your Anthropic API key in the sidebar.")
-
         # ── Step 1: Paste URLs ────────────────────────────────────
-        prefilled = st.session_state.pop("prefilled_urls", "")
+        # Auto-fill from Find Posts tab if user sent URLs
+        prefilled = st.session_state.get("prefilled_urls", "")
+        if prefilled and "bulk_urls_ver" not in st.session_state:
+            st.session_state["bulk_urls_ver"] = 0
+        if prefilled:
+            st.session_state["bulk_urls_ver"] = st.session_state.get("bulk_urls_ver", 0) + 1
+            st.session_state.pop("prefilled_urls", None)
+
+        url_ver = st.session_state.get("bulk_urls_ver", 0)
         urls_text = st.text_area(
             "Paste post URLs (one per line)",
-            value=prefilled,
+            value=prefilled if prefilled else "",
             height=200,
             placeholder="https://www.reddit.com/r/cryptocurrency/comments/abc123/which_crypto_card_do_you_use/\nhttps://www.reddit.com/r/digitalnomad/comments/def456/best_card_for_traveling/\nhttps://www.quora.com/What-is-the-best-crypto-debit-card-in-2026",
-            key="bulk_urls",
+            key=f"bulk_urls_{url_ver}",
         )
 
         def _fetch_reddit_post(url):
@@ -1893,6 +1898,8 @@ def page_content_distribution():
 
         with col_gen:
             fetched = st.session_state.get("fetched_posts", [])
+            if not api_key and fetched:
+                st.warning("Add Anthropic API key to generate.")
             if st.button("🤖 Generate All Comments", type="primary",
                          disabled=not api_key or not fetched):
                 queue = st.session_state.get("comment_queue", [])
