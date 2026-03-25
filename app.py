@@ -2117,29 +2117,31 @@ def page_content_distribution():
                     )
                     queue[i]["comment"] = edited
 
+                    # Revision input BEFORE buttons so value is available on click
+                    rev_text = st.text_input("What to change?", placeholder="shorter, less promotional, add fee comparison",
+                                             key=f"q_rev_{i}", label_visibility="collapsed")
+
                     # Action buttons
                     col1, col2, col3, col4 = st.columns([2, 2, 2, 2])
                     with col1:
                         st.markdown(f"[Open post ↗]({item['url']})")
                     with col2:
-                        if st.button("✏️ Revise", key=f"q_rev_btn_{i}", disabled=not api_key):
-                            rev_text = st.session_state.get(f"q_rev_{i}", "")
-                            if rev_text:
-                                try:
-                                    revised = generate_comment_reply(
-                                        api_key,
-                                        post_title=f"REVISION: {rev_text}",
-                                        post_body=f"Original:\n{edited}\n\nRevise: {rev_text}",
-                                        platform=item["platform"],
-                                        subreddit=item.get("subreddit", ""),
-                                        article_url=ref_url,
-                                    )
-                                    queue[i]["comment"] = revised
-                                    st.session_state[f"q_ver_{i}"] = ver + 1
-                                    st.session_state["comment_queue"] = queue
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Failed: {e}")
+                        if st.button("✏️ Revise", key=f"q_rev_btn_{i}", disabled=not api_key or not rev_text):
+                            try:
+                                revised = generate_comment_reply(
+                                    api_key,
+                                    post_title=f"REVISION: {rev_text}",
+                                    post_body=f"Original:\n{edited}\n\nRevise: {rev_text}",
+                                    platform=item["platform"],
+                                    subreddit=item.get("subreddit", ""),
+                                    article_url=ref_url,
+                                )
+                                queue[i]["comment"] = revised
+                                st.session_state[f"q_ver_{i}"] = ver + 1
+                                st.session_state["comment_queue"] = queue
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Failed: {e}")
                     with col3:
                         if item["status"] != "posted":
                             if st.button("✅ Posted", key=f"q_posted_{i}"):
@@ -2150,10 +2152,6 @@ def page_content_distribution():
                     with col4:
                         st.download_button("📋 Copy", data=edited, file_name=f"comment_{i}.txt",
                                            mime="text/plain", key=f"q_dl_{i}")
-
-                    # Revision input
-                    st.text_input("What to change?", placeholder="shorter, less promotional, add fee comparison",
-                                  key=f"q_rev_{i}", label_visibility="collapsed")
 
             st.session_state["comment_queue"] = queue
             _save_distribution_state()

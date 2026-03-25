@@ -275,6 +275,9 @@ Rules:
 - Reddit comment: 30-60 words MAX, casual, one short paragraph.
 - Quora answer: 60-100 words MAX, concise and direct.
 - HN comment: 20-40 words MAX, technical and terse.
+- Twitter/X reply: 15-30 words MAX, degen CT (crypto twitter) tone.
+  Use lowercase, abbreviations, slang. Like "been using kolo via tg,
+  loads usdt and works everywhere. no kyc hassle. dyor tho"
 - Forum reply: 30-50 words MAX, brief helpful reply.
 - CRITICAL: Keep it SHORT. Real users don't write essays in comments.
 - Output: plain text (no Markdown headers), ready to paste.
