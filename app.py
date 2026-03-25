@@ -20,6 +20,7 @@ from publication_roi import (
 )
 from llm_client import generate_press_release, revise_press_release, translate_press_release, recommend_monthly_plan, generate_comment_reply, LANG_NAMES
 from geo_visibility import DEFAULT_QUERIES, audit_query, run_full_audit, summarize_audit
+from sheets_client import push_comments, push_audit_results, push_publications
 from notion_writer import (
     create_content_plan_entry, create_pr_draft_page,
     create_monthly_plan_page, log_publication_result,
@@ -50,7 +51,8 @@ with st.sidebar:
     notion_token = st.text_input("Notion token", type="password", placeholder="secret_...", help="Required for writing to Notion")
     anthropic_token = st.text_input("Anthropic API key", type="password", placeholder="sk-ant-...", help="console.anthropic.com → API keys")
     serpapi_key = st.text_input("SerpAPI key", type="password", placeholder="...", help="serpapi.com → free 100 searches/month")
-    for k, v in [("hex_token", hex_token), ("collab_token", collab_token), ("notion_token", notion_token), ("anthropic_token", anthropic_token), ("serpapi_key", serpapi_key)]:
+    gsheets_json = st.text_area("Google Sheets JSON key", height=68, placeholder='Paste full JSON from service account key file...', help="Paste contents of silicon-guru-*.json")
+    for k, v in [("hex_token", hex_token), ("collab_token", collab_token), ("notion_token", notion_token), ("anthropic_token", anthropic_token), ("serpapi_key", serpapi_key), ("gsheets_json", gsheets_json)]:
         if v:
             st.session_state[k] = v
     st.divider()
@@ -2073,10 +2075,18 @@ def page_content_distribution():
                         key="export_drafts_csv",
                     )
 
-            st.caption(
-                "**Tip:** Import CSV into Google Sheets → each new export, paste below existing rows. "
-                "Columns: Post URL, Post Title, Platform, Subreddit, Comment, Status, Date."
-            )
+            # Push to Google Sheets
+            gsheets_creds = st.session_state.get("gsheets_json", "")
+            if gsheets_creds:
+                if st.button("📊 Push to Google Sheets", type="primary", key="push_sheets_btn"):
+                    with st.spinner("Pushing to Google Sheets..."):
+                        try:
+                            n = push_comments(gsheets_creds, queue)
+                            st.success(f"Pushed {n} new comments to Google Sheets!")
+                        except Exception as e:
+                            st.error(f"Failed: {e}")
+            else:
+                st.caption("💡 Add Google Sheets JSON key in sidebar to enable direct push.")
             st.caption(
                 "**GEO Impact:** Reddit & Quora comments are indexed by "
                 "ChatGPT, Perplexity, and Google AI Overviews."
