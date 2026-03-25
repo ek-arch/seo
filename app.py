@@ -313,16 +313,18 @@ def page_content_plan():
 
     st.header("10 Article Briefs")
     briefs = pd.DataFrame([
-        {"#": 1,  "Title": "How to Spend Crypto with a Visa Card in 2026",          "Lang": "EN",    "Market": "Global",      "KW": "how to spend crypto with a visa card",  "Words": 1500, "Priority": "🔴 LEAD"},
-        {"#": 2,  "Title": "Best Crypto Debit Card in the UK 2026",                 "Lang": "EN",    "Market": "🇬🇧 GBR",    "KW": "best crypto card UK 2026",              "Words": 1200, "Priority": "🔴"},
-        {"#": 3,  "Title": "Crypto Card for UAE Expats 2026: Spend USDT in Dubai",  "Lang": "EN",    "Market": "🇦🇪 ARE",    "KW": "crypto card UAE / USDT card UAE",       "Words": 1200, "Priority": "🔴"},
-        {"#": 4,  "Title": "Najlepsza karta krypto w Polsce 2026",                  "Lang": "PL",    "Market": "🇵🇱 POL",    "KW": "karta krypto Polska",                   "Words": 1000, "Priority": "🟠"},
-        {"#": 5,  "Title": "Melhor Cartão Cripto no Brasil 2026: Gaste USDT",       "Lang": "PT-BR", "Market": "🇧🇷 BRA",    "KW": "cartão cripto Brasil / cartão USDT",    "Words": 1000, "Priority": "🟠"},
-        {"#": 6,  "Title": "Migliore Carta Crypto in Italia 2026",                  "Lang": "IT",    "Market": "🇮🇹 ITA",    "KW": "carta crypto Italia",                   "Words": 1000, "Priority": "🟠"},
-        {"#": 7,  "Title": "Kartu Kripto Terbaik di Indonesia 2026",                "Lang": "ID",    "Market": "🇮🇩 IDN",    "KW": "kartu kripto Indonesia",                "Words": 1000, "Priority": "🟠"},
-        {"#": 8,  "Title": "Альтернатива Trustee Plus: лучшая крипто-карта 2026",  "Lang": "RU+UK", "Market": "🌍 CIS/UKR", "KW": "альтернатива trustee plus",             "Words": 1200, "Priority": "🔴 URGENT"},
-        {"#": 9,  "Title": "Cel mai bun card crypto în România 2026",               "Lang": "RO",    "Market": "🇷🇴 ROU",    "KW": "card crypto Romania",                   "Words": 1000, "Priority": "🔴 BREAKOUT"},
-        {"#": 10, "Title": "Crypto Card for Business 2026: Pay with USDT",          "Lang": "EN+RU", "Market": "Global B2B", "KW": "crypto card business / USDT card B2B",  "Words": 1400, "Priority": "🟡"},
+        {"#": 1,  "Title": "How to Spend Crypto with a Visa Card in 2026",          "Lang": "EN",    "Market": "Global",      "KW": "how to spend crypto with a visa card",  "Words": 1500, "Priority": "🔴 LEAD",   "Outlet": "businessabc.net"},
+        {"#": 2,  "Title": "Best Crypto Debit Card in the UK 2026",                 "Lang": "EN",    "Market": "🇬🇧 GBR",    "KW": "best crypto card UK 2026",              "Words": 1200, "Priority": "🔴",        "Outlet": "businessage.com + financial-news.co.uk"},
+        {"#": 3,  "Title": "Crypto Card for UAE Expats: Spend USDT in Dubai",       "Lang": "EN",    "Market": "🇦🇪 ARE",    "KW": "crypto card UAE / USDT card Dubai",     "Words": 1200, "Priority": "🔴 WEEK1",  "Outlet": "uaehelper.com + thetradable.com"},
+        {"#": 4,  "Title": "Best Crypto Card Dubai 2026: Kolo vs Oobit vs Crypto.com", "Lang": "EN", "Market": "🇦🇪 ARE",    "KW": "best crypto card Dubai 2026",           "Words": 1400, "Priority": "🔴 GEO",    "Outlet": "theemiratestimes.com"},
+        {"#": 5,  "Title": "Najlepsza karta krypto w Polsce 2026",                  "Lang": "PL",    "Market": "🇵🇱 POL",    "KW": "karta krypto Polska",                   "Words": 1000, "Priority": "🟠",        "Outlet": "netbe.pl + nenws.com"},
+        {"#": 6,  "Title": "Melhor Cartão Cripto no Brasil 2026: Gaste USDT",       "Lang": "PT-BR", "Market": "🇧🇷 BRA",    "KW": "cartão cripto Brasil / cartão USDT",    "Words": 1000, "Priority": "🟠",        "Outlet": "adital.com.br"},
+        {"#": 7,  "Title": "Migliore Carta Crypto in Italia 2026",                  "Lang": "IT",    "Market": "🇮🇹 ITA",    "KW": "carta crypto Italia",                   "Words": 1000, "Priority": "🟠",        "Outlet": "it.kompass.com + viverepesaro.it"},
+        {"#": 8,  "Title": "Kartu Kripto Terbaik di Indonesia 2026",                "Lang": "ID",    "Market": "🇮🇩 IDN",    "KW": "kartu kripto Indonesia",                "Words": 1000, "Priority": "🟠",        "Outlet": "TBD Indonesian outlets"},
+        {"#": 9,  "Title": "Альтернатива Trustee Plus: лучшая крипто-карта 2026",  "Lang": "RU+UK", "Market": "🌍 CIS/UKR", "KW": "альтернатива trustee plus",             "Words": 1200, "Priority": "🔴 URGENT", "Outlet": "moya-provinciya + euroua.com + track-package"},
+        {"#": 10, "Title": "Cel mai bun card crypto în România 2026",               "Lang": "RO",    "Market": "🇷🇴 ROU",    "KW": "card crypto Romania",                   "Words": 1000, "Priority": "🔴 BREAKOUT","Outlet": "TBD Romanian outlet"},
+        {"#": 11, "Title": "Crypto Card for Business 2026: Pay with USDT",          "Lang": "EN+RU", "Market": "Global B2B", "KW": "crypto card business / USDT card B2B",  "Words": 1400, "Priority": "🟡",        "Outlet": "businessabc.net"},
+        {"#": 12, "Title": "Kolo vs Crypto.com vs Coinbase: Card Comparison 2026",  "Lang": "EN",    "Market": "Global",      "KW": "crypto card comparison 2026",           "Words": 1500, "Priority": "🔴 GEO",    "Outlet": "businessabc.net + newspioneer.co.uk"},
     ])
     def color_priority(val):
         if "URGENT" in str(val) or "LEAD" in str(val): return "background-color: #ffd6d6; font-weight: bold"
@@ -423,39 +425,42 @@ def page_content_plan():
     with col2:
         st.info("**Revision 3 — Portugal data cleaned (F&F excluded)**\n\nPRT = \\$1.13M, \\$6,215/user, 94% conversion — STANDARD users only. F&F users removed from all markets. Brazil (\\$326K, 183 users) is the correct PT-BR content market.")
 
-    st.header("Localization Notes (7 Languages)")
-    t1, t2, t3, t4, t5, t6, t7 = st.tabs(["🇷🇺 Russian","🇮🇹 Italian","🇪🇸 Spanish","🇵🇱 Polish","🇵🇹 Portuguese","🇮🇩 Indonesian","🇷🇴 Romanian"])
+    st.header("Localization Notes (7 Languages + UAE)")
+    t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs(["🇦🇪 UAE","🇷🇺 Russian","🇮🇹 Italian","🇪🇸 Spanish","🇵🇱 Polish","🇵🇹 Portuguese","🇮🇩 Indonesian","🇷🇴 Romanian"])
     with t1:
-        st.markdown("**Angle:** Trustee Plus alternative + Ukrainian diaspora + CIS expat communities\n\n**Must include:** Why CIS users can't use Bybit/Nexo/KuCoin\n\n**New hooks:** *Spain relocation guide* · *Crypto card for UAE expats (RU-speaking)* · *CIS/SWE expat guide*\n\n**Keywords:** карта USDT 2026, крипто карта для граждан Украины, альтернатива trustee plus\n\n**Publish on:** DR>50 RU crypto outlet, DR>40 RU crypto outlet, Dubai RU expat outlet")
+        st.markdown("**🔴 PRIORITY — ARE = $13,830/user (#1 market by spend)**\n\n**Angle 1:** Crypto card for UAE expats — spend USDT at Dubai merchants\n\n**Angle 2:** Kolo vs Oobit vs Crypto.com in UAE (comparison article for GEO)\n\n**Outlets:** uaehelper.com ($50, DR53, 86% search) · thetradable.com ($100, DR54) · theemiratestimes.com ($99, DR44)\n\n**Premium options:** khaleejtimes.com ($200, DR78) · gulfnews.com ($250, DR82) — highest AI citability\n\n**Keywords:** crypto card UAE, best crypto card Dubai 2026, USDT card Dubai, spend crypto UAE\n\n**GEO:** Comparison table required (Kolo vs Oobit vs Crypto.com). FAQ section mandatory. UAE-specific stats.")
     with t2:
-        st.markdown("**Angle:** Italian expat diaspora in UK, Cyprus, UAE\n\n**Add:** Italian crypto tax (26% CGT) and how stablecoin spending reduces exposure\n\n**Keywords:** carta crypto Italia, pagare con criptovalute 2026, carta USDT Italia\n\n**Local hook:** Many Italians in London use Kolo (GBR = #1 Kolo revenue market)")
+        st.markdown("**Angle:** Trustee Plus alternative + Ukrainian diaspora + CIS expat communities\n\n**Must include:** Why CIS users can't use Bybit/Nexo/KuCoin\n\n**New hooks:** *Spain relocation guide* · *Crypto card for UAE expats (RU-speaking)* · *CIS/SWE expat guide*\n\n**Keywords:** карта USDT 2026, крипто карта для граждан Украины, альтернатива trustee plus\n\n**Publish on:** moya-provinciya.com.ua ($6) · euroua.com ($30) · track-package.com.ua ($4)")
     with t3:
-        st.markdown("**Two angles:** Spain (EU compliance) vs Argentina (USDC for inflation)\n\n**Key:** ESP-ru = \\$7,302/user vs ESP-en = \\$4,233/user — RU-speaking Spanish users are the real target\n\n**Argentina:** USDC/USDT for inflation hedging, 46.6% USDC penetration\n\n**Keywords:** tarjeta crypto España, gastar bitcoin 2026, tarjeta USDT")
+        st.markdown("**Angle:** Italian expat diaspora in UK, Cyprus, UAE\n\n**Add:** Italian crypto tax (26% CGT) and how stablecoin spending reduces exposure\n\n**Keywords:** carta crypto Italia, pagare con criptovalute 2026, carta USDT Italia\n\n**Outlets:** it.kompass.com ($135, DR77) · viverepesaro.it ($100, DR40)\n\n**Local hook:** Many Italians in London use Kolo (GBR = #1 Kolo revenue market)")
     with t4:
-        st.markdown("**Angle:** Polish IT freelancer paid in EUR, tired of PLN conversion fees\n\n**Tone:** Very practical, numbers-first. Polish readers trust data over claims.\n\n**Add:** Direct fee comparison: Bleap (local brand) vs Kolo\n\n**Keywords:** karta krypto Polska, płatności USDT Polska, najlepsza karta bitcoin")
+        st.markdown("**Two angles:** Spain (EU compliance) vs Argentina (USDC for inflation)\n\n**Key:** ESP-ru = \\$7,302/user vs ESP-en = \\$4,233/user — RU-speaking Spanish users are the real target\n\n**Argentina:** USDC/USDT for inflation hedging, 46.6% USDC penetration\n\n**Outlets:** crypto-economy.com ($130) · sevillaBN ($133)\n\n**Keywords:** tarjeta crypto España, gastar bitcoin 2026, tarjeta USDT")
     with t5:
-        st.markdown("**Primary market: Brazil (PT-BR)**\n\nBRA = \\$326K, 183 card users, \\$1,781/user — adital.com.br in plan\n\n**PRT status:** \\$1.13M, 182 users, \\$6,215/user — high-value market but F&F excluded. PRT organic users are high spenders.\n\n**Angle (PT-BR):** USDT card for Brazil — inflation protection, no BRL exposure\n\n**Keywords:** cartão cripto Brasil, cartão USDT 2026, gastar bitcoin Brasil")
+        st.markdown("**Angle:** Polish IT freelancer paid in EUR, tired of PLN conversion fees\n\n**Tone:** Very practical, numbers-first. Polish readers trust data over claims.\n\n**Add:** Direct fee comparison: Bleap (local brand) vs Kolo\n\n**Outlets:** netbe.pl ($24, DR48) · nenws.com ($72, DR44)\n\n**Keywords:** karta krypto Polska, płatności USDT Polska, najlepsza karta bitcoin")
     with t6:
-        st.markdown("**Angle:** USDT TRC20 = dominant rail in Indonesia/SEA\n\n**Tone:** Mobile-first, social proof. Indonesian audience responds to community validation.\n\n**Add:** TRC20 top-up tutorial (cheap, fast, popular with IDN users)\n\n**Keywords:** kartu kripto Indonesia, bayar USDT Indonesia, kartu debit bitcoin\n\n**Note:** IDN has high user count (160) but low \\$/user (\\$1,455) vs CIS — consider reallocating \\$100 to RU pillar")
+        st.markdown("**Primary market: Brazil (PT-BR)**\n\nBRA = \\$326K, 183 card users, \\$1,781/user\n\n**Outlets:** adital.com.br ($100) · pt.egamersworld.com (TBD)\n\n**Angle (PT-BR):** USDT card for Brazil — inflation protection, no BRL exposure\n\n**Keywords:** cartão cripto Brasil, cartão USDT 2026, gastar bitcoin Brasil")
     with t7:
+        st.markdown("**Angle:** USDT TRC20 = dominant rail in Indonesia/SEA\n\n**Tone:** Mobile-first, social proof. Indonesian audience responds to community validation.\n\n**Add:** TRC20 top-up tutorial (cheap, fast, popular with IDN users)\n\n**Outlets:** TBD — no qualifying ID outlets on Collaborator (DR<28). Source externally.\n\n**Keywords:** kartu kripto Indonesia, bayar USDT Indonesia, kartu debit bitcoin")
+    with t8:
         st.markdown("**BONUS — Not in original plan, added for +183% breakout market**\n\n**Angle:** Romania +183% Kolo growth, 10% flat crypto tax, IT expat community\n\n**Urgency:** Bybit won Crypto Expo Europe 2026 in Bucharest — move fast\n\n**Keywords:** card crypto Romania, plătesc cu crypto Romania, card USDT 2026")
 
     st.header("90-Day Publishing Calendar")
     tab_mar, tab_apr, tab_may = st.tabs(["March 2026","April 2026","May 2026"])
     with tab_mar:
         st.dataframe(pd.DataFrame([
-            {"Week":"Mar 10–14","Article":"Lead article: How to spend crypto",  "Lang":"EN",    "Market":"Global",      "Outlet":"Own blog + syndication",             "Budget":"$0"},
-            {"Week":"Mar 10–14","Article":"Trustee Plus alternative",            "Lang":"RU+UK", "Market":"CIS/Ukraine", "Outlet":"Russian outlets ×3",                "Budget":"$450"},
-            {"Week":"Mar 15–21","Article":"Best crypto card UK 2026",            "Lang":"EN",    "Market":"🇬🇧 GBR",   "Outlet":"businessabc.net + businessage.com",  "Budget":"$130"},
-            {"Week":"Mar 15–21","Article":"Crypto card UAE expats",              "Lang":"EN",    "Market":"🇦🇪 ARE",   "Outlet":"thetradable.com",                    "Budget":"$100"},
-            {"Week":"Mar 15–21","Article":"Migliore carta crypto Italia",        "Lang":"IT",    "Market":"🇮🇹 ITA",   "Outlet":"viverepesaro.it + 1 new",            "Budget":"$200"},
-            {"Week":"Mar 22–28","Article":"Kartu kripto Indonesia",              "Lang":"ID",    "Market":"🇮🇩 IDN",   "Outlet":"1–2 new Indonesian outlets",         "Budget":"$80"},
-            {"Week":"Mar 22–28","Article":"UK press: crypto card for expats",    "Lang":"EN",    "Market":"🇬🇧 GBR",   "Outlet":"financial-news.co.uk + newspioneer", "Budget":"$190"},
-            {"Week":"Mar 29–31","Article":"Najlepsza karta krypto Polska",       "Lang":"PL",    "Market":"🇵🇱 POL",   "Outlet":"netbe.pl + 1 new",                   "Budget":"$74"},
-            {"Week":"Mar 29–31","Article":"Tarjeta cripto España",               "Lang":"ES",    "Market":"🇪🇸 ESP",   "Outlet":"crypto-economy + sevillaBN",         "Budget":"$263"},
-            {"Week":"Buffer",   "Article":"Deploy based on Week 1–3 traction",  "Lang":"—",     "Market":"TBD",         "Outlet":"TBD",                                "Budget":"~$230"},
+            {"Week":"Week 1","Article":"🇦🇪 Crypto card UAE expats — Spend USDT in Dubai",    "Lang":"EN",    "Market":"🇦🇪 ARE",   "Outlet":"uaehelper.com + thetradable.com",      "Budget":"$150"},
+            {"Week":"Week 1","Article":"🌍 Lead: How to spend crypto with Visa 2026",         "Lang":"EN",    "Market":"Global",      "Outlet":"businessabc.net",                      "Budget":"$100"},
+            {"Week":"Week 1","Article":"🇷🇺 Trustee Plus alternative",                        "Lang":"RU+UK", "Market":"CIS/Ukraine", "Outlet":"moya-provinciya + euroua + track-pkg",  "Budget":"$40"},
+            {"Week":"Week 2","Article":"🇬🇧 Best crypto card UK 2026",                        "Lang":"EN",    "Market":"🇬🇧 GBR",   "Outlet":"businessage.com + financial-news.co.uk","Budget":"$155"},
+            {"Week":"Week 2","Article":"🇦🇪 Kolo vs Crypto.com vs Oobit: Dubai comparison",   "Lang":"EN",    "Market":"🇦🇪 ARE",   "Outlet":"theemiratestimes.com",                  "Budget":"$99"},
+            {"Week":"Week 2","Article":"🇮🇹 Migliore carta crypto Italia",                    "Lang":"IT",    "Market":"🇮🇹 ITA",   "Outlet":"it.kompass.com + viverepesaro.it",      "Budget":"$235"},
+            {"Week":"Week 3","Article":"🇮🇩 Kartu kripto Indonesia",                          "Lang":"ID",    "Market":"🇮🇩 IDN",   "Outlet":"TBD Indonesian outlets",                "Budget":"$80"},
+            {"Week":"Week 3","Article":"🌍 Crypto card comparison 2026 (GEO article)",        "Lang":"EN",    "Market":"Global",      "Outlet":"newspioneer.co.uk",                     "Budget":"$65"},
+            {"Week":"Week 4","Article":"🇵🇱 Najlepsza karta krypto Polska",                   "Lang":"PL",    "Market":"🇵🇱 POL",   "Outlet":"netbe.pl + nenws.com",                  "Budget":"$96"},
+            {"Week":"Week 4","Article":"🇪🇸 Tarjeta cripto España",                           "Lang":"ES",    "Market":"🇪🇸 ESP",   "Outlet":"crypto-economy + sevillaBN",             "Budget":"$263"},
+            {"Week":"Buffer","Article":"Deploy based on Week 1–3 traction",                   "Lang":"—",     "Market":"TBD",         "Outlet":"TBD",                                   "Budget":"~$217"},
         ]), use_container_width=True, hide_index=True)
-        st.metric("March Total Budget","$1,717","within $2,000 allocation · $283 buffer")
+        st.metric("March Total Budget","$1,783","within $2,000 allocation · $217 buffer")
     with tab_apr:
         st.dataframe(pd.DataFrame([
             {"Week":"Apr 1–7",   "Article":"Melhor cartão cripto Brasil",            "Lang":"PT-BR", "Priority":"🟠 HIGH"},
@@ -1046,7 +1051,9 @@ BRIEFS = [
     {"#": 7,  "Title": "Kartu Kripto Terbaik di Indonesia 2026",                "Lang": "ID",    "Market": "IDN",         "KW": "kartu kripto Indonesia",                "Words": 1000, "Priority": "Medium"},
     {"#": 8,  "Title": "Alternativa Trustee Plus: luchshaya kripto-karta 2026", "Lang": "RU",    "Market": "CIS/UKR",     "KW": "alternativa trustee plus",              "Words": 1200, "Priority": "High"},
     {"#": 9,  "Title": "Cel mai bun card crypto in Romania 2026",               "Lang": "RO",    "Market": "ROU",         "KW": "card crypto Romania",                   "Words": 1000, "Priority": "High"},
-    {"#": 10, "Title": "Crypto Card for Business 2026: Pay with USDT",          "Lang": "EN",    "Market": "Global B2B",  "KW": "crypto card business / USDT card B2B",  "Words": 1400, "Priority": "Medium"},
+    {"#": 10, "Title": "Best Crypto Card Dubai 2026: Kolo vs Oobit vs Crypto.com", "Lang": "EN", "Market": "ARE",      "KW": "best crypto card Dubai 2026",           "Words": 1400, "Priority": "High"},
+    {"#": 11, "Title": "Crypto Card for Business 2026: Pay with USDT",          "Lang": "EN",    "Market": "Global B2B",  "KW": "crypto card business / USDT card B2B",  "Words": 1400, "Priority": "Medium"},
+    {"#": 12, "Title": "Kolo vs Crypto.com vs Coinbase: Card Comparison 2026",  "Lang": "EN",    "Market": "Global",      "KW": "crypto card comparison 2026",           "Words": 1500, "Priority": "High"},
 ]
 
 def _get_all_briefs():
