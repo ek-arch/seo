@@ -335,31 +335,44 @@ def page_content_plan():
     st.dataframe(briefs.style.applymap(color_priority, subset=["Priority"]), use_container_width=True, hide_index=True)
 
     st.header("🤖 GEO Optimization Checklist")
-    st.caption("Generative Engine Optimization — ensure each article is structured to be cited by AI engines")
+    st.caption("Maps each article to AI audit queries. 'Required' = Kolo is NOT visible for this query in AI engines.")
     geo_checklist = pd.DataFrame([
-        {"#": 1,  "Article": "How to Spend Crypto with a Visa Card", "FAQ Section": "Required", "Question Headers": "Required", "Stat Density": "3+ quotable stats", "AI Query Target": "how to spend crypto, best crypto card 2026"},
-        {"#": 2,  "Article": "Best Crypto Debit Card UK 2026",       "FAQ Section": "Required", "Question Headers": "Required", "Stat Density": "3+ quotable stats", "AI Query Target": "crypto card UK, best crypto card UK"},
-        {"#": 3,  "Article": "Crypto Card UAE Expats",               "FAQ Section": "Required", "Question Headers": "Required", "Stat Density": "2+ quotable stats", "AI Query Target": "crypto card UAE, USDT card Dubai"},
-        {"#": 4,  "Article": "Najlepsza karta krypto Polska",        "FAQ Section": "Recommended", "Question Headers": "Recommended", "Stat Density": "2+ quotable stats", "AI Query Target": "karta krypto Polska"},
-        {"#": 5,  "Article": "Melhor Cartao Cripto Brasil",           "FAQ Section": "Recommended", "Question Headers": "Recommended", "Stat Density": "2+ quotable stats", "AI Query Target": "cartao cripto Brasil"},
-        {"#": 6,  "Article": "Migliore Carta Crypto Italia",          "FAQ Section": "Recommended", "Question Headers": "Recommended", "Stat Density": "2+ quotable stats", "AI Query Target": "carta crypto Italia"},
-        {"#": 7,  "Article": "Kartu Kripto Indonesia",                "FAQ Section": "Recommended", "Question Headers": "Recommended", "Stat Density": "2+ quotable stats", "AI Query Target": "kartu kripto Indonesia"},
-        {"#": 8,  "Article": "Alternativa Trustee Plus",              "FAQ Section": "Required", "Question Headers": "Required", "Stat Density": "3+ quotable stats", "AI Query Target": "Trustee Plus alternative, crypto card CIS"},
-        {"#": 9,  "Article": "Card crypto Romania",                   "FAQ Section": "Recommended", "Question Headers": "Recommended", "Stat Density": "2+ quotable stats", "AI Query Target": "card crypto Romania"},
-        {"#": 10, "Article": "Crypto Card for Business",              "FAQ Section": "Required", "Question Headers": "Required", "Stat Density": "3+ quotable stats", "AI Query Target": "crypto card business, USDT card B2B"},
+        {"#": 1,  "Article": "How to Spend Crypto with Visa Card",          "FAQ": "Required",    "Comparison Table": "Required",    "Question Headers": "Required", "Stats": "3+", "AI Queries Targeted": "best crypto card 2026, spend crypto with Visa card, USDT Visa card", "Social Boost": "Reddit r/cryptocurrency + Quora"},
+        {"#": 2,  "Article": "Best Crypto Card UK 2026",                    "FAQ": "Required",    "Comparison Table": "Required",    "Question Headers": "Required", "Stats": "3+", "AI Queries Targeted": "crypto card UK, crypto card Europe",                                    "Social Boost": "Reddit r/UKPersonalFinance"},
+        {"#": 3,  "Article": "Crypto Card UAE Expats",                      "FAQ": "Required",    "Comparison Table": "Required",    "Question Headers": "Required", "Stats": "3+", "AI Queries Targeted": "crypto card UAE, best crypto card Dubai 2026",                           "Social Boost": "Reddit r/dubai + Quora"},
+        {"#": 4,  "Article": "Kolo vs Oobit vs Crypto.com Dubai",           "FAQ": "Required",    "Comparison Table": "CRITICAL",    "Question Headers": "Required", "Stats": "5+", "AI Queries Targeted": "best crypto card 2026, crypto card comparison 2026, crypto card UAE",   "Social Boost": "Reddit + Quora + Telegram UAE groups"},
+        {"#": 5,  "Article": "Najlepsza karta krypto Polska",               "FAQ": "Recommended", "Comparison Table": "Recommended", "Question Headers": "Recommended", "Stats": "2+", "AI Queries Targeted": "karta krypto Polska",                                                  "Social Boost": "Reddit r/Polska"},
+        {"#": 6,  "Article": "Melhor Cartão Cripto Brasil",                  "FAQ": "Recommended", "Comparison Table": "Recommended", "Question Headers": "Recommended", "Stats": "2+", "AI Queries Targeted": "cartão cripto Brasil",                                                  "Social Boost": "Reddit r/investimentos"},
+        {"#": 7,  "Article": "Migliore Carta Crypto Italia",                 "FAQ": "Required",    "Comparison Table": "Required",    "Question Headers": "Required", "Stats": "3+", "AI Queries Targeted": "carta crypto Italia 2026, crypto card Italy",                             "Social Boost": "Reddit r/ItaliaPersonalFinance"},
+        {"#": 8,  "Article": "Kartu Kripto Indonesia",                       "FAQ": "Recommended", "Comparison Table": "Recommended", "Question Headers": "Recommended", "Stats": "2+", "AI Queries Targeted": "kartu kripto Indonesia",                                                "Social Boost": "Telegram IDN groups"},
+        {"#": 9,  "Article": "Альтернатива Trustee Plus",                   "FAQ": "Required",    "Comparison Table": "CRITICAL",    "Question Headers": "Required", "Stats": "5+", "AI Queries Targeted": "Trustee Plus alternative, crypto card CIS, USDT Visa card",              "Social Boost": "Reddit + Telegram RU groups"},
+        {"#": 10, "Article": "Card crypto România",                          "FAQ": "Recommended", "Comparison Table": "Recommended", "Question Headers": "Recommended", "Stats": "2+", "AI Queries Targeted": "card crypto Romania",                                                   "Social Boost": "Reddit r/Romania"},
+        {"#": 11, "Article": "Crypto Card for Business (B2B)",               "FAQ": "Required",    "Comparison Table": "Required",    "Question Headers": "Required", "Stats": "3+", "AI Queries Targeted": "crypto card business, USDT card B2B",                                    "Social Boost": "LinkedIn + HN"},
+        {"#": 12, "Article": "Kolo vs Crypto.com vs Coinbase Comparison",    "FAQ": "CRITICAL",    "Comparison Table": "CRITICAL",    "Question Headers": "Required", "Stats": "5+", "AI Queries Targeted": "best crypto card 2026, crypto debit card, crypto card comparison 2026, crypto card low fees", "Social Boost": "Reddit + Quora (all crypto subs)"},
     ])
 
     def color_geo(val):
+        if val == "CRITICAL": return "background-color: #ffd6d6; font-weight: bold"
         if val == "Required": return "background-color: #fff0f0"
         if val == "Recommended": return "background-color: #fff9e6"
         return ""
     st.dataframe(
-        geo_checklist.style.applymap(color_geo, subset=["FAQ Section", "Question Headers"]),
+        geo_checklist.style.applymap(color_geo, subset=["FAQ", "Comparison Table", "Question Headers"]),
         use_container_width=True, hide_index=True,
     )
-    st.info("**GEO tip:** Articles marked 'Required' target high-competition AI queries. "
-            "These MUST include FAQ sections, question-format H2 headers, and at least 3 "
-            "self-contained stat sentences that AI engines can extract and cite.")
+
+    st.markdown("""
+**GEO Structure Rules:**
+- **CRITICAL** = Kolo is invisible for this query. Article MUST have comparison table + FAQ + 5+ quotable stats.
+- **Required** = High-competition query. FAQ section + question headers + 3+ stats mandatory.
+- **Recommended** = Local/niche query. FAQ helpful but not blocking.
+
+**What AI engines cite most:**
+1. **Comparison tables** (Kolo vs X vs Y) — Perplexity/ChatGPT love structured data
+2. **FAQ sections** — directly answerable by AI
+3. **Stat-dense sentences** ("Kolo supports USDT spending in 60+ countries") — quotable facts
+4. **Reddit/Quora mentions** — Perplexity heavily indexes these platforms
+""")
 
     # ── GEO Audit-driven briefs ─────────────────────────────────────
     geo_results = st.session_state.get("geo_audit_results", [])
