@@ -51,8 +51,14 @@ with st.sidebar:
     notion_token = st.text_input("Notion token", type="password", placeholder="secret_...", help="Required for writing to Notion")
     anthropic_token = st.text_input("Anthropic API key", type="password", placeholder="sk-ant-...", help="console.anthropic.com → API keys")
     serpapi_key = st.text_input("SerpAPI key", type="password", placeholder="...", help="serpapi.com → free 100 searches/month")
-    gsheets_json = st.text_area("Google Sheets JSON key", height=68, placeholder='Paste full JSON from service account key file...', help="Paste contents of silicon-guru-*.json")
-    for k, v in [("hex_token", hex_token), ("collab_token", collab_token), ("notion_token", notion_token), ("anthropic_token", anthropic_token), ("serpapi_key", serpapi_key), ("gsheets_json", gsheets_json)]:
+    # Auto-load Google Sheets credentials from Streamlit secrets
+    import json as _json
+    _gsheets_creds = ""
+    try:
+        _gsheets_creds = _json.dumps(dict(st.secrets["gsheets"]))
+    except Exception:
+        pass
+    for k, v in [("hex_token", hex_token), ("collab_token", collab_token), ("notion_token", notion_token), ("anthropic_token", anthropic_token), ("serpapi_key", serpapi_key), ("gsheets_json", _gsheets_creds)]:
         if v:
             st.session_state[k] = v
     st.divider()
@@ -2077,16 +2083,21 @@ def page_content_distribution():
 
             # Push to Google Sheets
             gsheets_creds = st.session_state.get("gsheets_json", "")
-            if gsheets_creds:
-                if st.button("📊 Push to Google Sheets", type="primary", key="push_sheets_btn"):
+            col_sheets, col_csv2 = st.columns(2)
+            with col_sheets:
+                if st.button("📊 Push to Google Sheets", type="primary", key="push_sheets_btn", disabled=not gsheets_creds):
                     with st.spinner("Pushing to Google Sheets..."):
                         try:
                             n = push_comments(gsheets_creds, queue)
-                            st.success(f"Pushed {n} new comments to Google Sheets!")
+                            if n:
+                                st.success(f"✅ Pushed {n} new comments to [Google Sheet](https://docs.google.com/spreadsheets/d/1EoXaNgpF9Rg4Q-KksFL9d5k5ScDtAF0m7qbg4JxHW4k)")
+                            else:
+                                st.info("All comments already in the sheet (no duplicates).")
                         except Exception as e:
                             st.error(f"Failed: {e}")
-            else:
-                st.caption("💡 Add Google Sheets JSON key in sidebar to enable direct push.")
+            with col_csv2:
+                if not gsheets_creds:
+                    st.caption("⚠️ Google Sheets credentials not found. Add secrets.toml to enable.")
             st.caption(
                 "**GEO Impact:** Reddit & Quora comments are indexed by "
                 "ChatGPT, Perplexity, and Google AI Overviews."
