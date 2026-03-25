@@ -710,8 +710,7 @@ def page_outlet_matching():
         st.warning("**Unresolved items before buying:**\n- Price/DR for **pt.egamersworld.com** (score 13 — price TBD)\n- Verify **financial-news.co.uk** + **sevillaBN** independently\n- Lock Dubai RU expat outlet (ARE-ru = \\$21,640/user — Week 1!)")
     with c2:
         st.markdown("**🔗 UTM Link Generator**")
-        utm_base = st.text_input("Landing page", value="https://kolo.xyz", key="utm_base")
-        utm_campaign = st.text_input("Campaign", value="march2026", key="utm_campaign")
+        st.caption("Format: `kolo.xyz/?utm_source=outletname`")
 
         # Auto-generate UTM links for all confirmed outlets
         all_outlets = []
@@ -723,14 +722,9 @@ def page_outlet_matching():
         if all_outlets:
             utm_rows = []
             for o in all_outlets:
-                slug = o["outlet"].strip().replace(" ", "_").lower()
-                link = (
-                    f"{utm_base.rstrip('/')}?"
-                    f"utm_source={slug}"
-                    f"&utm_medium=sponsored_article"
-                    f"&utm_campaign={utm_campaign}"
-                    f"&utm_content={o['lang']}"
-                )
+                # Clean slug: domain-style, lowercase, no spaces
+                slug = o["outlet"].strip().lower().replace(" ", "").replace("www.", "")
+                link = f"https://kolo.xyz/?utm_source={slug}"
                 utm_rows.append({"Outlet": o["outlet"], "Lang": o["lang"].upper(), "UTM Link": link})
 
             utm_df = pd.DataFrame(utm_rows)
@@ -746,17 +740,10 @@ def page_outlet_matching():
 
         # Custom UTM for outlets not in the list
         with st.expander("Custom UTM"):
-            custom_outlet = st.text_input("Outlet domain", placeholder="e.g. newsite.com", key="utm_custom_outlet")
-            custom_lang = st.selectbox("Language", ["en", "ru", "it", "es", "pl", "pt", "id", "ro"], key="utm_custom_lang")
+            custom_outlet = st.text_input("Outlet name", placeholder="e.g. greenrecord", key="utm_custom_outlet")
             if custom_outlet:
-                slug = custom_outlet.strip().replace(" ", "_").lower()
-                link = (
-                    f"{utm_base.rstrip('/')}?"
-                    f"utm_source={slug}"
-                    f"&utm_medium=sponsored_article"
-                    f"&utm_campaign={utm_campaign}"
-                    f"&utm_content={custom_lang}"
-                )
+                slug = custom_outlet.strip().lower().replace(" ", "").replace("www.", "")
+                link = f"https://kolo.xyz/?utm_source={slug}"
                 st.code(link, language=None)
 
 
