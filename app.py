@@ -2016,10 +2016,41 @@ def page_content_distribution():
             total = len(queue)
             posted = sum(1 for q in queue if q["status"] == "posted")
             drafts_count = sum(1 for q in queue if q["status"] == "draft")
-            c1, c2, c3 = st.columns(3)
+            c1, c2, c3, c4 = st.columns(4)
             c1.metric("Total", total)
             c2.metric("Drafts", drafts_count)
             c3.metric("Posted", posted)
+
+            # Revise All button
+            with c4:
+                revise_all_text = st.text_input("Revise all drafts:", placeholder="e.g. make shorter", key="revise_all_input", label_visibility="collapsed")
+            if st.button("✏️ Revise All Drafts", type="primary", disabled=not api_key or not revise_all_text):
+                drafts_to_revise = [i for i, q in enumerate(queue) if q["status"] == "draft"]
+                if drafts_to_revise:
+                    progress = st.progress(0)
+                    for j, idx in enumerate(drafts_to_revise):
+                        item = queue[idx]
+                        try:
+                            revised = generate_comment_reply(
+                                api_key,
+                                post_title=f"REVISION: {revise_all_text}",
+                                post_body=f"Original:\n{item['comment']}\n\nRevise: {revise_all_text}",
+                                platform=item["platform"],
+                                subreddit=item.get("subreddit", ""),
+                                article_url=ref_url,
+                            )
+                            queue[idx]["comment"] = revised
+                            # Bump version for text area
+                            ver = st.session_state.get(f"q_ver_{idx}", 0)
+                            st.session_state[f"q_ver_{idx}"] = ver + 1
+                        except Exception:
+                            pass
+                        progress.progress((j + 1) / len(drafts_to_revise))
+                    st.session_state["comment_queue"] = queue
+                    _save_distribution_state()
+                    progress.empty()
+                    st.success(f"Revised {len(drafts_to_revise)} comments!")
+                    st.rerun()
 
             st.divider()
 

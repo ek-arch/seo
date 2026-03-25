@@ -272,10 +272,11 @@ Rules:
 - No affiliate links or shilling language.  No "check out" or "you should try".
 - Include a specific personal detail (country, use case, amount range).
 - If the post has a URL you want to reference, weave it in naturally.
-- Reddit comment: 60-120 words, casual but informative.
-- Quora answer: 120-200 words, structured with some detail.
-- HN comment: 40-80 words, technical and matter-of-fact.
-- Forum reply: 60-100 words, helpful community member tone.
+- Reddit comment: 30-60 words MAX, casual, one short paragraph.
+- Quora answer: 60-100 words MAX, concise and direct.
+- HN comment: 20-40 words MAX, technical and terse.
+- Forum reply: 30-50 words MAX, brief helpful reply.
+- CRITICAL: Keep it SHORT. Real users don't write essays in comments.
 - Output: plain text (no Markdown headers), ready to paste.
 """
 
