@@ -1823,7 +1823,7 @@ def page_content_distribution():
                     with st.container(border=True):
                         col1, col2 = st.columns([5, 1])
                         with col1:
-                            st.markdown(f"**{post['title'][:80]}** — {post['community']}")
+                            st.markdown(f"**{post['title'][:80]}** — {post.get('community', post.get('subreddit', ''))}")
                             if post.get("snippet"):
                                 st.caption(post["snippet"][:120] + "...")
                         with col2:
