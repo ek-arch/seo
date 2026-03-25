@@ -1948,10 +1948,16 @@ def page_content_distribution():
         fetched = st.session_state.get("fetched_posts", [])
         if fetched:
             st.divider()
+            st.markdown(f"### ✅ {len(fetched)} posts fetched — click **Generate All Comments** to draft replies")
             for i, post in enumerate(fetched):
                 sub = f"r/{post['subreddit']}" if post["subreddit"] else post["platform"]
                 score = f" · ⬆️ {post['score']} · 💬 {post['num_comments']}" if post.get("score") else ""
                 st.markdown(f"{i+1}. **{post['title'][:80]}** — {sub}{score}")
+
+            # Show queue status
+            queue = st.session_state.get("comment_queue", [])
+            if queue:
+                st.success(f"💬 {len(queue)} comments generated! Switch to the **Queue** tab to review and post.")
 
     # ── Tab 3: Queue ─────────────────────────────────────────────────
     with tab_tracker:
