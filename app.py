@@ -1700,7 +1700,107 @@ def page_content_distribution():
     st.sidebar.subheader("📣 Distribution")
     ref_url = st.sidebar.text_input("Article URL to reference (optional)", placeholder="https://...", key="dist_ref_url")
 
-    tab_drafts, tab_tracker = st.tabs(["✏️ Draft Comments", "📋 Queue"])
+    tab_search, tab_drafts, tab_tracker = st.tabs(["🔍 Find Posts", "✏️ Draft Comments", "📋 Queue"])
+
+    # ── Tab 0: Find Posts (auto-search Reddit) ────────────────────────
+    with tab_search:
+        import re as _re_s
+        import requests as _req_s
+        import time as _time_s
+
+        st.subheader("Find Relevant Reddit Posts")
+        st.markdown("Search crypto subreddits for posts where Kolo can naturally be mentioned in comments.")
+
+        SUBREDDIT_SEARCHES = [
+            ("cryptocurrency", "crypto card"),
+            ("cryptocurrency", "debit card"),
+            ("cryptocurrency", "USDT card"),
+            ("CryptoCards", ""),
+            ("digitalnomad", "crypto card"),
+            ("TRON", "card"),
+            ("defi", "crypto card"),
+            ("defi", "crypto debit"),
+            ("ethfinance", "debit card"),
+            ("personalfinance", "crypto"),
+        ]
+
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            custom_search = st.text_input("Custom search (optional)", placeholder="e.g. spend USDT abroad", key="reddit_custom_q")
+        with col2:
+            min_comments = st.number_input("Min comments", value=3, min_value=0, max_value=50, key="min_cmt")
+
+        if st.button("🔍 Search Reddit", type="primary"):
+            all_posts = []
+            seen = set()
+            searches = list(SUBREDDIT_SEARCHES)
+            if custom_search:
+                for sub in ["cryptocurrency", "defi", "CryptoCards", "digitalnomad"]:
+                    searches.append((sub, custom_search))
+
+            progress = st.progress(0)
+            for i, (sub, query) in enumerate(searches):
+                try:
+                    if query:
+                        url = f"https://old.reddit.com/r/{sub}/search.json?q={query.replace(' ', '+')}&restrict_sr=on&sort=new&t=year&limit=10"
+                    else:
+                        url = f"https://old.reddit.com/r/{sub}/new.json?limit=15"
+                    resp = _req_s.get(url, headers={"User-Agent": "KoloSEOAgent/1.0"}, timeout=10)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        for child in data.get("data", {}).get("children", []):
+                            d = child.get("data", {})
+                            pid = d.get("id", "")
+                            if pid in seen or not d.get("title"):
+                                continue
+                            seen.add(pid)
+                            if d.get("num_comments", 0) >= min_comments:
+                                all_posts.append({
+                                    "title": d["title"][:120],
+                                    "subreddit": d.get("subreddit", ""),
+                                    "score": d.get("score", 0),
+                                    "num_comments": d.get("num_comments", 0),
+                                    "url": f"https://www.reddit.com{d.get('permalink', '')}",
+                                    "is_self": d.get("is_self", False),
+                                    "body": (d.get("selftext", "") or "")[:200],
+                                })
+                except Exception:
+                    pass
+                progress.progress((i + 1) / len(searches))
+                _time_s.sleep(0.5)
+
+            # Sort: self posts first, then by comments
+            all_posts.sort(key=lambda x: (-x["is_self"], -x["num_comments"]))
+            st.session_state["reddit_found"] = all_posts[:30]
+            progress.empty()
+            st.rerun()
+
+        found = st.session_state.get("reddit_found", [])
+        if found:
+            st.success(f"Found {len(found)} relevant posts")
+
+            # Select posts to send to Draft Comments
+            selected_urls = []
+            for i, post in enumerate(found):
+                with st.container(border=True):
+                    col1, col2, col3 = st.columns([5, 1, 1])
+                    with col1:
+                        st.markdown(f"**{post['title'][:80]}** — r/{post['subreddit']}")
+                        if post.get("body"):
+                            st.caption(post["body"][:120] + "...")
+                    with col2:
+                        st.caption(f"⬆️ {post['score']}")
+                        st.caption(f"💬 {post['num_comments']}")
+                    with col3:
+                        if st.checkbox("Select", key=f"sel_{i}", value=False):
+                            selected_urls.append(post["url"])
+
+            if selected_urls:
+                if st.button(f"📋 Send {len(selected_urls)} to Draft Comments", type="primary"):
+                    st.session_state["prefilled_urls"] = "\n".join(selected_urls)
+                    st.success(f"Copied {len(selected_urls)} URLs! Switch to **Draft Comments** tab.")
+        else:
+            st.info("Click **Search Reddit** to find posts across crypto subreddits.")
 
     # ── Tab 1: Draft Comments ─────────────────────────────────────────
     with tab_drafts:
@@ -1714,8 +1814,10 @@ def page_content_distribution():
             st.info("Enter your Anthropic API key in the sidebar.")
 
         # ── Step 1: Paste URLs ────────────────────────────────────
+        prefilled = st.session_state.pop("prefilled_urls", "")
         urls_text = st.text_area(
             "Paste post URLs (one per line)",
+            value=prefilled,
             height=200,
             placeholder="https://www.reddit.com/r/cryptocurrency/comments/abc123/which_crypto_card_do_you_use/\nhttps://www.reddit.com/r/digitalnomad/comments/def456/best_card_for_traveling/\nhttps://www.quora.com/What-is-the-best-crypto-debit-card-in-2026",
             key="bulk_urls",
