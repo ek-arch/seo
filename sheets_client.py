@@ -112,33 +112,40 @@ def push_audit_results(creds_json: str, results: list[dict], sheet_name: str = "
 
 
 def push_publications(creds_json: str, publications: list[dict], sheet_name: str = "Publications") -> int:
-    """Push publication tracking data to Google Sheet."""
+    """Push content plan or publication data to Google Sheet. Handles both formats."""
     gc = _get_client(creds_json)
     spreadsheet = gc.open_by_key(SHEET_ID)
 
-    try:
-        ws = spreadsheet.worksheet(sheet_name)
-    except gspread.exceptions.WorksheetNotFound:
-        ws = spreadsheet.add_worksheet(title=sheet_name, rows=500, cols=8)
-        ws.update("A1:F1", [["Outlet", "Lang", "Price ($)", "Status", "Publication URL", "Post to X"]])
+    # Detect format: new content plan vs old publication tracker
+    if publications and "Task" in publications[0]:
+        # New unified content plan format
+        headers = ["Task", "Type", "Market", "Outlet Options", "Price", "GEO", "Week", "Status", "Publication URL", "Reddit/Quora URL"]
+        try:
+            ws = spreadsheet.worksheet(sheet_name)
+        except gspread.exceptions.WorksheetNotFound:
+            ws = spreadsheet.add_worksheet(title=sheet_name, rows=500, cols=len(headers))
+        ws.update(f"A1:{chr(64+len(headers))}1", [headers])
+        ws.format(f"A1:{chr(64+len(headers))}1", {"textFormat": {"bold": True}})
+        ws.batch_clear([f"A2:{chr(64+len(headers))}1000"])
+        rows = []
+        for p in publications:
+            rows.append([p.get(h, "") for h in headers])
+        if rows:
+            ws.update(f"A2:{chr(64+len(headers))}{len(rows)+1}", rows, value_input_option="USER_ENTERED")
+        return len(rows)
+    else:
+        # Legacy publication tracker format
+        headers = ["Outlet", "Lang", "Price ($)", "Status", "Publication URL", "Post to X"]
+        try:
+            ws = spreadsheet.worksheet(sheet_name)
+        except gspread.exceptions.WorksheetNotFound:
+            ws = spreadsheet.add_worksheet(title=sheet_name, rows=500, cols=8)
+        ws.update("A1:F1", [headers])
         ws.format("A1:F1", {"textFormat": {"bold": True}})
-
-    # Clear and rewrite (publications are editable, not append-only)
-    import datetime
-    rows = []
-    for p in publications:
-        rows.append([
-            p.get("Outlet", ""),
-            p.get("Lang", ""),
-            p.get("Price ($)", 0),
-            p.get("Status", "Planned"),
-            p.get("Publication URL", ""),
-            p.get("Post to X", ""),
-        ])
-
-    if rows:
-        # Clear existing data (keep header)
         ws.batch_clear(["A2:F1000"])
-        ws.update(f"A2:F{len(rows)+1}", rows, value_input_option="USER_ENTERED")
-
-    return len(rows)
+        rows = []
+        for p in publications:
+            rows.append([p.get(h, "") for h in headers])
+        if rows:
+            ws.update(f"A2:F{len(rows)+1}", rows, value_input_option="USER_ENTERED")
+        return len(rows)

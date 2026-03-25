@@ -315,192 +315,138 @@ def page_kolo_metrics():
 # PAGE 3 · CONTENT PLAN
 # ══════════════════════════════════════════════════════════════════════════════
 
+_PLAN_CACHE = "content_plan_cache.json"
+
+
+def _load_content_plan():
+    """Load editable content plan from cache or return default."""
+    import json as _j, os
+    if os.path.exists(_PLAN_CACHE):
+        try:
+            with open(_PLAN_CACHE) as f:
+                return _j.load(f)
+        except Exception:
+            pass
+    # Default plan
+    return [
+        {"Task": "Crypto card UAE expats — Spend USDT in Dubai",  "Type": "SEO+GEO", "Market": "🇦🇪 ARE", "Outlet Options": "uaehelper.com ($50) · thetradable.com ($100) · theemiratestimes.com ($99)", "Price": "$50–150", "GEO": "FAQ + comparison table required", "Week": "1", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Lead: How to spend crypto with Visa 2026",      "Type": "SEO+GEO", "Market": "🌍 Global", "Outlet Options": "businessabc.net ($100, DR81)", "Price": "$100", "GEO": "FAQ + 3 stats + question headers", "Week": "1", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Trustee Plus alternative (UA language)",         "Type": "SEO",     "Market": "🌍 CIS/UKR", "Outlet Options": "moya-provinciya ($6) · euroua.com ($30) · track-package ($4)", "Price": "$40", "GEO": "Comparison table CRITICAL", "Week": "1", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Kolo vs Oobit vs Crypto.com Dubai comparison",  "Type": "GEO",     "Market": "🇦🇪 ARE", "Outlet Options": "theemiratestimes.com ($99) · khaleejtimes.com ($200, premium)", "Price": "$99–200", "GEO": "CRITICAL: comparison table + FAQ + 5 stats", "Week": "2", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Best crypto card UK 2026",                      "Type": "SEO+GEO", "Market": "🇬🇧 GBR", "Outlet Options": "businessage.com ($30) · financial-news.co.uk ($125)", "Price": "$155", "GEO": "FAQ + comparison table", "Week": "2", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Migliore carta crypto Italia",                  "Type": "SEO",     "Market": "🇮🇹 ITA", "Outlet Options": "it.kompass.com ($135, DR77) · viverepesaro.it ($100, DR40)", "Price": "$135–235", "GEO": "FAQ + question headers", "Week": "2", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Kolo vs Crypto.com vs Coinbase comparison",     "Type": "GEO",     "Market": "🌍 Global", "Outlet Options": "businessabc.net ($100) · newspioneer.co.uk ($65)", "Price": "$65–100", "GEO": "CRITICAL: targets 4 AI queries", "Week": "3", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Kartu kripto Indonesia",                        "Type": "SEO",     "Market": "🇮🇩 IDN", "Outlet Options": "TBD Indonesian outlets (~$40 each)", "Price": "$80", "GEO": "FAQ recommended", "Week": "3", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Najlepsza karta krypto Polska",                 "Type": "SEO",     "Market": "🇵🇱 POL", "Outlet Options": "netbe.pl ($24) · nenws.com ($72)", "Price": "$96", "GEO": "FAQ recommended", "Week": "4", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Tarjeta cripto España",                         "Type": "SEO",     "Market": "🇪🇸 ESP", "Outlet Options": "crypto-economy.com ($130) · sevillaBN ($133)", "Price": "$263", "GEO": "FAQ recommended", "Week": "4", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Crypto card for business (B2B)",                "Type": "SEO+GEO", "Market": "🌍 B2B",  "Outlet Options": "businessabc.net ($100)", "Price": "$100", "GEO": "FAQ + comparison table", "Week": "Apr", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Cel mai bun card crypto România",               "Type": "SEO",     "Market": "🇷🇴 ROU", "Outlet Options": "TBD Romanian outlet (~$100)", "Price": "$100", "GEO": "FAQ recommended", "Week": "Apr", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Melhor cartão cripto Brasil",                   "Type": "SEO",     "Market": "🇧🇷 BRA", "Outlet Options": "adital.com.br ($100)", "Price": "$100", "GEO": "FAQ recommended", "Week": "Apr", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Reddit: answer 'best crypto card' threads",     "Type": "Social",  "Market": "🌍 Global", "Outlet Options": "r/cryptocurrency · r/CryptoCards · r/defi", "Price": "$0", "GEO": "High GEO impact — AI indexes Reddit", "Week": "Ongoing", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Quora: answer crypto card comparison questions", "Type": "Social",  "Market": "🌍 Global", "Outlet Options": "Quora crypto card topics", "Price": "$0", "GEO": "High GEO impact — AI indexes Quora", "Week": "Ongoing", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+        {"Task": "Reddit: answer UAE/Dubai crypto card threads",   "Type": "Social",  "Market": "🇦🇪 ARE", "Outlet Options": "r/dubai · r/cryptocurrency", "Price": "$0", "GEO": "Supports UAE SEO articles", "Week": "Ongoing", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
+    ]
+
+
+def _save_content_plan(plan):
+    """Persist content plan edits."""
+    import json as _j
+    with open(_PLAN_CACHE, "w") as f:
+        _j.dump(plan, f, default=str)
+
+
 def page_content_plan():
     st.title("✍️ Stage 3 · Content Plan")
-    st.caption("Generated: 2026-03-10 · Based on Stage 1 competitor analysis + Hex live data + GEO checklist")
+    st.caption("Unified SEO + GEO + Social plan · Edit in place · Track with links")
 
-    st.header("10 Article Briefs")
-    briefs = pd.DataFrame([
-        {"#": 1,  "Title": "How to Spend Crypto with a Visa Card in 2026",          "Lang": "EN",    "Market": "Global",      "KW": "how to spend crypto with a visa card",  "Words": 1500, "Priority": "🔴 LEAD",   "Outlet": "businessabc.net"},
-        {"#": 2,  "Title": "Best Crypto Debit Card in the UK 2026",                 "Lang": "EN",    "Market": "🇬🇧 GBR",    "KW": "best crypto card UK 2026",              "Words": 1200, "Priority": "🔴",        "Outlet": "businessage.com + financial-news.co.uk"},
-        {"#": 3,  "Title": "Crypto Card for UAE Expats: Spend USDT in Dubai",       "Lang": "EN",    "Market": "🇦🇪 ARE",    "KW": "crypto card UAE / USDT card Dubai",     "Words": 1200, "Priority": "🔴 WEEK1",  "Outlet": "uaehelper.com + thetradable.com"},
-        {"#": 4,  "Title": "Best Crypto Card Dubai 2026: Kolo vs Oobit vs Crypto.com", "Lang": "EN", "Market": "🇦🇪 ARE",    "KW": "best crypto card Dubai 2026",           "Words": 1400, "Priority": "🔴 GEO",    "Outlet": "theemiratestimes.com"},
-        {"#": 5,  "Title": "Najlepsza karta krypto w Polsce 2026",                  "Lang": "PL",    "Market": "🇵🇱 POL",    "KW": "karta krypto Polska",                   "Words": 1000, "Priority": "🟠",        "Outlet": "netbe.pl + nenws.com"},
-        {"#": 6,  "Title": "Melhor Cartão Cripto no Brasil 2026: Gaste USDT",       "Lang": "PT-BR", "Market": "🇧🇷 BRA",    "KW": "cartão cripto Brasil / cartão USDT",    "Words": 1000, "Priority": "🟠",        "Outlet": "adital.com.br"},
-        {"#": 7,  "Title": "Migliore Carta Crypto in Italia 2026",                  "Lang": "IT",    "Market": "🇮🇹 ITA",    "KW": "carta crypto Italia",                   "Words": 1000, "Priority": "🟠",        "Outlet": "it.kompass.com + viverepesaro.it"},
-        {"#": 8,  "Title": "Kartu Kripto Terbaik di Indonesia 2026",                "Lang": "ID",    "Market": "🇮🇩 IDN",    "KW": "kartu kripto Indonesia",                "Words": 1000, "Priority": "🟠",        "Outlet": "TBD Indonesian outlets"},
-        {"#": 9,  "Title": "Альтернатива Trustee Plus: лучшая крипто-карта 2026",  "Lang": "UA",    "Market": "🌍 CIS/UKR", "KW": "альтернатива trustee plus",             "Words": 1200, "Priority": "🔴 URGENT", "Outlet": "moya-provinciya + euroua.com + track-package (all UA)"},
-        {"#": 10, "Title": "Cel mai bun card crypto în România 2026",               "Lang": "RO",    "Market": "🇷🇴 ROU",    "KW": "card crypto Romania",                   "Words": 1000, "Priority": "🔴 BREAKOUT","Outlet": "TBD Romanian outlet"},
-        {"#": 11, "Title": "Crypto Card for Business 2026: Pay with USDT",          "Lang": "EN+RU", "Market": "Global B2B", "KW": "crypto card business / USDT card B2B",  "Words": 1400, "Priority": "🟡",        "Outlet": "businessabc.net"},
-        {"#": 12, "Title": "Kolo vs Crypto.com vs Coinbase: Card Comparison 2026",  "Lang": "EN",    "Market": "Global",      "KW": "crypto card comparison 2026",           "Words": 1500, "Priority": "🔴 GEO",    "Outlet": "businessabc.net + newspioneer.co.uk"},
-    ])
-    def color_priority(val):
-        if "URGENT" in str(val) or "LEAD" in str(val): return "background-color: #ffd6d6; font-weight: bold"
-        if "BREAKOUT" in str(val):                      return "background-color: #ffe0b2; font-weight: bold"
-        if "🔴" in str(val):                            return "background-color: #fff0f0"
-        if "🟠" in str(val):                            return "background-color: #fff9e6"
-        return ""
-    st.dataframe(briefs.style.applymap(color_priority, subset=["Priority"]), use_container_width=True, hide_index=True)
+    # Load plan
+    if "content_plan" not in st.session_state:
+        st.session_state["content_plan"] = _load_content_plan()
 
-    st.header("🤖 GEO Optimization Checklist")
-    st.caption("Maps each article to AI audit queries. 'Required' = Kolo is NOT visible for this query in AI engines.")
-    geo_checklist = pd.DataFrame([
-        {"#": 1,  "Article": "How to Spend Crypto with Visa Card",          "FAQ": "Required",    "Comparison Table": "Required",    "Question Headers": "Required", "Stats": "3+", "AI Queries Targeted": "best crypto card 2026, spend crypto with Visa card, USDT Visa card", "Social Boost": "Reddit r/cryptocurrency + Quora"},
-        {"#": 2,  "Article": "Best Crypto Card UK 2026",                    "FAQ": "Required",    "Comparison Table": "Required",    "Question Headers": "Required", "Stats": "3+", "AI Queries Targeted": "crypto card UK, crypto card Europe",                                    "Social Boost": "Reddit r/UKPersonalFinance"},
-        {"#": 3,  "Article": "Crypto Card UAE Expats",                      "FAQ": "Required",    "Comparison Table": "Required",    "Question Headers": "Required", "Stats": "3+", "AI Queries Targeted": "crypto card UAE, best crypto card Dubai 2026",                           "Social Boost": "Reddit r/dubai + Quora"},
-        {"#": 4,  "Article": "Kolo vs Oobit vs Crypto.com Dubai",           "FAQ": "Required",    "Comparison Table": "CRITICAL",    "Question Headers": "Required", "Stats": "5+", "AI Queries Targeted": "best crypto card 2026, crypto card comparison 2026, crypto card UAE",   "Social Boost": "Reddit + Quora + Telegram UAE groups"},
-        {"#": 5,  "Article": "Najlepsza karta krypto Polska",               "FAQ": "Recommended", "Comparison Table": "Recommended", "Question Headers": "Recommended", "Stats": "2+", "AI Queries Targeted": "karta krypto Polska",                                                  "Social Boost": "Reddit r/Polska"},
-        {"#": 6,  "Article": "Melhor Cartão Cripto Brasil",                  "FAQ": "Recommended", "Comparison Table": "Recommended", "Question Headers": "Recommended", "Stats": "2+", "AI Queries Targeted": "cartão cripto Brasil",                                                  "Social Boost": "Reddit r/investimentos"},
-        {"#": 7,  "Article": "Migliore Carta Crypto Italia",                 "FAQ": "Required",    "Comparison Table": "Required",    "Question Headers": "Required", "Stats": "3+", "AI Queries Targeted": "carta crypto Italia 2026, crypto card Italy",                             "Social Boost": "Reddit r/ItaliaPersonalFinance"},
-        {"#": 8,  "Article": "Kartu Kripto Indonesia",                       "FAQ": "Recommended", "Comparison Table": "Recommended", "Question Headers": "Recommended", "Stats": "2+", "AI Queries Targeted": "kartu kripto Indonesia",                                                "Social Boost": "Telegram IDN groups"},
-        {"#": 9,  "Article": "Альтернатива Trustee Plus",                   "FAQ": "Required",    "Comparison Table": "CRITICAL",    "Question Headers": "Required", "Stats": "5+", "AI Queries Targeted": "Trustee Plus alternative, crypto card CIS, USDT Visa card",              "Social Boost": "Reddit + Telegram RU groups"},
-        {"#": 10, "Article": "Card crypto România",                          "FAQ": "Recommended", "Comparison Table": "Recommended", "Question Headers": "Recommended", "Stats": "2+", "AI Queries Targeted": "card crypto Romania",                                                   "Social Boost": "Reddit r/Romania"},
-        {"#": 11, "Article": "Crypto Card for Business (B2B)",               "FAQ": "Required",    "Comparison Table": "Required",    "Question Headers": "Required", "Stats": "3+", "AI Queries Targeted": "crypto card business, USDT card B2B",                                    "Social Boost": "LinkedIn + HN"},
-        {"#": 12, "Article": "Kolo vs Crypto.com vs Coinbase Comparison",    "FAQ": "CRITICAL",    "Comparison Table": "CRITICAL",    "Question Headers": "Required", "Stats": "5+", "AI Queries Targeted": "best crypto card 2026, crypto debit card, crypto card comparison 2026, crypto card low fees", "Social Boost": "Reddit + Quora (all crypto subs)"},
-    ])
+    plan = st.session_state["content_plan"]
+    plan_df = pd.DataFrame(plan)
 
-    def color_geo(val):
-        if val == "CRITICAL": return "background-color: #ffd6d6; font-weight: bold"
-        if val == "Required": return "background-color: #fff0f0"
-        if val == "Recommended": return "background-color: #fff9e6"
-        return ""
-    st.dataframe(
-        geo_checklist.style.applymap(color_geo, subset=["FAQ", "Comparison Table", "Question Headers"]),
-        use_container_width=True, hide_index=True,
+    # Summary metrics
+    total = len(plan_df)
+    done = len(plan_df[plan_df["Status"] == "Done"])
+    in_progress = len(plan_df[plan_df["Status"] == "In Progress"])
+    seo_tasks = len(plan_df[plan_df["Type"].str.contains("SEO")])
+    geo_tasks = len(plan_df[plan_df["Type"].str.contains("GEO")])
+    social_tasks = len(plan_df[plan_df["Type"] == "Social"])
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Total Tasks", total)
+    c2.metric("Done", done)
+    c3.metric("In Progress", in_progress)
+    c4.metric("SEO Articles", seo_tasks)
+    c5.metric("Social Posts", social_tasks)
+
+    st.divider()
+
+    # Editable table
+    edited_df = st.data_editor(
+        plan_df,
+        use_container_width=True,
+        num_rows="dynamic",
+        column_config={
+            "Status": st.column_config.SelectboxColumn(
+                options=["To Do", "In Progress", "Done", "Skipped"],
+                default="To Do",
+            ),
+            "Type": st.column_config.SelectboxColumn(
+                options=["SEO", "GEO", "SEO+GEO", "Social"],
+                default="SEO",
+            ),
+            "Week": st.column_config.SelectboxColumn(
+                options=["1", "2", "3", "4", "Apr", "May", "Ongoing"],
+                default="1",
+            ),
+            "Publication URL": st.column_config.LinkColumn("Publication URL"),
+            "Reddit/Quora URL": st.column_config.LinkColumn("Reddit/Quora URL"),
+        },
+        key="plan_editor",
     )
 
-    st.markdown("""
-**GEO Structure Rules:**
-- **CRITICAL** = Kolo is invisible for this query. Article MUST have comparison table + FAQ + 5+ quotable stats.
-- **Required** = High-competition query. FAQ section + question headers + 3+ stats mandatory.
-- **Recommended** = Local/niche query. FAQ helpful but not blocking.
+    # Save on any change
+    updated_plan = edited_df.to_dict("records")
+    st.session_state["content_plan"] = updated_plan
+    _save_content_plan(updated_plan)
 
-**What AI engines cite most:**
-1. **Comparison tables** (Kolo vs X vs Y) — Perplexity/ChatGPT love structured data
-2. **FAQ sections** — directly answerable by AI
-3. **Stat-dense sentences** ("Kolo supports USDT spending in 60+ countries") — quotable facts
-4. **Reddit/Quora mentions** — Perplexity heavily indexes these platforms
-""")
-
-    # ── GEO Audit-driven briefs ─────────────────────────────────────
-    geo_results = st.session_state.get("geo_audit_results", [])
-    if geo_results:
-        not_visible = [r for r in geo_results if not r.get("error") and not r.get("kolo_visible")]
-        visible_low = [r for r in geo_results if r.get("kolo_position") and r["kolo_position"] > 5]
-
-        if not_visible or visible_low:
-            st.header("🔍 GEO Audit Gaps → New Briefs")
-            st.caption("Auto-generated from your latest GEO Visibility Audit — queries where Kolo is missing or low-ranked")
-
-            gap_rows = []
-            existing_kws = {b["KW"].lower() for _, b in briefs.iterrows()}
-
-            for i, r in enumerate(not_visible):
-                q = r["query"]
-                # Skip if already covered by existing briefs
-                if any(q.lower() in kw for kw in existing_kws):
-                    continue
-                competitors = ", ".join(r.get("competitors_found", [])[:2]) or "—"
-                gap_rows.append({
-                    "#": f"G{i+1}",
-                    "Title": f"{q.replace('crypto', 'Crypto').title()} — Complete Guide 2026",
-                    "KW": q,
-                    "Status": "🔴 NOT VISIBLE",
-                    "Top Competitor": r.get("top_result_domain", "—"),
-                    "Action": "Write new article + publish on DR 40+ outlet",
-                    "GEO": "FAQ + comparison table + question headers",
-                })
-
-            for i, r in enumerate(visible_low):
-                q = r["query"]
-                if any(q.lower() in kw for kw in existing_kws):
-                    continue
-                gap_rows.append({
-                    "#": f"B{i+1}",
-                    "Title": f"Boost: {q.title()}",
-                    "KW": q,
-                    "Status": f"🟡 Position #{r['kolo_position']}",
-                    "Top Competitor": r.get("top_result_domain", "—"),
-                    "Action": "Reddit/Quora answers + backlinks to existing article",
-                    "GEO": "Add FAQ to existing article if missing",
-                })
-
-            if gap_rows:
-                gap_df = pd.DataFrame(gap_rows)
-                st.dataframe(gap_df, use_container_width=True, hide_index=True)
-                st.info(f"**{len([r for r in gap_rows if '🔴' in r['Status']])} new articles needed** + "
-                        f"**{len([r for r in gap_rows if '🟡' in r['Status']])} existing articles to boost** "
-                        f"based on your GEO audit.")
-            else:
-                st.success("All audit queries are already covered by existing briefs!")
-        else:
-            st.success("🎉 GEO Audit shows Kolo is visible in all target queries!")
-    else:
-        st.info("💡 Run a **GEO Visibility Audit** (Stage 8) to auto-generate content gap briefs here.")
-
-    st.header("🚨 Plan Revisions from Hex Live Data")
+    # Push to Google Sheets
+    st.divider()
+    gsheets_creds = st.session_state.get("gsheets_json", "")
     col1, col2 = st.columns(2)
     with col1:
-        st.warning("**Revision 1 — Spanish cluster targets wrong language**\n\nESP-ru = \\$7,302/user vs ESP-en = \\$4,233/user. Add 4th Russian outlet with Spain/relocation angle. Reallocate \\$100 from IDN pillar.")
-        st.info("**Revision 2 — Dubai RU outlet = Week 1, not Week 2**\n\nARE-ru = \\$21,640/user. Single highest expected-value placement. Must lock in Week 1.")
+        if st.button("📊 Push Plan to Google Sheets", type="primary", disabled=not gsheets_creds):
+            with st.spinner("Pushing..."):
+                try:
+                    from sheets_client import push_publications
+                    n = push_publications(gsheets_creds, updated_plan, sheet_name="Content Plan")
+                    st.success(f"Pushed {n} tasks to [Google Sheet](https://docs.google.com/spreadsheets/d/1EoXaNgpF9Rg4Q-KksFL9d5k5ScDtAF0m7qbg4JxHW4k)")
+                except Exception as e:
+                    st.error(f"Failed: {e}")
     with col2:
-        st.info("**Revision 3 — Portugal data cleaned (F&F excluded)**\n\nPRT = \\$1.13M, \\$6,215/user, 94% conversion — STANDARD users only. F&F users removed from all markets. Brazil (\\$326K, 183 users) is the correct PT-BR content market.")
+        csv = edited_df.to_csv(index=False)
+        st.download_button("📥 Download CSV", data=csv, file_name="content_plan.csv", mime="text/csv")
 
-    st.header("Localization Notes (7 Languages + UAE)")
-    t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs(["🇦🇪 UAE","🇷🇺 Russian","🇮🇹 Italian","🇪🇸 Spanish","🇵🇱 Polish","🇵🇹 Portuguese","🇮🇩 Indonesian","🇷🇴 Romanian"])
-    with t1:
-        st.markdown("**🔴 PRIORITY — ARE = $13,830/user (#1 market by spend)**\n\n**Angle 1:** Crypto card for UAE expats — spend USDT at Dubai merchants\n\n**Angle 2:** Kolo vs Oobit vs Crypto.com in UAE (comparison article for GEO)\n\n**Outlets:** uaehelper.com ($50, DR53, 86% search) · thetradable.com ($100, DR54) · theemiratestimes.com ($99, DR44)\n\n**Premium options:** khaleejtimes.com ($200, DR78) · gulfnews.com ($250, DR82) — highest AI citability\n\n**Keywords:** crypto card UAE, best crypto card Dubai 2026, USDT card Dubai, spend crypto UAE\n\n**GEO:** Comparison table required (Kolo vs Oobit vs Crypto.com). FAQ section mandatory. UAE-specific stats.")
-    with t2:
-        st.markdown("**Angle:** Trustee Plus alternative + Ukrainian diaspora + CIS expat communities\n\n**Must include:** Why CIS users can't use Bybit/Nexo/KuCoin\n\n**New hooks:** *Spain relocation guide* · *Crypto card for UAE expats (RU-speaking)* · *CIS/SWE expat guide*\n\n**Keywords:** карта USDT 2026, крипто карта для граждан Украины, альтернатива trustee plus\n\n**Publish on:** moya-provinciya.com.ua ($6) · euroua.com ($30) · track-package.com.ua ($4)")
-    with t3:
-        st.markdown("**Angle:** Italian expat diaspora in UK, Cyprus, UAE\n\n**Add:** Italian crypto tax (26% CGT) and how stablecoin spending reduces exposure\n\n**Keywords:** carta crypto Italia, pagare con criptovalute 2026, carta USDT Italia\n\n**Outlets:** it.kompass.com ($135, DR77) · viverepesaro.it ($100, DR40)\n\n**Local hook:** Many Italians in London use Kolo (GBR = #1 Kolo revenue market)")
-    with t4:
-        st.markdown("**Two angles:** Spain (EU compliance) vs Argentina (USDC for inflation)\n\n**Key:** ESP-ru = \\$7,302/user vs ESP-en = \\$4,233/user — RU-speaking Spanish users are the real target\n\n**Argentina:** USDC/USDT for inflation hedging, 46.6% USDC penetration\n\n**Outlets:** crypto-economy.com ($130) · sevillaBN ($133)\n\n**Keywords:** tarjeta crypto España, gastar bitcoin 2026, tarjeta USDT")
-    with t5:
-        st.markdown("**Angle:** Polish IT freelancer paid in EUR, tired of PLN conversion fees\n\n**Tone:** Very practical, numbers-first. Polish readers trust data over claims.\n\n**Add:** Direct fee comparison: Bleap (local brand) vs Kolo\n\n**Outlets:** netbe.pl ($24, DR48) · nenws.com ($72, DR44)\n\n**Keywords:** karta krypto Polska, płatności USDT Polska, najlepsza karta bitcoin")
-    with t6:
-        st.markdown("**Primary market: Brazil (PT-BR)**\n\nBRA = \\$326K, 183 card users, \\$1,781/user\n\n**Outlets:** adital.com.br ($100) · pt.egamersworld.com (TBD)\n\n**Angle (PT-BR):** USDT card for Brazil — inflation protection, no BRL exposure\n\n**Keywords:** cartão cripto Brasil, cartão USDT 2026, gastar bitcoin Brasil")
-    with t7:
-        st.markdown("**Angle:** USDT TRC20 = dominant rail in Indonesia/SEA\n\n**Tone:** Mobile-first, social proof. Indonesian audience responds to community validation.\n\n**Add:** TRC20 top-up tutorial (cheap, fast, popular with IDN users)\n\n**Outlets:** TBD — no qualifying ID outlets on Collaborator (DR<28). Source externally.\n\n**Keywords:** kartu kripto Indonesia, bayar USDT Indonesia, kartu debit bitcoin")
-    with t8:
-        st.markdown("**BONUS — Not in original plan, added for +183% breakout market**\n\n**Angle:** Romania +183% Kolo growth, 10% flat crypto tax, IT expat community\n\n**Urgency:** Bybit won Crypto Expo Europe 2026 in Bucharest — move fast\n\n**Keywords:** card crypto Romania, plătesc cu crypto Romania, card USDT 2026")
+    # Quick guide
+    with st.expander("How to use this plan"):
+        st.markdown("""
+**Type column:**
+- **SEO** = Publish article on paid outlet for backlinks + search traffic
+- **GEO** = Comparison/FAQ article optimized for AI engine citations
+- **SEO+GEO** = Both — publish on outlet AND optimize for AI
+- **Social** = Reddit/Quora comments (free, high GEO impact)
 
-    st.header("90-Day Publishing Calendar")
-    tab_mar, tab_apr, tab_may = st.tabs(["March 2026","April 2026","May 2026"])
-    with tab_mar:
-        st.dataframe(pd.DataFrame([
-            {"Week":"Week 1","Article":"🇦🇪 Crypto card UAE expats — Spend USDT in Dubai",    "Lang":"EN",    "Market":"🇦🇪 ARE",   "Outlet":"uaehelper.com + thetradable.com",      "Budget":"$150"},
-            {"Week":"Week 1","Article":"🌍 Lead: How to spend crypto with Visa 2026",         "Lang":"EN",    "Market":"Global",      "Outlet":"businessabc.net",                      "Budget":"$100"},
-            {"Week":"Week 1","Article":"🇷🇺 Trustee Plus alternative",                        "Lang":"RU+UK", "Market":"CIS/Ukraine", "Outlet":"moya-provinciya + euroua + track-pkg",  "Budget":"$40"},
-            {"Week":"Week 2","Article":"🇬🇧 Best crypto card UK 2026",                        "Lang":"EN",    "Market":"🇬🇧 GBR",   "Outlet":"businessage.com + financial-news.co.uk","Budget":"$155"},
-            {"Week":"Week 2","Article":"🇦🇪 Kolo vs Crypto.com vs Oobit: Dubai comparison",   "Lang":"EN",    "Market":"🇦🇪 ARE",   "Outlet":"theemiratestimes.com",                  "Budget":"$99"},
-            {"Week":"Week 2","Article":"🇮🇹 Migliore carta crypto Italia",                    "Lang":"IT",    "Market":"🇮🇹 ITA",   "Outlet":"it.kompass.com + viverepesaro.it",      "Budget":"$235"},
-            {"Week":"Week 3","Article":"🇮🇩 Kartu kripto Indonesia",                          "Lang":"ID",    "Market":"🇮🇩 IDN",   "Outlet":"TBD Indonesian outlets",                "Budget":"$80"},
-            {"Week":"Week 3","Article":"🌍 Crypto card comparison 2026 (GEO article)",        "Lang":"EN",    "Market":"Global",      "Outlet":"newspioneer.co.uk",                     "Budget":"$65"},
-            {"Week":"Week 4","Article":"🇵🇱 Najlepsza karta krypto Polska",                   "Lang":"PL",    "Market":"🇵🇱 POL",   "Outlet":"netbe.pl + nenws.com",                  "Budget":"$96"},
-            {"Week":"Week 4","Article":"🇪🇸 Tarjeta cripto España",                           "Lang":"ES",    "Market":"🇪🇸 ESP",   "Outlet":"crypto-economy + sevillaBN",             "Budget":"$263"},
-            {"Week":"Buffer","Article":"Deploy based on Week 1–3 traction",                   "Lang":"—",     "Market":"TBD",         "Outlet":"TBD",                                   "Budget":"~$217"},
-        ]), use_container_width=True, hide_index=True)
-        st.metric("March Total Budget","$1,783","within $2,000 allocation · $217 buffer")
-    with tab_apr:
-        st.dataframe(pd.DataFrame([
-            {"Week":"Apr 1–7",   "Article":"Melhor cartão cripto Brasil",            "Lang":"PT-BR", "Priority":"🟠 HIGH"},
-            {"Week":"Apr 1–7",   "Article":"B2B crypto card for business",           "Lang":"EN",    "Priority":"🟡 MEDIUM"},
-            {"Week":"Apr 8–14",  "Article":"Cel mai bun card crypto România",        "Lang":"RO",    "Priority":"🔴 URGENT breakout"},
-            {"Week":"Apr 8–14",  "Article":"USDT TRC20 card guide",                  "Lang":"EN+RU", "Priority":"🟠 HIGH"},
-            {"Week":"Apr 15–21", "Article":"Bitcoin card Switzerland",               "Lang":"EN/DE", "Priority":"🟡 MEDIUM"},
-            {"Week":"Apr 22–28", "Article":"Tarjeta cripto Argentina (USDC angle)",  "Lang":"ES-AR", "Priority":"🟡 MEDIUM"},
-            {"Week":"Apr 22–28", "Article":"Kolo × TRON partnership story",          "Lang":"EN+RU", "Priority":"🟡 MEDIUM"},
-        ]), use_container_width=True, hide_index=True)
-    with tab_may:
-        st.dataframe(pd.DataFrame([
-            {"Week":"May 1–7",   "Article":"Country page: /crypto-card/georgia",           "Lang":"EN+RU"},
-            {"Week":"May 1–7",   "Article":"Country page: /crypto-card/kyrgyzstan",        "Lang":"EN+RU"},
-            {"Week":"May 8–14",  "Article":"Update lead article with Q1 2026 data",        "Lang":"All 7"},
-            {"Week":"May 8–14",  "Article":"How Kolo helped 1,000+ Trustee users migrate", "Lang":"EN+RU"},
-            {"Week":"May 15–21", "Article":"Crypto card comparison 2026 (updated)",        "Lang":"EN"},
-            {"Week":"May 22–31", "Article":"Country pages: Uzbekistan + Moldova",          "Lang":"EN+RU"},
-        ]), use_container_width=True, hide_index=True)
+**Workflow:**
+1. Set status to **In Progress** when you start
+2. Publish article → paste **Publication URL**
+3. Post Reddit/Quora comment → paste **Reddit/Quora URL**
+4. Set status to **Done**
+5. Push to Google Sheets for permanent record
+
+**GEO column** tells you what structure the article needs (FAQ, comparison table, etc.)
+""")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
