@@ -1908,16 +1908,43 @@ def page_content_distribution():
             key=f"bulk_urls_{url_ver}",
         )
 
-        def _fetch_reddit_post(url):
-            """Fetch a Reddit post's title and body via JSON API."""
+        def _fetch_post(url):
+            """Fetch a post's title and body. Supports Reddit, Quora, Twitter."""
             post = {"url": url, "title": "", "body": "", "subreddit": "", "platform": "Reddit", "score": 0, "num_comments": 0}
+
+            # ── Quora ─────────────────────────────────────────────
             if "quora.com" in url:
                 post["platform"] = "Quora"
-                post["title"] = url.split("/")[-1].replace("-", " ") if "/" in url else url
+                # Clean up Quora URL slug into readable title
+                # Handle: quora.com/What-are-crypto-cards-and-how-do-they-work-2
+                # Handle: wallstreetwisdom.quora.com/https-www-quora-com-What-are-crypto-debit-cards-answer-Linda-Clore-6
+                slug = url.split("/")[-1]
+                # Remove "https-www-quora-com-" prefix from subdomain reposts
+                slug = _re.sub(r'^https?-www-quora-com-', '', slug)
+                # Remove trailing -number (Quora version suffix)
+                slug = _re.sub(r'-\d+$', '', slug)
+                # Remove "answer-AuthorName" suffix
+                slug = _re.sub(r'-answer-[\w-]+$', '', slug)
+                post["title"] = slug.replace("-", " ").strip()
+                if not post["title"]:
+                    post["title"] = "Quora question"
                 return post
-            elif "news.ycombinator" in url:
-                post["platform"] = "HackerNews"
 
+            # ── Twitter / X ───────────────────────────────────────
+            if "twitter.com" in url or "x.com" in url:
+                post["platform"] = "Twitter"
+                m = _re.search(r'(?:twitter|x)\.com/(\w+)/status', url)
+                post["subreddit"] = f"@{m.group(1)}" if m else ""
+                post["title"] = f"Tweet by {post['subreddit']}" if post["subreddit"] else "Tweet"
+                return post
+
+            # ── HackerNews ────────────────────────────────────────
+            if "news.ycombinator" in url:
+                post["platform"] = "HackerNews"
+                post["title"] = "HN discussion"
+                return post
+
+            # ── Reddit (fetch via JSON API) ───────────────────────
             reddit_match = _re.search(r'reddit\.com/r/(\w+)', url)
             if reddit_match:
                 post["subreddit"] = reddit_match.group(1)
@@ -1935,6 +1962,7 @@ def page_content_distribution():
                 except Exception:
                     pass
 
+            # Fallback title from URL slug
             if not post["title"]:
                 slug_match = _re.search(r'/comments/\w+/([^/]+)', url)
                 if slug_match:
@@ -1951,7 +1979,7 @@ def page_content_distribution():
                 fetched = []
                 progress = st.progress(0)
                 for i, url in enumerate(urls):
-                    fetched.append(_fetch_reddit_post(url))
+                    fetched.append(_fetch_post(url))
                     progress.progress((i + 1) / len(urls))
                 st.session_state["fetched_posts"] = fetched
                 _save_distribution_state()
