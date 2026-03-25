@@ -13,3 +13,4 @@ files.zip
 # macOS
 .DS_Store
 geo_audit_cache.json
+distribution_cache.json

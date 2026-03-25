@@ -1717,9 +1717,41 @@ SUBREDDITS = [
 ]
 
 
+_DIST_CACHE = "distribution_cache.json"
+
+
+def _save_distribution_state():
+    """Persist fetched posts + comment queue to local JSON."""
+    import json as _j
+    state = {
+        "fetched_posts": st.session_state.get("fetched_posts", []),
+        "comment_queue": st.session_state.get("comment_queue", []),
+        "reddit_found": st.session_state.get("reddit_found", []),
+    }
+    with open(_DIST_CACHE, "w") as f:
+        _j.dump(state, f, default=str)
+
+
+def _load_distribution_state():
+    """Load persisted distribution state on startup."""
+    import json as _j, os
+    if os.path.exists(_DIST_CACHE):
+        try:
+            with open(_DIST_CACHE) as f:
+                state = _j.load(f)
+            for key in ["fetched_posts", "comment_queue", "reddit_found"]:
+                if key in state and key not in st.session_state:
+                    st.session_state[key] = state[key]
+        except Exception:
+            pass
+
+
 def page_content_distribution():
     st.title("📣 Stage 9 · Social Listening & Distribution")
     st.caption("Find relevant Reddit & Quora posts → draft helpful comments → track posting")
+
+    # Load persisted data on first render
+    _load_distribution_state()
 
     api_key = st.session_state.get("anthropic_token")
 
@@ -1798,6 +1830,7 @@ def page_content_distribution():
                 progress.progress((i + 1) / len(queries))
 
             st.session_state["reddit_found"] = all_posts[:30]
+            _save_distribution_state()
             progress.empty()
             st.success(f"Found {len(all_posts)} Reddit posts using {len(queries)} queries")
             st.rerun()
@@ -1901,6 +1934,7 @@ def page_content_distribution():
                     fetched.append(_fetch_reddit_post(url))
                     progress.progress((i + 1) / len(urls))
                 st.session_state["fetched_posts"] = fetched
+                _save_distribution_state()
                 progress.empty()
                 st.rerun()
 
@@ -1947,6 +1981,7 @@ def page_content_distribution():
                         })
                     progress.progress((i + 1) / len(fetched))
                 st.session_state["comment_queue"] = queue
+                _save_distribution_state()
                 status.empty()
                 progress.empty()
                 st.success(f"Generated {len(fetched)} comments! Go to **Queue** tab.")
@@ -2031,6 +2066,7 @@ def page_content_distribution():
                             if st.button("✅ Posted", key=f"q_posted_{i}"):
                                 queue[i]["status"] = "posted"
                                 st.session_state["comment_queue"] = queue
+                                _save_distribution_state()
                                 st.rerun()
                     with col4:
                         st.download_button("📋 Copy", data=edited, file_name=f"comment_{i}.txt",
@@ -2041,6 +2077,7 @@ def page_content_distribution():
                                   key=f"q_rev_{i}", label_visibility="collapsed")
 
             st.session_state["comment_queue"] = queue
+            _save_distribution_state()
 
             st.divider()
 
