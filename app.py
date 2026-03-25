@@ -1818,112 +1818,109 @@ def page_content_distribution():
 
     # ── Tab 2: Draft Comments ─────────────────────────────────────────
     with tab_drafts:
-        st.subheader("Draft Comment Replies")
-        st.markdown("Generate helpful comments for queued posts. Comments are written as a genuine user — not an ad.")
+        st.subheader("Generate Comment")
+        st.markdown("Paste a Reddit/Quora post URL → AI generates a natural comment → edit → copy & post.")
 
-        selected = st.session_state.get("selected_posts", [])
+        import re as _re
 
-        if not selected:
-            st.info("Queue posts from the Find Posts tab, or add manually below.")
+        # Simple input: just a URL
+        post_url = st.text_input("Post URL", placeholder="https://www.reddit.com/r/cryptocurrency/comments/...", key="comment_url")
 
-        # Manual post entry
-        with st.expander("Add post manually"):
-            manual_title = st.text_input("Post title", key="manual_title")
-            manual_body = st.text_area("Post body (optional)", key="manual_body", height=80)
-            manual_platform = st.selectbox("Platform", ["Reddit", "Quora", "HackerNews", "Forum"], key="manual_platform")
-            manual_sub = st.text_input("Subreddit / community", key="manual_sub")
-            manual_url = st.text_input("Post URL", key="manual_url")
-            if st.button("Add to queue"):
-                if manual_title:
-                    selected.append({
-                        "title": manual_title,
-                        "selftext": manual_body,
-                        "subreddit": manual_sub,
-                        "url": manual_url,
-                        "score": 0,
-                        "num_comments": 0,
-                        "platform": manual_platform,
-                    })
-                    st.session_state["selected_posts"] = selected
-                    st.rerun()
+        # Auto-detect platform
+        platform = "Reddit"
+        subreddit = ""
+        if "quora.com" in post_url:
+            platform = "Quora"
+        elif "news.ycombinator" in post_url:
+            platform = "HackerNews"
+        reddit_match = _re.search(r'reddit\.com/r/(\w+)', post_url)
+        if reddit_match:
+            subreddit = reddit_match.group(1)
 
-        # Generate comments for queued posts
-        drafts = st.session_state.get("comment_drafts", {})
+        if post_url:
+            st.caption(f"Platform: **{platform}**" + (f" · r/{subreddit}" if subreddit else ""))
 
-        for i, post in enumerate(selected):
-            platform = post.get("platform", "Reddit")
-            with st.expander(
-                f"{'✅' if str(i) in drafts else '⬜'} {post['title'][:60]} — "
-                f"{post.get('subreddit', platform)}",
-                expanded=str(i) not in drafts,
-            ):
-                st.markdown(f"**[{post['title']}]({post.get('url', '#')})**")
-                if post.get("selftext"):
-                    st.caption(post["selftext"][:200])
+        # Optional context
+        with st.expander("Add context (optional)"):
+            post_title_override = st.text_input("What is the post asking?", placeholder="e.g. Which crypto card do you use for travel?", key="post_context")
 
-                col_gen, col_remove = st.columns([3, 1])
-                with col_gen:
-                    if st.button("🤖 Generate Comment", key=f"gencomment_{i}", disabled=not api_key):
-                        with st.spinner("Drafting comment..."):
-                            try:
-                                comment = generate_comment_reply(
-                                    api_key,
-                                    post_title=post["title"],
-                                    post_body=post.get("selftext", ""),
-                                    platform=platform,
-                                    subreddit=post.get("subreddit", ""),
-                                    article_url=ref_url,
-                                )
-                                drafts[str(i)] = {
-                                    "content": comment,
-                                    "status": "draft",
-                                    "post_url": post.get("url", ""),
-                                    "platform": platform,
-                                    "community": post.get("subreddit", ""),
-                                }
-                                st.session_state["comment_drafts"] = drafts
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Failed: {e}")
-                with col_remove:
-                    if st.button("🗑️ Remove", key=f"remove_{i}"):
-                        selected.pop(i)
-                        drafts.pop(str(i), None)
-                        st.session_state["selected_posts"] = selected
-                        st.session_state["comment_drafts"] = drafts
-                        st.rerun()
-
-                # Show/edit generated comment
-                if str(i) in drafts:
-                    edited = st.text_area(
-                        "Edit comment before posting",
-                        value=drafts[str(i)]["content"],
-                        height=150,
-                        key=f"editcomment_{i}",
+        # Generate
+        comment_ver = st.session_state.get("comment_draft_version", 0)
+        if st.button("🤖 Generate Comment", type="primary", disabled=not api_key or not post_url):
+            title_for_ai = post_title_override or post_url.split("/")[-1].replace("_", " ").replace("-", " ")
+            with st.spinner("Drafting comment..."):
+                try:
+                    comment = generate_comment_reply(
+                        api_key,
+                        post_title=title_for_ai,
+                        post_body="",
+                        platform=platform,
+                        subreddit=subreddit,
+                        article_url=ref_url,
                     )
-                    drafts[str(i)]["content"] = edited
-
-                    dc1, dc2, dc3 = st.columns(3)
-                    with dc1:
-                        drafts[str(i)]["status"] = st.selectbox(
-                            "Status", ["draft", "posted", "skipped"],
-                            key=f"commentstatus_{i}",
-                            index=["draft", "posted", "skipped"].index(drafts[str(i)].get("status", "draft")),
-                        )
-                    with dc2:
-                        st.download_button(
-                            "📋 Copy .txt", data=edited,
-                            file_name=f"comment_{i}.txt", mime="text/plain",
-                            key=f"dlcomment_{i}",
-                        )
-                    with dc3:
-                        if post.get("url"):
-                            st.markdown(f"[Open post ↗]({post['url']})")
-
-        st.session_state["comment_drafts"] = drafts
+                    st.session_state["current_comment"] = comment
+                    st.session_state["current_comment_url"] = post_url
+                    st.session_state["current_comment_platform"] = platform
+                    st.session_state["comment_draft_version"] = comment_ver + 1
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed: {e}")
 
         if not api_key:
-            st.info("Enter your Anthropic API key in the sidebar to generate comments.")
+            st.info("Enter your Anthropic API key in the sidebar.")
+
+        # Show generated comment
+        current = st.session_state.get("current_comment", "")
+        if current:
+            st.divider()
+            ver = st.session_state.get("comment_draft_version", 0)
+            edited = st.text_area("Edit comment", value=current, height=200, key=f"comment_editor_{ver}")
+            st.session_state["current_comment"] = edited
+
+            col1, col2, col3 = st.columns([2, 2, 2])
+            with col1:
+                cur_url = st.session_state.get("current_comment_url", "")
+                if cur_url:
+                    st.markdown(f"[Open post ↗]({cur_url})")
+            with col2:
+                st.download_button("📋 Download .txt", data=edited, file_name="comment.txt", mime="text/plain", key="dl_comment")
+            with col3:
+                cur_platform = st.session_state.get("current_comment_platform", "Reddit")
+                status = st.selectbox("Status", ["draft", "posted", "skipped"], key="comment_status_sel")
+
+            # Revise with AI
+            st.divider()
+            st.subheader("Revise Comment")
+            revision = st.text_input("What to change?", placeholder="e.g. Make it shorter, less promotional, mention fees comparison", key="comment_revision")
+            if st.button("✏️ Revise", disabled=not api_key or not revision):
+                with st.spinner("Revising..."):
+                    try:
+                        revised = generate_comment_reply(
+                            api_key,
+                            post_title=f"REVISION: {revision}",
+                            post_body=f"Original comment:\n{edited}\n\nRevise according to: {revision}",
+                            platform=cur_platform,
+                            subreddit=subreddit,
+                            article_url=ref_url,
+                        )
+                        st.session_state["current_comment"] = revised
+                        st.session_state["comment_draft_version"] = ver + 1
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Revision failed: {e}")
+
+            # Save to tracker
+            if status == "posted":
+                drafts = st.session_state.get("comment_drafts", {})
+                key = str(len(drafts))
+                drafts[key] = {
+                    "content": edited,
+                    "status": "posted",
+                    "post_url": st.session_state.get("current_comment_url", ""),
+                    "platform": cur_platform,
+                    "community": subreddit,
+                }
+                st.session_state["comment_drafts"] = drafts
 
     # ── Tab 3: Tracker ────────────────────────────────────────────────
     with tab_tracker:
