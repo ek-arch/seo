@@ -27,10 +27,10 @@ def _get_client(creds_json: str) -> gspread.Client:
 
 def push_comments(creds_json: str, comments: list[dict], sheet_name: str = "Comments") -> int:
     """
-    Push comment queue to Google Sheet.
+    Push NEW comments to Google Sheet (append-only, never erases old rows).
     Creates the sheet tab if it doesn't exist.
-    FULL SYNC: clears and rewrites all comments every time.
-    Returns number of rows written.
+    Skips comments whose URL is already in the sheet.
+    Returns number of NEW rows added.
     """
     gc = _get_client(creds_json)
     spreadsheet = gc.open_by_key(SHEET_ID)
@@ -40,21 +40,28 @@ def push_comments(creds_json: str, comments: list[dict], sheet_name: str = "Comm
         ws = spreadsheet.worksheet(sheet_name)
     except gspread.exceptions.WorksheetNotFound:
         ws = spreadsheet.add_worksheet(title=sheet_name, rows=1000, cols=10)
+        ws.update("A1:G1", [["Date", "Post URL", "Post Title", "Platform", "Community", "Comment", "Status"]])
+        ws.format("A1:G1", {"textFormat": {"bold": True}})
 
-    # Write headers
-    ws.update("A1:G1", [["Date", "Post URL", "Post Title", "Platform", "Subreddit", "Comment", "Status"]])
+    # Read existing URLs to avoid duplicates
+    existing_urls = set()
+    try:
+        url_col = ws.col_values(2)  # Column B = Post URL
+        existing_urls = set(url_col[1:])  # Skip header
+    except Exception:
+        pass
 
-    # Clear existing data (keep header)
-    ws.batch_clear(["A2:G1000"])
-
-    # Write all comments
+    # Only append new comments
     import datetime
     today = datetime.date.today().isoformat()
-    rows = []
+    new_rows = []
     for c in comments:
-        rows.append([
+        url = c.get("url", "")
+        if url in existing_urls:
+            continue  # Already in sheet
+        new_rows.append([
             today,
-            c.get("url", ""),
+            url,
             c.get("title", "")[:100],
             c.get("platform", "Reddit"),
             c.get("subreddit", ""),
@@ -62,10 +69,10 @@ def push_comments(creds_json: str, comments: list[dict], sheet_name: str = "Comm
             c.get("status", "draft"),
         ])
 
-    if rows:
-        ws.update(f"A2:G{len(rows)+1}", rows, value_input_option="USER_ENTERED")
+    if new_rows:
+        ws.append_rows(new_rows, value_input_option="USER_ENTERED")
 
-    return len(rows)
+    return len(new_rows)
 
 
 def push_audit_results(creds_json: str, results: list[dict], sheet_name: str = "GEO Audit") -> int:
