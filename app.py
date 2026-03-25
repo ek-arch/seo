@@ -1780,8 +1780,8 @@ def page_content_distribution():
         import re as _re
         import requests as _requests
 
-        st.subheader("Generate Comments")
-        st.markdown("Paste Reddit/Quora URLs (one per line) → AI reads the posts → select one → generate comment.")
+        st.subheader("Draft Comments")
+        st.markdown("Paste Reddit/Quora URLs → fetch → generate comments → all go to the Queue.")
 
         if not api_key:
             st.info("Enter your Anthropic API key in the sidebar.")
@@ -1789,189 +1789,195 @@ def page_content_distribution():
         # ── Step 1: Paste URLs ────────────────────────────────────
         urls_text = st.text_area(
             "Paste post URLs (one per line)",
-            height=250,
+            height=200,
             placeholder="https://www.reddit.com/r/cryptocurrency/comments/abc123/which_crypto_card_do_you_use/\nhttps://www.reddit.com/r/digitalnomad/comments/def456/best_card_for_traveling/\nhttps://www.quora.com/What-is-the-best-crypto-debit-card-in-2026",
             key="bulk_urls",
         )
 
-        # Parse and fetch posts
-        if st.button("📥 Fetch Posts", type="primary", disabled=not urls_text.strip()):
-            urls = [u.strip() for u in urls_text.strip().split("\n") if u.strip()]
-            fetched = []
-            progress = st.progress(0)
-            for i, url in enumerate(urls):
-                post = {"url": url, "title": "", "body": "", "subreddit": "", "platform": "Reddit"}
+        def _fetch_reddit_post(url):
+            """Fetch a Reddit post's title and body via JSON API."""
+            post = {"url": url, "title": "", "body": "", "subreddit": "", "platform": "Reddit", "score": 0, "num_comments": 0}
+            if "quora.com" in url:
+                post["platform"] = "Quora"
+                post["title"] = url.split("/")[-1].replace("-", " ") if "/" in url else url
+                return post
+            elif "news.ycombinator" in url:
+                post["platform"] = "HackerNews"
 
-                # Detect platform
-                if "quora.com" in url:
-                    post["platform"] = "Quora"
-                    # Extract question from URL
-                    post["title"] = url.split("/")[-1].replace("-", " ") if "/" in url else url
-                elif "news.ycombinator" in url:
-                    post["platform"] = "HackerNews"
+            reddit_match = _re.search(r'reddit\.com/r/(\w+)', url)
+            if reddit_match:
+                post["subreddit"] = reddit_match.group(1)
+                try:
+                    json_url = url.rstrip("/") + ".json"
+                    resp = _requests.get(json_url, headers={"User-Agent": "KoloSEOAgent/1.0"}, timeout=10)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if isinstance(data, list) and data:
+                            rd = data[0].get("data", {}).get("children", [{}])[0].get("data", {})
+                            post["title"] = rd.get("title", "")
+                            post["body"] = (rd.get("selftext", "") or "")[:500]
+                            post["score"] = rd.get("score", 0)
+                            post["num_comments"] = rd.get("num_comments", 0)
+                except Exception:
+                    pass
 
-                # Reddit: fetch JSON
-                reddit_match = _re.search(r'reddit\.com/r/(\w+)', url)
-                if reddit_match:
-                    post["subreddit"] = reddit_match.group(1)
+            if not post["title"]:
+                slug_match = _re.search(r'/comments/\w+/([^/]+)', url)
+                if slug_match:
+                    post["title"] = slug_match.group(1).replace("_", " ")
+                else:
+                    post["title"] = url.split("/")[-1].replace("_", " ").replace("-", " ")
+            return post
+
+        # Fetch + show posts
+        col_fetch, col_gen = st.columns(2)
+        with col_fetch:
+            if st.button("📥 Fetch Posts", type="primary", disabled=not urls_text.strip()):
+                urls = [u.strip() for u in urls_text.strip().split("\n") if u.strip()]
+                fetched = []
+                progress = st.progress(0)
+                for i, url in enumerate(urls):
+                    fetched.append(_fetch_reddit_post(url))
+                    progress.progress((i + 1) / len(urls))
+                st.session_state["fetched_posts"] = fetched
+                progress.empty()
+                st.rerun()
+
+        with col_gen:
+            fetched = st.session_state.get("fetched_posts", [])
+            if st.button("🤖 Generate All Comments", type="primary",
+                         disabled=not api_key or not fetched):
+                queue = st.session_state.get("comment_queue", [])
+                progress = st.progress(0)
+                status = st.empty()
+                for i, post in enumerate(fetched):
+                    # Skip if already in queue
+                    if any(q["url"] == post["url"] for q in queue):
+                        progress.progress((i + 1) / len(fetched))
+                        continue
+                    status.text(f"Generating comment for: {post['title'][:50]}...")
                     try:
-                        json_url = url.rstrip("/") + ".json"
-                        resp = _requests.get(json_url, headers={"User-Agent": "KoloSEOAgent/1.0"}, timeout=10)
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            if isinstance(data, list) and data:
-                                rd = data[0].get("data", {}).get("children", [{}])[0].get("data", {})
-                                post["title"] = rd.get("title", "")
-                                post["body"] = (rd.get("selftext", "") or "")[:500]
-                                post["score"] = rd.get("score", 0)
-                                post["num_comments"] = rd.get("num_comments", 0)
-                    except Exception:
-                        # Fall back to slug
-                        slug_match = _re.search(r'/comments/\w+/([^/]+)', url)
-                        if slug_match:
-                            post["title"] = slug_match.group(1).replace("_", " ")
+                        comment = generate_comment_reply(
+                            api_key,
+                            post_title=post["title"],
+                            post_body=post.get("body", ""),
+                            platform=post["platform"],
+                            subreddit=post.get("subreddit", ""),
+                            article_url=ref_url,
+                        )
+                        queue.append({
+                            "url": post["url"],
+                            "title": post["title"],
+                            "platform": post["platform"],
+                            "subreddit": post.get("subreddit", ""),
+                            "comment": comment,
+                            "status": "draft",
+                        })
+                    except Exception as e:
+                        queue.append({
+                            "url": post["url"],
+                            "title": post["title"],
+                            "platform": post["platform"],
+                            "subreddit": post.get("subreddit", ""),
+                            "comment": f"[Error: {e}]",
+                            "status": "error",
+                        })
+                    progress.progress((i + 1) / len(fetched))
+                st.session_state["comment_queue"] = queue
+                status.empty()
+                progress.empty()
+                st.success(f"Generated {len(fetched)} comments! Go to **Queue** tab.")
+                st.rerun()
 
-                if not post["title"]:
-                    slug_match = _re.search(r'/comments/\w+/([^/]+)', url)
-                    if slug_match:
-                        post["title"] = slug_match.group(1).replace("_", " ")
-                    else:
-                        post["title"] = url.split("/")[-1].replace("_", " ").replace("-", " ")
-
-                fetched.append(post)
-                progress.progress((i + 1) / len(urls))
-
-            st.session_state["fetched_posts"] = fetched
-            progress.empty()
-            st.rerun()
-
-        # ── Step 2: Show fetched posts → select → generate ────────
+        # Show fetched posts preview
         fetched = st.session_state.get("fetched_posts", [])
         if fetched:
             st.divider()
-            st.markdown(f"### {len(fetched)} posts loaded")
-
             for i, post in enumerate(fetched):
+                sub = f"r/{post['subreddit']}" if post["subreddit"] else post["platform"]
+                score = f" · ⬆️ {post['score']} · 💬 {post['num_comments']}" if post.get("score") else ""
+                st.markdown(f"{i+1}. **{post['title'][:80]}** — {sub}{score}")
+
+    # ── Tab 3: Queue ─────────────────────────────────────────────────
+    with tab_tracker:
+        st.subheader("Comment Queue")
+        st.markdown("All generated comments in one place. Edit, revise, then copy & post.")
+
+        queue = st.session_state.get("comment_queue", [])
+
+        if not queue:
+            st.info("No comments yet. Paste URLs in **Draft Comments** tab → Fetch → Generate All.")
+        else:
+            # Summary
+            total = len(queue)
+            posted = sum(1 for q in queue if q["status"] == "posted")
+            drafts_count = sum(1 for q in queue if q["status"] == "draft")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Total", total)
+            c2.metric("Drafts", drafts_count)
+            c3.metric("Posted", posted)
+
+            st.divider()
+
+            for i, item in enumerate(queue):
                 with st.container(border=True):
-                    col1, col2 = st.columns([5, 1])
+                    # Header
+                    sub = f"r/{item['subreddit']}" if item["subreddit"] else item["platform"]
+                    status_icon = {"draft": "📝", "posted": "✅", "error": "❌"}.get(item["status"], "📝")
+                    st.markdown(f"{status_icon} **[{item['title'][:70]}]({item['url']})** — {sub}")
+
+                    # Editable comment
+                    ver = st.session_state.get(f"q_ver_{i}", 0)
+                    edited = st.text_area(
+                        "Comment", value=item["comment"], height=120,
+                        key=f"q_comment_{i}_{ver}", label_visibility="collapsed",
+                    )
+                    queue[i]["comment"] = edited
+
+                    # Action buttons
+                    col1, col2, col3, col4 = st.columns([2, 2, 2, 2])
                     with col1:
-                        sub_label = f"r/{post['subreddit']}" if post["subreddit"] else post["platform"]
-                        st.markdown(f"**{post['title'][:80]}** — {sub_label}")
-                        if post.get("body"):
-                            st.caption(post["body"][:150] + ("..." if len(post["body"]) > 150 else ""))
-                        if post.get("score"):
-                            st.caption(f"⬆️ {post['score']} · 💬 {post.get('num_comments', 0)}")
+                        st.markdown(f"[Open post ↗]({item['url']})")
                     with col2:
-                        if st.button("Generate", key=f"gen_{i}", disabled=not api_key, type="primary"):
-                            with st.spinner("Reading post & drafting comment..."):
+                        if st.button("✏️ Revise", key=f"q_rev_btn_{i}", disabled=not api_key):
+                            rev_text = st.session_state.get(f"q_rev_{i}", "")
+                            if rev_text:
                                 try:
-                                    comment = generate_comment_reply(
+                                    revised = generate_comment_reply(
                                         api_key,
-                                        post_title=post["title"],
-                                        post_body=post.get("body", ""),
-                                        platform=post["platform"],
-                                        subreddit=post.get("subreddit", ""),
+                                        post_title=f"REVISION: {rev_text}",
+                                        post_body=f"Original:\n{edited}\n\nRevise: {rev_text}",
+                                        platform=item["platform"],
+                                        subreddit=item.get("subreddit", ""),
                                         article_url=ref_url,
                                     )
-                                    st.session_state["active_comment"] = {
-                                        "content": comment,
-                                        "url": post["url"],
-                                        "platform": post["platform"],
-                                        "subreddit": post.get("subreddit", ""),
-                                        "title": post["title"],
-                                    }
-                                    st.session_state["active_comment_ver"] = st.session_state.get("active_comment_ver", 0) + 1
+                                    queue[i]["comment"] = revised
+                                    st.session_state[f"q_ver_{i}"] = ver + 1
+                                    st.session_state["comment_queue"] = queue
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Failed: {e}")
+                    with col3:
+                        if item["status"] != "posted":
+                            if st.button("✅ Posted", key=f"q_posted_{i}"):
+                                queue[i]["status"] = "posted"
+                                st.session_state["comment_queue"] = queue
+                                st.rerun()
+                    with col4:
+                        st.download_button("📋 Copy", data=edited, file_name=f"comment_{i}.txt",
+                                           mime="text/plain", key=f"q_dl_{i}")
 
-        # ── Step 3: Edit / Revise / Copy ──────────────────────────
-        active = st.session_state.get("active_comment")
-        if active:
-            st.divider()
-            st.markdown(f"### 💬 Comment for: [{active['title'][:60]}]({active['url']})")
+                    # Revision input
+                    st.text_input("What to change?", placeholder="shorter, less promotional, add fee comparison",
+                                  key=f"q_rev_{i}", label_visibility="collapsed")
 
-            ver = st.session_state.get("active_comment_ver", 0)
-            edited = st.text_area("Edit comment", value=active["content"], height=200, key=f"comment_ed_{ver}")
-            active["content"] = edited
-            st.session_state["active_comment"] = active
-
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"[Open post ↗]({active['url']})")
-            with col2:
-                st.download_button("📋 Download .txt", data=edited, file_name="comment.txt", mime="text/plain", key="dl_cmt")
-
-            # Revise
-            revision = st.text_input("Revise: what to change?", placeholder="e.g. shorter, less promotional, mention fees", key="cmt_rev")
-            if st.button("✏️ Revise", disabled=not api_key or not revision):
-                with st.spinner("Revising..."):
-                    try:
-                        revised = generate_comment_reply(
-                            api_key,
-                            post_title=f"REVISION: {revision}",
-                            post_body=f"Original comment:\n{edited}\n\nRevise according to: {revision}",
-                            platform=active["platform"],
-                            subreddit=active.get("subreddit", ""),
-                            article_url=ref_url,
-                        )
-                        active["content"] = revised
-                        st.session_state["active_comment"] = active
-                        st.session_state["active_comment_ver"] = ver + 1
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Revision failed: {e}")
-
-            # Mark as posted
-            if st.button("✅ Mark as Posted"):
-                drafts = st.session_state.get("comment_drafts", {})
-                drafts[str(len(drafts))] = {
-                    "content": edited,
-                    "status": "posted",
-                    "post_url": active["url"],
-                    "platform": active["platform"],
-                    "community": active.get("subreddit", ""),
-                }
-                st.session_state["comment_drafts"] = drafts
-                st.session_state.pop("active_comment", None)
-                st.success("Saved to tracker!")
-                st.rerun()
-
-    # ── Tab 3: Tracker ────────────────────────────────────────────────
-    with tab_tracker:
-        st.subheader("Distribution Tracker")
-        drafts = st.session_state.get("comment_drafts", {})
-
-        if drafts:
-            rows = []
-            for key, d in drafts.items():
-                rows.append({
-                    "Platform": d.get("platform", "Reddit"),
-                    "Community": d.get("community", ""),
-                    "Status": d.get("status", "draft"),
-                    "Post URL": d.get("post_url", ""),
-                    "Words": len(d.get("content", "").split()),
-                })
-            df = pd.DataFrame(rows)
-            st.dataframe(df, use_container_width=True, hide_index=True,
-                         column_config={"Post URL": st.column_config.LinkColumn()})
-
-            total = len(rows)
-            posted = sum(1 for r in rows if r["Status"] == "posted")
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Total Drafted", total)
-            col2.metric("Posted", posted)
-            col3.metric("Pending", total - posted)
+            st.session_state["comment_queue"] = queue
 
             st.divider()
-            st.markdown(
-                "**GEO Impact:** Reddit & Quora comments are heavily indexed by "
-                "ChatGPT, Perplexity, and Google AI Overviews. Each posted comment "
-                "increases the chance Kolo appears in AI-generated answers for "
-                "crypto card queries."
+            st.caption(
+                "**GEO Impact:** Reddit & Quora comments are indexed by "
+                "ChatGPT, Perplexity, and Google AI Overviews."
             )
-        else:
-            st.info("No comments drafted yet. Use Find Posts → Queue → Draft Comments.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
