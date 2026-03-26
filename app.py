@@ -2118,13 +2118,12 @@ def page_content_distribution():
                     for j, idx in enumerate(drafts_to_revise):
                         item = queue[idx]
                         try:
-                            revised = generate_comment_reply(
+                            revised = revise_press_release(
                                 api_key,
-                                post_title=f"REVISION: {revise_all_text}",
-                                post_body=f"Original:\n{item['comment']}\n\nRevise: {revise_all_text}",
-                                platform=item["platform"],
-                                subreddit=item.get("subreddit", ""),
-                                article_url=ref_url,
+                                current_draft=item["comment"],
+                                instructions=f"This is a {item['platform']} comment. {revise_all_text}. "
+                                    "Return ONLY the revised comment text. No preamble, no 'here's the revision', "
+                                    "no explanations. Just the final comment ready to paste.",
                             )
                             queue[idx]["comment"] = revised
                             # Bump version for text area
@@ -2167,13 +2166,12 @@ def page_content_distribution():
                     with col2:
                         if st.button("✏️ Revise", key=f"q_rev_btn_{i}", disabled=not api_key or not rev_text):
                             try:
-                                revised = generate_comment_reply(
+                                revised = revise_press_release(
                                     api_key,
-                                    post_title=f"REVISION: {rev_text}",
-                                    post_body=f"Original:\n{edited}\n\nRevise: {rev_text}",
-                                    platform=item["platform"],
-                                    subreddit=item.get("subreddit", ""),
-                                    article_url=ref_url,
+                                    current_draft=edited,
+                                    instructions=f"This is a {item['platform']} comment. {rev_text}. "
+                                        "Return ONLY the revised comment text. No preamble, no explanations. "
+                                        "Just the final comment ready to paste.",
                                 )
                                 queue[i]["comment"] = revised
                                 st.session_state[f"q_ver_{i}"] = ver + 1
