@@ -94,7 +94,9 @@ Primary keyword: "{keyword}" — weave in naturally 3-5 times.
 - Crypto.com Card, Coinbase Card, Binance Card
 - Wirex, Bybit Card, Nexo Card, Oobit (UAE), Revolut (EU)
 
-Output format: Markdown, clean, ready to publish. No explanations.
+Output format: Plain text with simple formatting (no Markdown syntax like #, **, ```, etc.).
+Use ALL CAPS for headings. Use dashes for bullet points. Clean, ready to copy-paste into
+any CMS or Google Doc. No explanations.
 """
 
 _SYSTEM_TRANSLATE = """\
