@@ -239,6 +239,39 @@ def revise_press_release(
     return resp.content[0].text
 
 
+# ── Comment Revision ─────────────────────────────────────────────────────────
+
+def revise_comment(
+    api_key: str,
+    current_comment: str,
+    instructions: str,
+    *,
+    model: str = "claude-sonnet-4-20250514",
+    max_tokens: int = 256,
+) -> str:
+    """Revise a social media comment. Returns ONLY the revised text."""
+    system = (
+        "You are a text editor. You receive a short comment and revision instructions. "
+        "Apply the changes and return ONLY the final revised comment. "
+        "RULES: "
+        "- Output NOTHING except the revised comment text. "
+        "- No preamble, no 'here you go', no explanations, no questions. "
+        "- No 'sure', 'got it', 'here is'. "
+        "- Just the raw comment text, ready to copy-paste. "
+        "- Keep it short (1-3 sentences max)."
+    )
+    user_msg = f"COMMENT:\n{current_comment}\n\nCHANGES: {instructions}"
+    resp = _call_with_retry(
+        _client(api_key),
+        model=model,
+        max_tokens=max_tokens,
+        temperature=0.3,
+        system=system,
+        messages=[{"role": "user", "content": user_msg}],
+    )
+    return resp.content[0].text.strip()
+
+
 # ── Translation ────────────────────────────────────────────────────────────────
 
 def translate_press_release(

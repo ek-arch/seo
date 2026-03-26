@@ -18,7 +18,7 @@ from publication_roi import (
     calculate_publication_roi, batch_roi, roi_label,
     LTV_BY_LANG, CONVERSION_RATE_BY_LANG, LTV_BY_MARKET_LANG,
 )
-from llm_client import generate_press_release, revise_press_release, translate_press_release, recommend_monthly_plan, generate_comment_reply, LANG_NAMES
+from llm_client import generate_press_release, revise_press_release, revise_comment, translate_press_release, recommend_monthly_plan, generate_comment_reply, LANG_NAMES
 from geo_visibility import DEFAULT_QUERIES, audit_query, run_full_audit, summarize_audit
 try:
     from sheets_client import push_comments, push_audit_results, push_publications, load_content_plan, save_content_plan
@@ -2118,12 +2118,10 @@ def page_content_distribution():
                     for j, idx in enumerate(drafts_to_revise):
                         item = queue[idx]
                         try:
-                            revised = revise_press_release(
+                            revised = revise_comment(
                                 api_key,
-                                current_draft=item["comment"],
-                                instructions=f"This is a {item['platform']} comment. {revise_all_text}. "
-                                    "Return ONLY the revised comment text. No preamble, no 'here's the revision', "
-                                    "no explanations. Just the final comment ready to paste.",
+                                current_comment=item["comment"],
+                                instructions=revise_all_text,
                             )
                             queue[idx]["comment"] = revised
                             # Bump version for text area
@@ -2166,12 +2164,10 @@ def page_content_distribution():
                     with col2:
                         if st.button("✏️ Revise", key=f"q_rev_btn_{i}", disabled=not api_key or not rev_text):
                             try:
-                                revised = revise_press_release(
+                                revised = revise_comment(
                                     api_key,
-                                    current_draft=edited,
-                                    instructions=f"This is a {item['platform']} comment. {rev_text}. "
-                                        "Return ONLY the revised comment text. No preamble, no explanations. "
-                                        "Just the final comment ready to paste.",
+                                    current_comment=edited,
+                                    instructions=rev_text,
                                 )
                                 queue[i]["comment"] = revised
                                 st.session_state[f"q_ver_{i}"] = ver + 1
