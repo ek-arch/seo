@@ -39,7 +39,7 @@ avoid overused phrases, and avoid repetitive structure. The content must feel
 natural, useful, and written for real users.
 
 Target audience: {audience}.
-Target word count: ~{word_count} words.
+Target length: 2500-3000 characters (strict — do not exceed).
 Primary keyword: "{keyword}" — weave in naturally 3-5 times.
 
 === STYLE RULES (ANTI-SLOP) ===
