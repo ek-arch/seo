@@ -20,7 +20,16 @@ from publication_roi import (
 )
 from llm_client import generate_press_release, revise_press_release, translate_press_release, recommend_monthly_plan, generate_comment_reply, LANG_NAMES
 from geo_visibility import DEFAULT_QUERIES, audit_query, run_full_audit, summarize_audit
-from sheets_client import push_comments, push_audit_results, push_publications, load_content_plan, save_content_plan
+try:
+    from sheets_client import push_comments, push_audit_results, push_publications, load_content_plan, save_content_plan
+    SHEETS_AVAILABLE = True
+except ImportError:
+    SHEETS_AVAILABLE = False
+    def push_comments(*a, **kw): return 0
+    def push_audit_results(*a, **kw): return 0
+    def push_publications(*a, **kw): return 0
+    def load_content_plan(*a, **kw): return []
+    def save_content_plan(*a, **kw): return 0
 from notion_writer import (
     create_content_plan_entry, create_pr_draft_page,
     create_monthly_plan_page, log_publication_result,
