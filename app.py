@@ -20,7 +20,7 @@ from publication_roi import (
 )
 from llm_client import generate_press_release, revise_press_release, translate_press_release, recommend_monthly_plan, generate_comment_reply, LANG_NAMES
 from geo_visibility import DEFAULT_QUERIES, audit_query, run_full_audit, summarize_audit
-from sheets_client import push_comments, push_audit_results, push_publications
+from sheets_client import push_comments, push_audit_results, push_publications, load_content_plan, save_content_plan
 from notion_writer import (
     create_content_plan_entry, create_pr_draft_page,
     create_monthly_plan_page, log_publication_result,
@@ -294,9 +294,10 @@ def page_kolo_metrics():
                                 "3":"Tier 3 ($30K–$100K)"}.get(x, x),
     )
     filtered = countries[countries["tier"].astype(str).isin(tier_filter)].copy()
-    filtered["spend_fmt"] = filtered["card_spend"].apply(lambda x: f"${x/1e3:.0f}K")
-    filtered["spu_fmt"]   = filtered["spend_per_user"].apply(lambda x: f"${x:,}")
-    filtered["conv_fmt"]  = filtered["conversion"].apply(lambda x: f"{x*100:.0f}%")
+    filtered = filtered.fillna(0)
+    filtered["spend_fmt"] = filtered["card_spend"].apply(lambda x: f"${x/1e3:.0f}K" if x else "$0")
+    filtered["spu_fmt"]   = filtered["spend_per_user"].apply(lambda x: f"${int(x):,}" if x else "$0")
+    filtered["conv_fmt"]  = filtered["conversion"].apply(lambda x: f"{x*100:.0f}%" if x else "0%")
     def highlight_row(row):
         if row["Tier"] == "whale": return ["background-color: #fff3cd"] * len(row)
         try:
@@ -321,20 +322,7 @@ def page_kolo_metrics():
 # PAGE 3 · CONTENT PLAN
 # ══════════════════════════════════════════════════════════════════════════════
 
-_PLAN_CACHE = "content_plan_cache.json"
-
-
-def _load_content_plan():
-    """Load editable content plan from cache or return default."""
-    import json as _j, os
-    if os.path.exists(_PLAN_CACHE):
-        try:
-            with open(_PLAN_CACHE) as f:
-                return _j.load(f)
-        except Exception:
-            pass
-    # Default plan
-    return [
+_PLAN_DEFAULT = [
         {"Task": "Crypto card UAE expats — Spend USDT in Dubai",  "Type": "SEO+GEO", "Market": "🇦🇪 ARE", "Outlet Options": "uaehelper.com ($50) · thetradable.com ($100) · theemiratestimes.com ($99)", "Price": "$50–150", "GEO": "FAQ + comparison table required", "Week": "1", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
         {"Task": "Lead: How to spend crypto with Visa 2026",      "Type": "SEO+GEO", "Market": "🌍 Global", "Outlet Options": "businessabc.net ($100, DR81)", "Price": "$100", "GEO": "FAQ + 3 stats + question headers", "Week": "1", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
         {"Task": "Trustee Plus alternative (UA language)",         "Type": "SEO",     "Market": "🌍 CIS/UKR", "Outlet Options": "moya-provinciya ($6) · euroua.com ($30) · track-package ($4)", "Price": "$40", "GEO": "Comparison table CRITICAL", "Week": "1", "Status": "To Do", "Publication URL": "", "Reddit/Quora URL": ""},
@@ -354,11 +342,39 @@ def _load_content_plan():
     ]
 
 
+def _load_content_plan():
+    """Load content plan from Google Sheets (persistent), fall back to default."""
+    creds = _get_sheets_creds()
+    if creds:
+        try:
+            rows = load_content_plan(creds)
+            if rows:
+                return rows
+        except Exception:
+            pass
+    return list(_PLAN_DEFAULT)
+
+
 def _save_content_plan(plan):
-    """Persist content plan edits."""
-    import json as _j
-    with open(_PLAN_CACHE, "w") as f:
-        _j.dump(plan, f, default=str)
+    """Save content plan to Google Sheets for persistence."""
+    creds = _get_sheets_creds()
+    if creds:
+        try:
+            save_content_plan(creds, plan)
+        except Exception:
+            pass
+
+
+def _get_sheets_creds():
+    """Get Google Sheets credentials from session state or Streamlit secrets."""
+    creds = st.session_state.get("gsheets_json", "")
+    if creds:
+        return creds
+    try:
+        import json
+        return json.dumps(dict(st.secrets["gsheets"]))
+    except Exception:
+        return ""
 
 
 def page_content_plan():
@@ -420,15 +436,14 @@ def page_content_plan():
 
     # Push to Google Sheets
     st.divider()
-    gsheets_creds = st.session_state.get("gsheets_json", "")
+    gsheets_creds = _get_sheets_creds()
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("📊 Push Plan to Google Sheets", type="primary", disabled=not gsheets_creds):
-            with st.spinner("Pushing..."):
+        if st.button("💾 Save to Google Sheets", type="primary", disabled=not gsheets_creds):
+            with st.spinner("Saving..."):
                 try:
-                    from sheets_client import push_publications
-                    n = push_publications(gsheets_creds, updated_plan, sheet_name="Content Plan")
-                    st.success(f"Pushed {n} tasks to [Google Sheet](https://docs.google.com/spreadsheets/d/1EoXaNgpF9Rg4Q-KksFL9d5k5ScDtAF0m7qbg4JxHW4k)")
+                    n = save_content_plan(gsheets_creds, updated_plan)
+                    st.success(f"Saved {n} tasks to [Google Sheet](https://docs.google.com/spreadsheets/d/1EoXaNgpF9Rg4Q-KksFL9d5k5ScDtAF0m7qbg4JxHW4k)")
                 except Exception as e:
                     st.error(f"Failed: {e}")
     with col2:

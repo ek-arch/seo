@@ -118,6 +118,42 @@ def push_audit_results(creds_json: str, results: list[dict], sheet_name: str = "
     return len(new_rows)
 
 
+def load_content_plan(creds_json: str, sheet_name: str = "Content Plan") -> list[dict]:
+    """Load content plan from Google Sheet. Returns list of dicts or empty list if sheet doesn't exist."""
+    gc = _get_client(creds_json)
+    spreadsheet = gc.open_by_key(SHEET_ID)
+    try:
+        ws = spreadsheet.worksheet(sheet_name)
+        records = ws.get_all_records()
+        return records
+    except (gspread.exceptions.WorksheetNotFound, Exception):
+        return []
+
+
+def save_content_plan(creds_json: str, plan: list[dict], sheet_name: str = "Content Plan") -> int:
+    """Save content plan to Google Sheet. Creates or overwrites the sheet."""
+    gc = _get_client(creds_json)
+    spreadsheet = gc.open_by_key(SHEET_ID)
+
+    headers = ["#", "Task", "Type", "Market", "Outlet Options", "Price", "GEO", "Week", "Status", "Publication URL", "Social URL"]
+    try:
+        ws = spreadsheet.worksheet(sheet_name)
+    except gspread.exceptions.WorksheetNotFound:
+        ws = spreadsheet.add_worksheet(title=sheet_name, rows=500, cols=len(headers))
+
+    ws.update(f"A1:{chr(64+len(headers))}1", [headers])
+    ws.format(f"A1:{chr(64+len(headers))}1", {"textFormat": {"bold": True}})
+    ws.batch_clear([f"A2:{chr(64+len(headers))}1000"])
+
+    rows = []
+    for p in plan:
+        rows.append([p.get(h, "") for h in headers])
+    if rows:
+        ws.update(f"A2:{chr(64+len(headers))}{len(rows)+1}", rows, value_input_option="USER_ENTERED")
+
+    return len(rows)
+
+
 def push_publications(creds_json: str, publications: list[dict], sheet_name: str = "Publications") -> int:
     """Push content plan or publication data to Google Sheet. Handles both formats."""
     gc = _get_client(creds_json)
