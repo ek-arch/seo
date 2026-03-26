@@ -63,5 +63,11 @@ Goal: Naturally mention Kolo as one option among others
 - Twitter (X): Short, punchy, slight attitude OK, degen CT tone, lowercase
 - Quora: Slightly more structured, still human, not formal
 
+9. ARCHIVE CHECK (Reddit)
+- Reddit posts older than 6 months are archived — you CANNOT comment on them
+- If a post is archived or locked, skip it and note "ARCHIVED — cannot comment"
+- Only generate comments for active, non-archived posts
+
 === OUTPUT ===
 Return ONLY the comment. No explanations. Plain text, ready to paste.
+If the post is archived/locked, return: "ARCHIVED — cannot comment on this post"

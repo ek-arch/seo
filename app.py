@@ -1798,6 +1798,7 @@ def page_content_distribution():
                 try:
                     resp = _req_s.get("https://serpapi.com/search.json", params={
                         "api_key": serpapi_key, "engine": "google", "q": q, "num": 10,
+                        "tbs": "qdr:m6",  # Last 6 months only — excludes archived Reddit posts
                     }, timeout=20)
                     if resp.status_code == 200:
                         data = resp.json()
@@ -1983,6 +1984,11 @@ def page_content_distribution():
                             post["body"] = (rd.get("selftext", "") or "")[:500]
                             post["score"] = rd.get("score", 0)
                             post["num_comments"] = rd.get("num_comments", 0)
+                            # Check if archived (can't comment on archived posts)
+                            if rd.get("archived", False) or rd.get("locked", False):
+                                post["archived"] = True
+                            else:
+                                post["archived"] = False
                 except Exception:
                     pass
 
@@ -2020,6 +2026,10 @@ def page_content_distribution():
                 progress = st.progress(0)
                 status = st.empty()
                 for i, post in enumerate(fetched):
+                    # Skip archived/locked Reddit posts
+                    if post.get("archived"):
+                        progress.progress((i + 1) / len(fetched))
+                        continue
                     # Skip if already in queue
                     if any(q["url"] == post["url"] for q in queue):
                         progress.progress((i + 1) / len(fetched))
@@ -2064,10 +2074,15 @@ def page_content_distribution():
         if fetched:
             st.divider()
             st.markdown(f"### ✅ {len(fetched)} posts fetched — click **Generate All Comments** to draft replies")
+            archived_count = sum(1 for p in fetched if p.get("archived"))
+            active_count = len(fetched) - archived_count
+            if archived_count:
+                st.warning(f"⚠️ {archived_count} posts are archived/locked and will be skipped.")
             for i, post in enumerate(fetched):
                 sub = f"r/{post['subreddit']}" if post["subreddit"] else post["platform"]
                 score = f" · ⬆️ {post['score']} · 💬 {post['num_comments']}" if post.get("score") else ""
-                st.markdown(f"{i+1}. **{post['title'][:80]}** — {sub}{score}")
+                archived = " · 🔒 **ARCHIVED**" if post.get("archived") else ""
+                st.markdown(f"{i+1}. {'~~' if post.get('archived') else ''}**{post['title'][:80]}**{'~~' if post.get('archived') else ''} — {sub}{score}{archived}")
 
             # Show queue status
             queue = st.session_state.get("comment_queue", [])
