@@ -1860,6 +1860,18 @@ def page_content_distribution():
                         existing = st.session_state.get("prefilled_urls", "")
                         new_urls = "\n".join(selected_urls)
                         st.session_state["prefilled_urls"] = (existing + "\n" + new_urls).strip()
+                        # Also cache post metadata (title, snippet) for Draft Comments
+                        post_cache = st.session_state.get("post_metadata_cache", {})
+                        found = st.session_state.get(state_key, [])
+                        for p in found:
+                            if p["url"] in selected_urls:
+                                post_cache[p["url"]] = {
+                                    "title": p.get("title", ""),
+                                    "snippet": p.get("snippet", ""),
+                                    "community": p.get("community", ""),
+                                    "platform": platform,
+                                }
+                        st.session_state["post_metadata_cache"] = post_cache
                         st.success(f"Added {len(selected_urls)} URLs! Switch to **Draft Comments** tab.")
 
         # ── Reddit ────────────────────────────────────────────────
@@ -1955,15 +1967,26 @@ def page_content_distribution():
                     post["title"] = "Quora question"
                 return post
 
+            # ── Check cached metadata from Find Posts ─────────────
+            post_cache = st.session_state.get("post_metadata_cache", {})
+            if url in post_cache:
+                cached = post_cache[url]
+                post["platform"] = cached.get("platform", post["platform"])
+                post["title"] = cached.get("title", "") or post["title"]
+                post["body"] = cached.get("snippet", "") or ""
+                post["subreddit"] = cached.get("community", "") or ""
+                if post["title"] and post["body"]:
+                    return post
+
             # ── Twitter / X ───────────────────────────────────────
             if "twitter.com" in url or "x.com" in url:
                 post["platform"] = "Twitter"
                 m = _re.search(r'(?:twitter|x)\.com/(\w+)/status', url)
                 post["subreddit"] = f"@{m.group(1)}" if m else ""
                 post["title"] = f"Tweet by {post['subreddit']}" if post["subreddit"] else "Tweet"
-                # Try to get tweet content via SerpAPI cache
+                # Try to get tweet content via SerpAPI
                 serpapi_key = st.session_state.get("serpapi_key", "")
-                if serpapi_key and post["subreddit"]:
+                if serpapi_key and not post.get("body"):
                     try:
                         resp = _requests.get("https://serpapi.com/search.json", params={
                             "api_key": serpapi_key, "engine": "google",
@@ -1980,14 +2003,6 @@ def page_content_distribution():
                                     post["title"] = title[:120] if title else post["title"]
                     except Exception:
                         pass
-                # Also check if snippet was carried from search results
-                found_posts = st.session_state.get("twitter_found", [])
-                for fp in found_posts:
-                    if fp.get("url") == url and fp.get("snippet"):
-                        post["body"] = fp["snippet"][:500]
-                        if fp.get("title"):
-                            post["title"] = fp["title"][:120]
-                        break
                 return post
 
             # ── HackerNews ────────────────────────────────────────
