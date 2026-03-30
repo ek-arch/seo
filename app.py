@@ -2138,6 +2138,15 @@ def page_content_distribution():
 
         queue = st.session_state.get("comment_queue", [])
 
+        # Clear queue button
+        col_clear1, col_clear2 = st.columns([6, 1])
+        with col_clear2:
+            if st.button("🗑️ Clear All", type="secondary"):
+                st.session_state["comment_queue"] = []
+                st.session_state.pop("fetched_posts", None)
+                _save_distribution_state()
+                st.rerun()
+
         if not queue:
             st.info("No comments yet. Paste URLs in **Draft Comments** tab → Fetch → Generate All.")
         else:
