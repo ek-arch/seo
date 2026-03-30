@@ -1961,6 +1961,33 @@ def page_content_distribution():
                 m = _re.search(r'(?:twitter|x)\.com/(\w+)/status', url)
                 post["subreddit"] = f"@{m.group(1)}" if m else ""
                 post["title"] = f"Tweet by {post['subreddit']}" if post["subreddit"] else "Tweet"
+                # Try to get tweet content via SerpAPI cache
+                serpapi_key = st.session_state.get("serpapi_key", "")
+                if serpapi_key and post["subreddit"]:
+                    try:
+                        resp = _requests.get("https://serpapi.com/search.json", params={
+                            "api_key": serpapi_key, "engine": "google",
+                            "q": f"{url}", "num": 1,
+                        }, timeout=15)
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            organic = data.get("organic_results", [])
+                            if organic:
+                                snippet = organic[0].get("snippet", "")
+                                title = organic[0].get("title", "")
+                                if snippet:
+                                    post["body"] = snippet[:500]
+                                    post["title"] = title[:120] if title else post["title"]
+                    except Exception:
+                        pass
+                # Also check if snippet was carried from search results
+                found_posts = st.session_state.get("twitter_found", [])
+                for fp in found_posts:
+                    if fp.get("url") == url and fp.get("snippet"):
+                        post["body"] = fp["snippet"][:500]
+                        if fp.get("title"):
+                            post["title"] = fp["title"][:120]
+                        break
                 return post
 
             # ── HackerNews ────────────────────────────────────────
