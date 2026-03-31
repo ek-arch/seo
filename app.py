@@ -1843,6 +1843,10 @@ def page_content_distribution():
             found = st.session_state.get(state_key, [])
             if found:
                 st.success(f"Found {len(found)} {platform} posts")
+
+                # Select All toggle
+                select_all = st.checkbox("Select All", key=f"select_all_{prefix}", value=False)
+
                 selected_urls = []
                 for i, post in enumerate(found):
                     with st.container(border=True):
@@ -1852,7 +1856,7 @@ def page_content_distribution():
                             if post.get("snippet"):
                                 st.caption(post["snippet"][:120] + "...")
                         with col2:
-                            if st.checkbox("Select", key=f"{prefix}_{i}", value=False):
+                            if st.checkbox("Select", key=f"{prefix}_{i}", value=select_all):
                                 selected_urls.append(post["url"])
 
                 if selected_urls:
