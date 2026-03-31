@@ -1844,8 +1844,17 @@ def page_content_distribution():
             if found:
                 st.success(f"Found {len(found)} {platform} posts")
 
-                # Select All toggle
-                select_all = st.checkbox("Select All", key=f"select_all_{prefix}", value=False)
+                # Select All / Send All
+                col_sel, col_send = st.columns([3, 2])
+                with col_sel:
+                    if st.button("✅ Select All", key=f"select_all_btn_{prefix}"):
+                        for i in range(len(found)):
+                            st.session_state[f"{prefix}_{i}"] = True
+                        st.rerun()
+                    if st.button("❌ Deselect All", key=f"deselect_all_btn_{prefix}"):
+                        for i in range(len(found)):
+                            st.session_state[f"{prefix}_{i}"] = False
+                        st.rerun()
 
                 selected_urls = []
                 for i, post in enumerate(found):
@@ -1856,11 +1865,11 @@ def page_content_distribution():
                             if post.get("snippet"):
                                 st.caption(post["snippet"][:120] + "...")
                         with col2:
-                            if st.checkbox("Select", key=f"{prefix}_{i}", value=select_all):
+                            if st.checkbox("Select", key=f"{prefix}_{i}"):
                                 selected_urls.append(post["url"])
 
-                if selected_urls:
-                    if st.button(f"📋 Send {len(selected_urls)} to Draft Comments", type="primary", key=f"send_{prefix}"):
+                with col_send:
+                    if st.button(f"📋 Send {len(selected_urls)} to Draft Comments", type="primary", key=f"send_{prefix}", disabled=not selected_urls):
                         existing = st.session_state.get("prefilled_urls", "")
                         new_urls = "\n".join(selected_urls)
                         st.session_state["prefilled_urls"] = (existing + "\n" + new_urls).strip()
