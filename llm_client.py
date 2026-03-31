@@ -350,7 +350,8 @@ CORE RULES:
    Never force Kolo into a context where it doesn't belong.
 3. STYLE (ANTI-SLOP) — write like a real person, not an article. Simple
    language. Vary tone. No long explanations.
-4. LENGTH — 1-3 sentences MAX. Ideally under 25 words. Short > clever.
+4. LENGTH — HARD LIMIT: under 200 characters total. 1-2 sentences max.
+   Count characters. If you can say it in 10 words, don't use 20.
 5. HUMAN SIGNALS — can include hesitation ("tbh", "idk", "kinda"), light
    opinion, small personal tone. Avoid emojis unless natural. NO hashtags.
 6. HUMOR — light, subtle, not forced. Slight degen crypto tone is OK.
@@ -386,9 +387,9 @@ def generate_comment_reply(
     article_url: str = "",
     *,
     model: str = "claude-sonnet-4-20250514",
-    max_tokens: int = 1024,
+    max_tokens: int = 80,
 ) -> str:
-    """Generate a natural comment/reply to an existing community post."""
+    """Generate a natural comment/reply to an existing community post (≤200 chars)."""
     system = _SYSTEM_COMMENT.format(platform=platform)
     user_msg = (
         f"Write a helpful reply to this {platform} post.\n\n"

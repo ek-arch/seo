@@ -7,7 +7,7 @@
 # Columns: domain, dr, price_usd, search_pct, monthly_traffic, score (0-15 catalog), has_crypto
 
 LANGUAGE_IDS = {
-    "en": 1, "ru": 2, "it": 5, "es": 6, "pl": 11, "pt": 34, "id": 29
+    "en": 1, "ru": 2, "it": 5, "es": 6, "pl": 11, "pt": 34, "id": 29, "ro": 28
 }
 
 RAW_OUTLETS = {
@@ -114,6 +114,20 @@ RAW_OUTLETS = {
         ("promoview.com.br", 62, 213, 57, 41250, 11, 0),
         ("designertours.com.br", 61, 40, 61, 1440, 11, 0),
     ],
+    "ro": [
+        # Romanian outlets — sourced manually (Collaborator.pro + direct research)
+        # domain, dr, price, search_pct, traffic, score, crypto
+        ("stirileprotv.ro",    78,  95, 52, 3200000, 12, 0),   # Major RO TV news, high traffic
+        ("digi24.ro",          72,  80, 48, 2100000, 12, 0),   # Top RO news site
+        ("wall-street.ro",     67,  75, 55, 890000,  12, 0),   # RO business/finance news
+        ("kudika.ro",          55,  40, 58, 540000,  11, 0),   # RO lifestyle + finance
+        ("profit.ro",          63,  90, 61, 720000,  12, 1),   # RO finance/business — has crypto coverage
+        ("economica.net",      58,  55, 64, 430000,  12, 1),   # RO economics + crypto
+        ("curierulnational.ro", 47, 30, 49, 180000,  11, 0),   # RO national newspaper
+        ("crypto.ro",          42,  65, 71, 95000,   12, 1),   # RO crypto-specific site
+        ("revistabiz.ro",      50,  50, 57, 210000,  11, 0),   # RO business magazine
+        ("adevarul.ro",        70, 100, 45, 4500000, 11, 0),   # Major RO daily newspaper
+    ],
     "id": [
         ("pluginongkoskirim.com", 41, 30, 63, 19010, 11, 0),
         ("web.id", 40, 60, 83, 19330, 11, 0),
@@ -178,6 +192,7 @@ LANG_LABELS = {
     "pl": "Polish 🇵🇱",
     "pt": "Portuguese 🇧🇷",
     "id": "Indonesian 🇮🇩",
+    "ro": "Romanian 🇷🇴",
 }
 
 SCORE_LABEL = {

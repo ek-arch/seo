@@ -26,6 +26,7 @@ LTV_BY_LANG: dict[str, float] = {
     "pl": 2_400,   # POL +59% growth, newer cohort → lower LTV for now
     "pt": 1_601,   # confirmed BRA $1,601/user from Hex
     "id": 900,     # emerging market, lower purchasing power
+    "ro": 2_200,   # ROU +183% growth; proxy estimate pending Hex data
 }
 
 # ── LTV by market-language combo (where Hex has explicit data) ────────────────
@@ -50,6 +51,7 @@ CONVERSION_RATE_BY_LANG: dict[str, float] = {
     "pl": 0.0048,
     "pt": 0.0035,
     "id": 0.0025,
+    "ro": 0.0045,   # ROU — MiCA adopted, growing crypto adoption
 }
 
 # ── CTR from organic position ─────────────────────────────────────────────────

@@ -33,9 +33,10 @@ Goal: Naturally mention Kolo as one option among others
 - No long explanations
 
 3. LENGTH
-- 1-3 sentences MAX
-- Ideally under 25 words
+- HARD LIMIT: under 200 characters total (count them)
+- 1-2 sentences max
 - Short > clever
+- If you can say it in 10 words, don't use 20
 
 4. HUMAN SIGNALS
 - Can include: hesitation ("tbh", "idk", "kinda"), light opinion, small personal tone
