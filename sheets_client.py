@@ -135,7 +135,7 @@ def save_content_plan(creds_json: str, plan: list[dict], sheet_name: str = "Cont
     gc = _get_client(creds_json)
     spreadsheet = gc.open_by_key(SHEET_ID)
 
-    headers = ["#", "Task", "Type", "Market", "Outlet Options", "Price", "GEO", "Week", "Status", "Publication URL", "Social URL"]
+    headers = ["Task", "Type", "Market", "Outlet Options", "Price", "GEO", "Week", "Status", "Publication URL", "Reddit/Quora URL"]
     try:
         ws = spreadsheet.worksheet(sheet_name)
     except gspread.exceptions.WorksheetNotFound:
@@ -161,7 +161,7 @@ def push_publications(creds_json: str, publications: list[dict], sheet_name: str
 
     # Detect format: new content plan vs old publication tracker
     if publications and "Task" in publications[0]:
-        # New unified content plan format
+        # New unified content plan format — same columns as save_content_plan
         headers = ["Task", "Type", "Market", "Outlet Options", "Price", "GEO", "Week", "Status", "Publication URL", "Reddit/Quora URL"]
         try:
             ws = spreadsheet.worksheet(sheet_name)

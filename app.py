@@ -399,11 +399,11 @@ def page_content_plan():
 
     # Summary metrics
     total = len(plan_df)
-    done = len(plan_df[plan_df["Status"] == "Done"])
-    in_progress = len(plan_df[plan_df["Status"] == "In Progress"])
-    seo_tasks = len(plan_df[plan_df["Type"].str.contains("SEO")])
-    geo_tasks = len(plan_df[plan_df["Type"].str.contains("GEO")])
-    social_tasks = len(plan_df[plan_df["Type"] == "Social"])
+    done = len(plan_df[plan_df["Status"].fillna("") == "Done"]) if "Status" in plan_df.columns else 0
+    in_progress = len(plan_df[plan_df["Status"].fillna("") == "In Progress"]) if "Status" in plan_df.columns else 0
+    seo_tasks = len(plan_df[plan_df["Type"].str.contains("SEO", na=False)])
+    geo_tasks = len(plan_df[plan_df["Type"].str.contains("GEO", na=False)])
+    social_tasks = len(plan_df[plan_df["Type"].fillna("") == "Social"])
 
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Total Tasks", total)
@@ -680,7 +680,7 @@ def page_outlet_matching():
             "Polish": 100, "Portuguese": 200, "Indonesian": 100, "Romanian": 100, "UAE": 350}
     pillar_budget["Cap"]       = pillar_budget["Pillar"].map(caps).fillna(200)
     pillar_budget["Remaining"] = pillar_budget["Cap"] - pillar_budget["Spent"]
-    pillar_budget["Util %"]    = (pillar_budget["Spent"] / pillar_budget["Cap"].replace(0, 1) * 100).round(0).fillna(0).astype(int)
+    pillar_budget["Util %"]    = (pillar_budget["Spent"].fillna(0) / pillar_budget["Cap"].fillna(200).replace(0, 1) * 100).round(0).fillna(0).astype(float).astype(int)
     def color_util(val):
         if val >= 90: return "background-color: #ffd6d6"
         if val >= 60: return "background-color: #fff3cd"
@@ -1962,25 +1962,7 @@ def page_content_distribution():
             """Fetch a post's title and body. Supports Reddit, Quora, Twitter."""
             post = {"url": url, "title": "", "body": "", "subreddit": "", "platform": "Reddit", "score": 0, "num_comments": 0}
 
-            # ── Quora ─────────────────────────────────────────────
-            if "quora.com" in url:
-                post["platform"] = "Quora"
-                # Clean up Quora URL slug into readable title
-                # Handle: quora.com/What-are-crypto-cards-and-how-do-they-work-2
-                # Handle: wallstreetwisdom.quora.com/https-www-quora-com-What-are-crypto-debit-cards-answer-Linda-Clore-6
-                slug = url.split("/")[-1]
-                # Remove "https-www-quora-com-" prefix from subdomain reposts
-                slug = _re.sub(r'^https?-www-quora-com-', '', slug)
-                # Remove trailing -number (Quora version suffix)
-                slug = _re.sub(r'-\d+$', '', slug)
-                # Remove "answer-AuthorName" suffix
-                slug = _re.sub(r'-answer-[\w-]+$', '', slug)
-                post["title"] = slug.replace("-", " ").strip()
-                if not post["title"]:
-                    post["title"] = "Quora question"
-                return post
-
-            # ── Check cached metadata from Find Posts ─────────────
+            # ── Check cached metadata from Find Posts (FIRST — before any early returns) ──
             post_cache = st.session_state.get("post_metadata_cache", {})
             if url in post_cache:
                 cached = post_cache[url]
@@ -1990,6 +1972,17 @@ def page_content_distribution():
                 post["subreddit"] = cached.get("community", "") or ""
                 if post["title"] and post["body"]:
                     return post
+
+            # ── Quora (title from URL slug if not in cache) ──────────
+            if "quora.com" in url:
+                post["platform"] = "Quora"
+                if not post["title"]:
+                    slug = url.split("/")[-1]
+                    slug = _re.sub(r'^https?-www-quora-com-', '', slug)
+                    slug = _re.sub(r'-\d+$', '', slug)
+                    slug = _re.sub(r'-answer-[\w-]+$', '', slug)
+                    post["title"] = slug.replace("-", " ").strip() or "Quora question"
+                return post
 
             # ── Twitter / X ───────────────────────────────────────
             if "twitter.com" in url or "x.com" in url:
