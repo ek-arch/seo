@@ -50,6 +50,11 @@ from programmatic_seo import (
     export_specs_json, export_specs_csv,
     COUNTRIES,
 )
+from seo_builder import (
+    cluster_keywords_to_pages, generate_content_batch,
+    build_all_pages, build_manifest, build_sitemap_fragment,
+    export_pages_local,
+)
 
 st.set_page_config(
     page_title="Kolo SEO & GEO Intelligence Agent",
@@ -2636,8 +2641,8 @@ def page_programmatic_seo():
     serp_key = st.session_state.get("serpapi_key")
 
     # ── Tab layout ──
-    tab_matrix, tab_validate, tab_compete, tab_pages = st.tabs([
-        "1️⃣ Keyword Matrix", "2️⃣ Autocomplete Validation", "3️⃣ Competition Check", "4️⃣ Page Generator"
+    tab_matrix, tab_validate, tab_compete, tab_build = st.tabs([
+        "1️⃣ Keyword Matrix", "2️⃣ Autocomplete Validation", "3️⃣ Competition Check", "4️⃣ Build Pages"
     ])
 
     # ──────────────────────────────────────────────────────────────────────
@@ -2871,65 +2876,247 @@ def page_programmatic_seo():
                 st.dataframe(sdf[display_cols].sort_values("quality_score", ascending=False), height=400)
 
     # ──────────────────────────────────────────────────────────────────────
-    # TAB 4: Page Generator
+    # TAB 4: Build Pages
     # ──────────────────────────────────────────────────────────────────────
-    with tab_pages:
-        st.subheader("Programmatic Page Generator")
-        st.info("Generates SEO-optimized HTML pages from scored keywords. Template-based + optional Claude enrichment.")
+    with tab_build:
+        st.subheader("Build & Export Pages")
+        st.info("Clusters keywords → generates content via Claude → exports ready-to-deploy package with Designer brief.")
 
-        source = None
-        if "pseo_scored" in st.session_state:
-            source = st.session_state["pseo_scored"]
-            st.write(f"Using **{len(source)}** competition-scored keywords")
-        elif "pseo_validated" in st.session_state:
-            source = [kw for kw in st.session_state["pseo_validated"]
-                      if kw.get("demand_signal") in ("strong", "medium")]
-            st.write(f"Using **{len(source)}** validated keywords (no competition data)")
+        api_key = st.session_state.get("anthropic_token")
+
+        # Source keywords
+        source = st.session_state.get("pseo_scored") or st.session_state.get("pseo_matrix")
+        if not source:
+            st.warning("Run Tab 1 (Keyword Matrix) first")
         else:
-            st.warning("Run keyword validation (Tab 2) or competition check (Tab 3) first")
+            st.write(f"**{len(source)}** keywords available")
 
-        if source:
-            min_opp = st.selectbox("Minimum opportunity level", ["high", "medium", "low"], index=1)
+            # Step 1: Cluster
+            st.markdown("### Step 1 — Cluster into Pages")
+            if st.button("📦 Cluster Keywords → Pages", type="primary"):
+                clusters = cluster_keywords_to_pages(source)
+                st.session_state["pseo_clusters"] = clusters
 
-            if st.button("🏗️ Generate Page Specs", type="primary"):
-                specs = generate_page_specs(source, min_opportunity=min_opp)
-                st.session_state["pseo_specs"] = specs
+            if "pseo_clusters" in st.session_state:
+                clusters = st.session_state["pseo_clusters"]
+                st.success(f"**{len(clusters)}** pages (1 per country+language)")
 
-        if "pseo_specs" in st.session_state:
-            specs = st.session_state["pseo_specs"]
-            st.success(f"**{len(specs)}** page specs generated")
+                import pandas as _pd
+                cluster_rows = []
+                for c in clusters:
+                    cluster_rows.append({
+                        "slug": c.slug,
+                        "primary_keyword": c.primary_keyword,
+                        "secondary": len(c.secondary_keywords),
+                        "lang": c.lang,
+                        "country": c.country_name,
+                        "template": c.template,
+                        "score": c.avg_score,
+                    })
+                st.dataframe(_pd.DataFrame(cluster_rows), height=350, hide_index=True)
 
-            import pandas as _pd
-            spec_data = [s.to_dict() for s in specs]
-            sdf = _pd.DataFrame(spec_data)
-            display_cols = [c for c in ["slug", "keyword", "lang", "country", "template",
-                                        "competition_score", "opportunity", "demand_signal"]
-                            if c in sdf.columns]
-            st.dataframe(sdf[display_cols], height=400)
+                # Step 2: Generate content
+                st.markdown("### Step 2 — Generate Content (Claude API)")
+                if not api_key:
+                    st.warning("Enter Anthropic API key in sidebar")
+                else:
+                    model = st.selectbox("Model", ["claude-3-5-haiku-20241022", "claude-sonnet-4-20250514"], index=0,
+                                         help="Haiku ≈ $0.002/page, Sonnet ≈ $0.01/page")
+                    est_cost = len(clusters) * (0.002 if "haiku" in model else 0.01)
+                    st.caption(f"Estimated cost: ~${est_cost:.2f} for {len(clusters)} pages")
 
-            # Preview a page
-            st.subheader("Page Preview")
-            if specs:
-                preview_idx = st.selectbox("Select page to preview",
-                                           range(len(specs)),
-                                           format_func=lambda i: f"{specs[i].slug} ({specs[i].keyword})")
-                html = generate_html_page(specs[preview_idx])
-                with st.expander("HTML Source", expanded=False):
-                    st.code(html, language="html")
-                st.components.v1.html(html, height=600, scrolling=True)
+                    if st.button("✍️ Generate All Content", type="primary"):
+                        progress = st.progress(0, text="Generating content...")
+                        def _update(i, total):
+                            progress.progress(i / total, text=f"Page {i}/{total}: {clusters[i-1].slug}")
 
-            # Export
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("💾 Export as JSON"):
-                    outpath = "/Users/ek/SEO agent/page_specs.json"
-                    count = export_specs_json(specs, outpath)
-                    st.success(f"Exported {count} specs to `{outpath}`")
-            with col2:
-                if st.button("📊 Export as CSV"):
-                    outpath = "/Users/ek/SEO agent/page_specs.csv"
-                    count = export_specs_csv(specs, outpath)
-                    st.success(f"Exported {count} specs to `{outpath}`")
+                        clusters = generate_content_batch(clusters, api_key, model=model,
+                                                          delay=1.0, progress_callback=_update)
+                        progress.progress(1.0, text="Done!")
+                        st.session_state["pseo_clusters"] = clusters
+                        st.session_state["pseo_content_generated"] = True
+
+                # Step 3: Assemble & Export
+                if st.session_state.get("pseo_content_generated"):
+                    st.markdown("### Step 3 — Assemble & Export")
+
+                    if st.button("🏗️ Build HTML Pages + Export Package", type="primary"):
+                        clusters = st.session_state["pseo_clusters"]
+                        clusters = build_all_pages(clusters)
+                        st.session_state["pseo_clusters"] = clusters
+
+                        # Export locally
+                        import os
+                        base_dir = os.path.join(os.path.dirname(__file__) or ".", "pages")
+                        count = export_pages_local(clusters, base_dir)
+
+                        # Generate Designer brief
+                        _generate_designer_brief(clusters, base_dir)
+
+                        st.success(f"**{count}** pages exported to `pages/`")
+                        st.balloons()
+
+                    if st.session_state.get("pseo_clusters") and st.session_state["pseo_clusters"][0].full_html:
+                        clusters = st.session_state["pseo_clusters"]
+
+                        # Preview
+                        st.markdown("### Preview")
+                        preview_idx = st.selectbox("Select page",
+                                                   range(len(clusters)),
+                                                   format_func=lambda i: f"{clusters[i].slug} — {clusters[i].h1}")
+                        sel = clusters[preview_idx]
+                        col1, col2 = st.columns([1, 1])
+                        with col1:
+                            st.markdown(f"**Slug:** `/crypto-card/{sel.slug}`")
+                            st.markdown(f"**Title:** {sel.title}")
+                            st.markdown(f"**Primary:** {sel.primary_keyword}")
+                            st.markdown(f"**Secondary:** {', '.join(sel.secondary_keywords[:5])}")
+                        with col2:
+                            st.markdown(f"**Lang:** {sel.lang}")
+                            st.markdown(f"**Country:** {sel.country_name}")
+                            st.markdown(f"**Template:** {sel.template}")
+                            st.markdown(f"**Score:** {sel.avg_score:.3f}")
+
+                        with st.expander("HTML Source", expanded=False):
+                            st.code(sel.full_html[:5000], language="html")
+                        st.components.v1.html(sel.full_html, height=700, scrolling=True)
+
+
+def _generate_designer_brief(clusters, base_dir):
+    """Generate a plug-and-play brief for the Webflow Designer."""
+    import os, json
+
+    manifest = build_manifest(clusters)
+    sitemap_frag = build_sitemap_fragment(clusters)
+
+    brief = """# Webflow Designer Brief — Programmatic SEO Pages
+## Plug & Play Setup Guide
+
+### What This Is
+{count} pre-built SEO pages for kolo.xyz/crypto-card/{{slug}}.
+All content, titles, meta descriptions, and HTML are pre-generated.
+You just need to create the CMS structure and paste the content.
+
+---
+
+### Step 1: Create CMS Collection (5 min)
+
+1. Open Webflow Designer → **CMS** → **+ New Collection**
+2. Name: **Crypto Card Pages**
+3. Slug prefix: **crypto-card**
+4. Add these fields:
+
+| Field Name | Type | Notes |
+|-----------|------|-------|
+| Name | Plain Text | Page title (auto-created) |
+| Slug | Auto-generated | Will be /crypto-card/{{slug}} |
+| SEO Title | Plain Text | Copy from spreadsheet "title" column |
+| SEO Description | Plain Text | Copy from spreadsheet "meta_description" column |
+| H1 | Plain Text | Main heading |
+| Hero Subtitle | Plain Text | Subheading under H1 |
+| Body Content | Rich Text | Paste the HTML content |
+| Language | Option (en/ru) | Page language |
+| Country | Plain Text | Country name |
+| Primary Keyword | Plain Text | For reference |
+| Related Pages | Multi-reference | Link to related Crypto Card Pages |
+
+### Step 2: Design the Template Page (15 min)
+
+1. Go to **CMS Collection Pages** → **Crypto Card Pages Template**
+2. Build layout:
+   - **Nav bar** — use existing site nav component
+   - **Hero section** — dark background, bind H1 + Hero Subtitle fields
+   - **Body section** — bind Body Content (Rich Text) field
+   - **CTA section** — "Get Your Kolo Card" button → link to kolo.xyz
+   - **Related pages** — Dynamic list from Related Pages field
+   - **Footer** — use existing site footer component
+3. **SEO Settings** on the template page:
+   - Title → bind to SEO Title field
+   - Description → bind to SEO Description field
+   - Open Graph → same bindings
+4. Publish the template
+
+### Step 3: Import Content (10 min)
+
+**Option A — Manual (small batches):**
+1. Open `pages/manifest.json` for the page list
+2. For each page, open `pages/{{slug}}/index.html`
+3. Copy the content between `<main>` tags
+4. Paste into the Body Content rich text field in Webflow CMS
+5. Fill in SEO Title, SEO Description, H1, Hero Subtitle from the manifest
+
+**Option B — CSV Import (fastest):**
+1. Open `pages/cms_import.csv` in the pages folder
+2. Go to Webflow CMS → Crypto Card Pages → **Import** → upload CSV
+3. Map columns to CMS fields
+4. All {count} pages imported at once
+
+**Option C — Webflow API (automated):**
+If you have API access, run the deploy script from the SEO agent app.
+
+### Step 4: Publish
+1. Review a few pages in the Webflow Editor
+2. **Publish** all changes
+3. Check: kolo.xyz/crypto-card/uae should load
+
+---
+
+### Files Included
+
+```
+pages/
+├── manifest.json          ← master list of all pages
+├── cms_import.csv         ← ready for Webflow CSV import
+├── sitemap_fragment.xml   ← add to sitemap if needed
+├── uae/index.html         ← full HTML for UAE page
+├── uk/index.html
+├── italy/index.html
+├── ru/uae/index.html
+└── ...
+```
+
+### Page Summary
+
+{page_table}
+
+---
+Generated by Kolo SEO Agent · {date}
+""".format(
+        count=len(clusters),
+        page_table="\n".join(
+            f"| `/crypto-card/{c.slug}` | {c.lang} | {c.country_name} | {c.primary_keyword} | +{len(c.secondary_keywords)} keywords |"
+            for c in clusters
+        ),
+        date=__import__("datetime").date.today().isoformat(),
+    )
+
+    # Write brief
+    brief_path = os.path.join(base_dir, "DESIGNER_BRIEF.md")
+    with open(brief_path, "w") as f:
+        f.write(brief)
+
+    # Write CMS import CSV
+    import csv
+    csv_path = os.path.join(base_dir, "cms_import.csv")
+    with open(csv_path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["Name", "Slug", "SEO Title", "SEO Description", "H1",
+                     "Hero Subtitle", "Language", "Country", "Primary Keyword"])
+        for c in clusters:
+            w.writerow([
+                c.h1, c.slug, c.title, c.meta_description,
+                c.h1, c.hero_subtitle, c.lang, c.country_name, c.primary_keyword,
+            ])
+
+    # Write manifest
+    manifest_path = os.path.join(base_dir, "manifest.json")
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2, ensure_ascii=False)
+
+    # Write sitemap fragment
+    sitemap_path = os.path.join(base_dir, "sitemap_fragment.xml")
+    with open(sitemap_path, "w") as f:
+        f.write(sitemap_frag)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
