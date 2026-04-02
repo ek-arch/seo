@@ -7,7 +7,6 @@ and logs publication results.  Uses the Notion REST API directly
 """
 from __future__ import annotations
 
-from __future__ import annotations
 
 import requests
 from datetime import date

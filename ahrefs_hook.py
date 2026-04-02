@@ -7,7 +7,6 @@ implement the functions here.  No other module needs to change.
 """
 from __future__ import annotations
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional
