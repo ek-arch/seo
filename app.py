@@ -66,14 +66,24 @@ with st.sidebar:
     st.subheader("🔑 API Keys")
     hex_token = st.text_input("Hex API token",           type="password", placeholder="hxtp_...",    help="app.hex.tech → Settings → API keys")
     collab_token = st.text_input("Collaborator.pro token", type="password", placeholder="etVxo-...", help="collaborator.pro/user/api")
-    notion_token = st.text_input("Notion token", type="password", placeholder="secret_...", help="Required for writing to Notion")
-    anthropic_token = st.text_input("Anthropic API key", type="password", placeholder="sk-ant-...", help="console.anthropic.com → API keys")
-    # Auto-load SerpAPI key from secrets, fallback to sidebar input
+    # Auto-load from Streamlit secrets, fallback to sidebar input
+    _notion_default = ""
+    _anthropic_default = ""
     _serpapi_default = ""
+    try:
+        _notion_default = st.secrets.get("NOTION_TOKEN", "")
+    except Exception:
+        pass
+    try:
+        _anthropic_default = st.secrets.get("ANTHROPIC_API_KEY", "")
+    except Exception:
+        pass
     try:
         _serpapi_default = st.secrets.get("SERPAPI_KEY", "")
     except Exception:
         pass
+    notion_token = st.text_input("Notion token", type="password", value=_notion_default, placeholder="secret_...", help="Required for writing to Notion")
+    anthropic_token = st.text_input("Anthropic API key", type="password", value=_anthropic_default, placeholder="sk-ant-...", help="console.anthropic.com → API keys")
     serpapi_key = st.text_input("SerpAPI key", type="password", value=_serpapi_default, placeholder="...", help="serpapi.com → free 100 searches/month")
     # Auto-load Google Sheets credentials from Streamlit secrets
     import json as _json
