@@ -14,7 +14,7 @@ import requests
 import time
 import json
 import re
-from typing import Optional
+from typing import Optional, List, Dict
 from urllib.parse import quote_plus
 from dataclasses import dataclass, field, asdict
 
@@ -100,10 +100,10 @@ RU_COUNTRIES = {
 # ── Step 1: Matrix Generation ────────────────────────────────────────────────
 
 def generate_keyword_matrix(
-    tiers: list[int] = [1, 2],
+    tiers: List[int] = [1, 2],
     include_ru: bool = True,
     max_combos: int = 5000,
-) -> list[dict]:
+) -> List[dict]:
     """
     Generate all candidate long-tail keywords from combinatorial seeds.
     Returns list of {"keyword": str, "lang": str, "country": str, "pattern": str, "tier": int}
@@ -423,12 +423,12 @@ def _serp_viability_score(serp_data: dict) -> float:
 
 
 def enrich_with_serp_viability(
-    keywords: list[dict],
+    keywords: List[dict],
     serpapi_key: str,
     max_checks: int = 30,
     delay: float = 2.0,
     progress_callback=None,
-) -> list[dict]:
+) -> List[dict]:
     """
     Run SERP checks on keywords and add serp_score (0-0.25) to quality_score.
     Returns keywords with updated quality_score = pre-SERP + serp_viability.
@@ -488,14 +488,14 @@ def _normalize_for_dedup(keyword: str) -> str:
     return ' '.join(words)
 
 
-def deduplicate_by_intent(keywords: list[dict]) -> dict:
+def deduplicate_by_intent(keywords: List[dict]) -> dict:
     """
     Cluster keywords by intent similarity. Pick the highest-scoring keyword
     per cluster as the canonical representative. Others become alternates.
 
     Returns {"canonical": [...], "duplicates": [...], "clusters": {norm: [kws]}}
     """
-    clusters: dict[str, list[dict]] = {}
+    clusters: dict[str, List[dict]] = {}
 
     for kw in keywords:
         norm = _normalize_for_dedup(kw["keyword"])
@@ -531,14 +531,14 @@ def deduplicate_by_intent(keywords: list[dict]) -> dict:
 
 # ── Pattern-Level Evaluation ─────────────────────────────────────────────────
 
-def evaluate_patterns(keywords: list[dict], min_avg_score: float = 0.65) -> dict:
+def evaluate_patterns(keywords: List[dict], min_avg_score: float = 0.65) -> dict:
     """
     Group keywords by pattern template, calculate average score per pattern.
     Drop entire patterns that underperform (avg score < min_avg_score).
 
     Returns {"kept_patterns": {...}, "dropped_patterns": {...}, "kept": [...], "stats": {...}}
     """
-    by_pattern: dict[str, list[dict]] = {}
+    by_pattern: dict[str, List[dict]] = {}
     for kw in keywords:
         p = kw.get("pattern", "other")
         if p not in by_pattern:
@@ -583,7 +583,7 @@ def evaluate_patterns(keywords: list[dict], min_avg_score: float = 0.65) -> dict
 # ── Main Pipeline: score → deduplicate → evaluate patterns ───────────────────
 
 def score_and_filter_keywords(
-    keywords: list[dict],
+    keywords: List[dict],
     min_score: float = 0.6,
     min_pattern_avg: float = 0.65,
     group_by_pattern: bool = True,
@@ -661,7 +661,7 @@ def score_and_filter_keywords(
 
 AUTOCOMPLETE_URL = "https://suggestqueries.google.com/complete/search"
 
-def check_autocomplete(query: str, lang: str = "en", country: str = "") -> list[str]:
+def check_autocomplete(query: str, lang: str = "en", country: str = "") -> List[str]:
     """
     Query Google Autocomplete API. FREE & unlimited.
     Returns list of suggested completions. If query appears in suggestions → real demand.
@@ -687,10 +687,10 @@ def check_autocomplete(query: str, lang: str = "en", country: str = "") -> list[
 
 
 def validate_keywords_autocomplete(
-    keywords: list[dict],
+    keywords: List[dict],
     delay: float = 0.15,  # be polite to Google
     progress_callback=None,
-) -> list[dict]:
+) -> List[dict]:
     """
     Filter keywords through Google Autocomplete.
     A keyword is 'validated' if Google suggests it (or a close variant).
@@ -812,12 +812,12 @@ def check_serp_competition(keyword: str, serpapi_key: str, lang: str = "en", cou
 
 
 def batch_competition_check(
-    keywords: list[dict],
+    keywords: List[dict],
     serpapi_key: str,
     max_checks: int = 30,
     delay: float = 2.0,
     progress_callback=None,
-) -> list[dict]:
+) -> List[dict]:
     """
     Check competition for top validated keywords. Limits SerpAPI usage.
     """
@@ -901,7 +901,7 @@ COUNTRY_DETAILS = {
 }
 
 
-def generate_page_specs(scored_keywords: list[dict], min_opportunity: str = "medium") -> list[PageSpec]:
+def generate_page_specs(scored_keywords: List[dict], min_opportunity: str = "medium") -> List[PageSpec]:
     """
     Convert scored keywords into page specifications.
     Only includes keywords with sufficient opportunity.
@@ -1141,7 +1141,7 @@ def _default_content_blocks(spec: PageSpec) -> str:
 
 # ── Export Utilities ──────────────────────────────────────────────────────────
 
-def export_specs_json(specs: list[PageSpec], filepath: str):
+def export_specs_json(specs: List[PageSpec], filepath: str):
     """Export page specs as JSON for deployment pipeline."""
     data = [s.to_dict() for s in specs]
     with open(filepath, "w") as f:
@@ -1149,7 +1149,7 @@ def export_specs_json(specs: list[PageSpec], filepath: str):
     return len(data)
 
 
-def export_specs_csv(specs: list[PageSpec], filepath: str):
+def export_specs_csv(specs: List[PageSpec], filepath: str):
     """Export page specs as CSV for review."""
     import csv
     fields = ["slug", "keyword", "lang", "country", "title", "meta_description",
