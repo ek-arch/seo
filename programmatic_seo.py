@@ -213,6 +213,194 @@ def generate_keyword_matrix(
     return unique[:max_combos]
 
 
+# ── Step 1.5: Quality Scoring & Filtering ────────────────────────────────────
+
+# Patterns that sound robotic / synthetic
+_ROBOTIC_PATTERNS = [
+    # Ticker-only combos that nobody searches
+    re.compile(r'^(btc|eth|trx|trc20)\s+(visa card|debit card|prepaid card)\s+\w+$', re.I),
+    # Too short / generic
+    re.compile(r'^(crypto|bitcoin)\s+(card|wallet)$', re.I),
+    # Double-ticker nonsense
+    re.compile(r'(btc|eth|trx|usdt).*?(btc|eth|trx|usdt)', re.I),
+]
+
+# High-intent verbs/phrases
+_INTENT_SIGNALS = {
+    "high": ["how to", "best", "cheapest", "where to", "can i", "spend", "pay with",
+             "buy", "convert", "exchange", "get a", "apply", "order", "comparison",
+             "review", "vs", "without kyc", "no kyc", "low fees", "instant"],
+    "medium": ["card", "visa", "debit", "wallet", "prepaid"],
+}
+
+# Natural query patterns (human-like phrasing)
+_NATURAL_PATTERNS = [
+    re.compile(r'^(how to|best|cheapest|where|can i|is there)', re.I),   # question form
+    re.compile(r'\b(in|for|to|from|with|without)\b', re.I),              # prepositions = natural
+    re.compile(r'\b(card|wallet|account)\b.*\b(in|for)\b.*\b[A-Z]', re.I),  # "card in Country"
+    re.compile(r'\d{4}$'),                                                # year suffix = natural
+]
+
+# Patterns that scale well as templates
+_SCALABLE_PATTERNS = {
+    "crypto+usecase+country", "modifier+crypto+usecase+country",
+    "crypto+persona+country", "ru_geo", "country_card", "spend_guide",
+}
+
+# Countries/use-cases that logically exist
+_REAL_MARKET_SIGNALS = {
+    # Countries where crypto spending is a real thing people search for
+    "high": {"UAE", "Dubai", "UK", "United Kingdom", "Germany", "Spain", "Italy",
+             "Portugal", "Thailand", "Indonesia", "Brazil", "Singapore", "Australia",
+             "Argentina", "Colombia", "Mexico", "Georgia", "Turkey", "Cyprus",
+             "ОАЭ", "Испания", "Грузия", "Армения", "Узбекистан", "Кипр"},
+    "medium": {"Poland", "Romania", "Bulgaria", "Latvia", "Lithuania", "Serbia",
+               "Montenegro", "Moldova", "Switzerland", "Czech Republic", "France",
+               "Kyrgyzstan", "Azerbaijan", "Armenia",
+               "Молдова", "Черногория", "Латвия", "Литва", "Польша", "Кыргызстан"},
+}
+
+
+def score_keyword(kw: dict) -> dict:
+    """
+    Score a keyword on 4 dimensions (0-1 total):
+      1. Intent (0-0.4): transactional / problem-solving?
+      2. Naturalness (0-0.2): sounds like a real human query?
+      3. Pattern scalability (0-0.2): repeatable template?
+      4. Market existence (0-0.2): real-world topic?
+
+    Rejects robotic / synthetic keywords.
+    """
+    keyword = kw["keyword"]
+    pattern = kw.get("pattern", "")
+    country = kw.get("country", "global")
+    lang = kw.get("lang", "en")
+    keyword_lower = keyword.lower()
+
+    # ── Reject robotic keywords outright ──
+    for rp in _ROBOTIC_PATTERNS:
+        if rp.search(keyword):
+            return {**kw, "quality_score": 0.0, "rejected": True, "reject_reason": "robotic",
+                    "intent_score": 0, "natural_score": 0, "scale_score": 0, "market_score": 0}
+
+    # ── 1. Intent Score (0-0.4) ──
+    intent = 0.1  # baseline
+    for signal in _INTENT_SIGNALS["high"]:
+        if signal in keyword_lower:
+            intent += 0.1
+    for signal in _INTENT_SIGNALS["medium"]:
+        if signal in keyword_lower:
+            intent += 0.05
+    # Spending/conversion intent = highest value for Kolo
+    if any(w in keyword_lower for w in ["spend", "pay", "convert", "exchange"]):
+        intent += 0.05
+    intent = min(0.4, intent)
+
+    # ── 2. Naturalness Score (0-0.2) ──
+    natural = 0.05  # baseline
+    for np in _NATURAL_PATTERNS:
+        if np.search(keyword):
+            natural += 0.05
+    # Penalize all-lowercase ticker soup
+    words = keyword.split()
+    if len(words) <= 2:
+        natural -= 0.05  # too short to be natural
+    if len(words) >= 4 and any(w in keyword_lower for w in ["in", "for", "to", "with"]):
+        natural += 0.05  # prepositions make it natural
+    # Russian keywords are naturally phrased (hand-written patterns)
+    if lang == "ru":
+        natural += 0.1
+    natural = max(0.0, min(0.2, natural))
+
+    # ── 3. Pattern Scalability (0-0.2) ──
+    scale = 0.1  # baseline
+    if pattern in _SCALABLE_PATTERNS:
+        scale = 0.2
+    elif "country" in pattern:
+        scale = 0.15
+    elif "persona" in pattern:
+        scale = 0.15
+
+    # ── 4. Market Existence (0-0.2) ──
+    market = 0.05  # baseline
+    country_name = COUNTRIES.get(country, {}).get("name", "")
+    # Check aliases too
+    all_names = [country_name] + COUNTRIES.get(country, {}).get("aliases", [])
+    # Check RU country names
+    ru_name = RU_COUNTRIES.get(country, "")
+    if ru_name:
+        all_names.append(ru_name)
+
+    for name in all_names:
+        if name in _REAL_MARKET_SIGNALS["high"]:
+            market = 0.2
+            break
+        elif name in _REAL_MARKET_SIGNALS["medium"]:
+            market = 0.15
+            break
+
+    if country == "global":
+        # Global keywords always have market existence
+        market = 0.15
+
+    total = round(intent + natural + scale + market, 2)
+
+    return {
+        **kw,
+        "quality_score": total,
+        "intent_score": round(intent, 2),
+        "natural_score": round(natural, 2),
+        "scale_score": round(scale, 2),
+        "market_score": round(market, 2),
+        "rejected": False,
+        "reject_reason": "",
+    }
+
+
+def score_and_filter_keywords(
+    keywords: list[dict],
+    min_score: float = 0.6,
+    group_by_pattern: bool = True,
+) -> dict:
+    """
+    Score all keywords, reject bad ones, keep score > min_score.
+    Returns {"kept": [...], "rejected": [...], "by_pattern": {...}, "stats": {...}}
+    """
+    scored = [score_keyword(kw) for kw in keywords]
+
+    kept = [kw for kw in scored if not kw["rejected"] and kw["quality_score"] >= min_score]
+    rejected = [kw for kw in scored if kw["rejected"] or kw["quality_score"] < min_score]
+
+    # Sort by score desc
+    kept.sort(key=lambda x: -x["quality_score"])
+
+    # Group by pattern
+    by_pattern = {}
+    if group_by_pattern:
+        for kw in kept:
+            p = kw.get("pattern", "other")
+            if p not in by_pattern:
+                by_pattern[p] = []
+            by_pattern[p].append(kw)
+
+    stats = {
+        "total": len(scored),
+        "kept": len(kept),
+        "rejected": len(rejected),
+        "rejection_rate": round(len(rejected) / max(len(scored), 1) * 100, 1),
+        "avg_score": round(sum(k["quality_score"] for k in kept) / max(len(kept), 1), 2),
+        "by_pattern_count": {p: len(kws) for p, kws in by_pattern.items()},
+        "score_distribution": {
+            "0.9-1.0": len([k for k in kept if k["quality_score"] >= 0.9]),
+            "0.8-0.9": len([k for k in kept if 0.8 <= k["quality_score"] < 0.9]),
+            "0.7-0.8": len([k for k in kept if 0.7 <= k["quality_score"] < 0.8]),
+            "0.6-0.7": len([k for k in kept if 0.6 <= k["quality_score"] < 0.7]),
+        },
+    }
+
+    return {"kept": kept, "rejected": rejected, "by_pattern": by_pattern, "stats": stats}
+
+
 # ── Step 2: Google Autocomplete Validation (FREE) ────────────────────────────
 
 AUTOCOMPLETE_URL = "https://suggestqueries.google.com/complete/search"

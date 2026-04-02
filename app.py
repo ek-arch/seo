@@ -41,7 +41,8 @@ from monthly_cycle import (
 )
 import ahrefs_hook
 from programmatic_seo import (
-    generate_keyword_matrix, validate_keywords_autocomplete,
+    generate_keyword_matrix, score_and_filter_keywords,
+    validate_keywords_autocomplete,
     check_serp_competition, batch_competition_check,
     generate_page_specs, generate_html_page,
     export_specs_json, export_specs_csv,
@@ -2644,33 +2645,60 @@ def page_programmatic_seo():
         with col3:
             max_kw = st.number_input("Max keywords", 100, 5000, 2000, step=100)
 
-        if st.button("🔧 Generate Matrix", type="primary"):
+        min_score = st.slider("Minimum quality score", 0.3, 1.0, 0.6, 0.05,
+                              help="Keywords below this score are rejected. 0.6 = balanced filter.")
+
+        if st.button("🔧 Generate & Score Matrix", type="primary"):
             with st.spinner("Generating keyword combinations..."):
-                matrix = generate_keyword_matrix(tiers=tiers, include_ru=include_ru, max_combos=max_kw)
-                st.session_state["pseo_matrix"] = matrix
+                raw_matrix = generate_keyword_matrix(tiers=tiers, include_ru=include_ru, max_combos=max_kw)
+            with st.spinner(f"Scoring {len(raw_matrix):,} keywords on 4 quality dimensions..."):
+                result = score_and_filter_keywords(raw_matrix, min_score=min_score)
+                st.session_state["pseo_matrix"] = result["kept"]
+                st.session_state["pseo_score_result"] = result
 
-        if "pseo_matrix" in st.session_state:
-            matrix = st.session_state["pseo_matrix"]
-            st.success(f"**{len(matrix):,}** unique keywords generated")
+        if "pseo_score_result" in st.session_state:
+            result = st.session_state["pseo_score_result"]
+            stats = result["stats"]
+            kept = result["kept"]
+            rejected = result["rejected"]
 
-            # Stats
+            st.success(f"**{stats['kept']}** keywords kept · **{stats['rejected']}** rejected ({stats['rejection_rate']}% filtered out)")
+
+            # Score stats
             import pandas as _pd
-            df = _pd.DataFrame(matrix)
-            col_a, col_b, col_c = st.columns(3)
-            with col_a:
-                st.metric("Total Keywords", f"{len(matrix):,}")
-            with col_b:
-                lang_counts = df["lang"].value_counts()
-                st.metric("Languages", len(lang_counts))
-                st.dataframe(lang_counts, height=150)
-            with col_c:
-                country_counts = df["country"].value_counts().head(10)
-                st.metric("Countries", df["country"].nunique())
-                st.dataframe(country_counts, height=150)
+            col_a, col_b, col_c, col_d = st.columns(4)
+            col_a.metric("✅ Kept", stats["kept"])
+            col_b.metric("❌ Rejected", stats["rejected"])
+            col_c.metric("Avg Score", stats["avg_score"])
+            col_d.metric("Filter Rate", f"{stats['rejection_rate']}%")
 
-            # Preview
-            with st.expander("Preview keywords", expanded=False):
-                st.dataframe(df[["keyword", "lang", "country", "pattern", "tier"]].head(50), height=400)
+            # Score distribution
+            st.subheader("Score Distribution")
+            dist = stats["score_distribution"]
+            dist_df = _pd.DataFrame([
+                {"range": k, "count": v} for k, v in dist.items()
+            ])
+            st.bar_chart(dist_df.set_index("range"))
+
+            # By pattern
+            st.subheader("Keywords by Pattern")
+            pattern_counts = stats["by_pattern_count"]
+            for pattern, count in sorted(pattern_counts.items(), key=lambda x: -x[1]):
+                with st.expander(f"**{pattern}** — {count} keywords"):
+                    pat_kws = result["by_pattern"][pattern]
+                    pat_df = _pd.DataFrame(pat_kws)
+                    display_cols = [c for c in ["keyword", "lang", "country", "quality_score",
+                                                "intent_score", "natural_score", "scale_score", "market_score"]
+                                   if c in pat_df.columns]
+                    st.dataframe(pat_df[display_cols].head(30), height=300)
+
+            # Rejected samples
+            with st.expander(f"Rejected keywords ({len(rejected)} total)", expanded=False):
+                rej_df = _pd.DataFrame(rejected)
+                display_cols = [c for c in ["keyword", "quality_score", "reject_reason",
+                                            "intent_score", "natural_score"]
+                                if c in rej_df.columns]
+                st.dataframe(rej_df[display_cols].head(30), height=200)
 
     # ──────────────────────────────────────────────────────────────────────
     # TAB 2: Autocomplete Validation (FREE)
@@ -2680,10 +2708,10 @@ def page_programmatic_seo():
         st.info("Checks if Google suggests these keywords → real demand exists. **100% free, no API key needed.**")
 
         if "pseo_matrix" not in st.session_state:
-            st.warning("Generate a keyword matrix first (Tab 1)")
+            st.warning("Generate & score a keyword matrix first (Tab 1)")
         else:
             matrix = st.session_state["pseo_matrix"]
-            st.write(f"**{len(matrix):,}** keywords ready for validation")
+            st.write(f"**{len(matrix):,}** quality-scored keywords ready for validation")
 
             col1, col2 = st.columns(2)
             with col1:
