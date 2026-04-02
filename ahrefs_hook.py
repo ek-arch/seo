@@ -5,6 +5,7 @@ Defines the interface now, returns empty data.  When the Ahrefs MCP
 connector (UUID: 098cb32a-ba21-4770-97dd-78bb54655419) is connected,
 implement the functions here.  No other module needs to change.
 """
+from __future__ import annotations
 
 from __future__ import annotations
 

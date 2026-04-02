@@ -16,7 +16,7 @@ from anthropic import Anthropic, RateLimitError
 
 # ── Language maps ──────────────────────────────────────────────────────────────
 
-LANG_NAMES: dict[str, str] = {
+LANG_NAMES = {
     "en": "English",
     "ru": "Russian",
     "it": "Italian",
@@ -301,7 +301,7 @@ def translate_press_release(
 def recommend_monthly_plan(
     api_key: str,
     last_month_results: dict,
-    available_outlets: list[dict],
+    available_outlets: list,
     budget: float,
     *,
     model: str = "claude-sonnet-4-20250514",

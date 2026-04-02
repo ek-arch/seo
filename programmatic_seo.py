@@ -9,6 +9,7 @@ Pipeline:
 
 Cost: ~0 for steps 1-2. ~1 SerpAPI credit per competition check in step 3.
 """
+from __future__ import annotations
 
 import requests
 import time

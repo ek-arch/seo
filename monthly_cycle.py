@@ -4,6 +4,7 @@ monthly_cycle.py — Monthly SEO cycle: evaluate -> plan -> push
 Business logic for the monthly review/planning loop.
 No UI code — pure data transforms and orchestration.
 """
+from __future__ import annotations
 
 from __future__ import annotations
 

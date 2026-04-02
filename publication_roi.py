@@ -10,6 +10,7 @@ Three-layer model:
 LTV figures from Hex BigQuery (Oct 2025 – Mar 2026 cohort).
 Conversion rates calibrated to match observed SEO CAC range $18–55.
 """
+from __future__ import annotations
 
 from __future__ import annotations
 from dataclasses import dataclass, field

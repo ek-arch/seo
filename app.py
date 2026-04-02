@@ -4,6 +4,7 @@ Single-file Streamlit app using st.navigation().
 All data lives in data_sources.py.
 GEO = Generative Engine Optimization (AI answer visibility).
 """
+from __future__ import annotations
 
 import streamlit as st
 import pandas as pd

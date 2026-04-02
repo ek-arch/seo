@@ -1,3 +1,4 @@
+from __future__ import annotations
 # collaborator_outlets.py
 # Scraped from Collaborator.pro catalog via browser API
 # Filters: categories=[Cryptocurrencies, Business & Finance], DR≥30, price≤$250

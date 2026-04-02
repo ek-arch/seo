@@ -5,6 +5,7 @@ Creates Content Plan entries, PR draft pages, monthly plan pages,
 and logs publication results.  Uses the Notion REST API directly
 (not MCP) so the Streamlit app can write without an active Claude session.
 """
+from __future__ import annotations
 
 from __future__ import annotations
 
