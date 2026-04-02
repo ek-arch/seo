@@ -40,6 +40,13 @@ from monthly_cycle import (
     plan_to_notion_entries,
 )
 import ahrefs_hook
+from programmatic_seo import (
+    generate_keyword_matrix, validate_keywords_autocomplete,
+    check_serp_competition, batch_competition_check,
+    generate_page_specs, generate_html_page,
+    export_specs_json, export_specs_csv,
+    COUNTRIES,
+)
 
 st.set_page_config(
     page_title="Kolo SEO & GEO Intelligence Agent",
@@ -2607,6 +2614,254 @@ def page_geo_visibility():
 
 # ══════════════════════════════════════════════════════════════════════════════
 # NAVIGATION
+# ── Page 11: Programmatic SEO ─────────────────────────────────────────────────
+
+def page_programmatic_seo():
+    st.title("🚀 Programmatic SEO — Long-Tail Keyword Factory")
+    st.caption("Generate → Validate (free) → Score competition → Auto-build pages")
+
+    serp_key = st.session_state.get("serpapi_key")
+
+    # ── Tab layout ──
+    tab_matrix, tab_validate, tab_compete, tab_pages = st.tabs([
+        "1️⃣ Keyword Matrix", "2️⃣ Autocomplete Validation", "3️⃣ Competition Check", "4️⃣ Page Generator"
+    ])
+
+    # ──────────────────────────────────────────────────────────────────────
+    # TAB 1: Generate Keyword Matrix
+    # ──────────────────────────────────────────────────────────────────────
+    with tab_matrix:
+        st.subheader("Keyword Matrix Generator")
+        st.info("Combines countries × cryptos × use cases × modifiers. **Zero API cost.**")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            tiers = st.multiselect("Country tiers", [1, 2, 3], default=[1, 2],
+                                   help="Tier 1 = top revenue, Tier 2 = growth, Tier 3 = emerging")
+        with col2:
+            include_ru = st.checkbox("Include Russian keywords", value=True,
+                                     help="RU speakers = 2x LTV ($6,975 vs $3,502)")
+        with col3:
+            max_kw = st.number_input("Max keywords", 100, 5000, 2000, step=100)
+
+        if st.button("🔧 Generate Matrix", type="primary"):
+            with st.spinner("Generating keyword combinations..."):
+                matrix = generate_keyword_matrix(tiers=tiers, include_ru=include_ru, max_combos=max_kw)
+                st.session_state["pseo_matrix"] = matrix
+
+        if "pseo_matrix" in st.session_state:
+            matrix = st.session_state["pseo_matrix"]
+            st.success(f"**{len(matrix):,}** unique keywords generated")
+
+            # Stats
+            import pandas as _pd
+            df = _pd.DataFrame(matrix)
+            col_a, col_b, col_c = st.columns(3)
+            with col_a:
+                st.metric("Total Keywords", f"{len(matrix):,}")
+            with col_b:
+                lang_counts = df["lang"].value_counts()
+                st.metric("Languages", len(lang_counts))
+                st.dataframe(lang_counts, height=150)
+            with col_c:
+                country_counts = df["country"].value_counts().head(10)
+                st.metric("Countries", df["country"].nunique())
+                st.dataframe(country_counts, height=150)
+
+            # Preview
+            with st.expander("Preview keywords", expanded=False):
+                st.dataframe(df[["keyword", "lang", "country", "pattern", "tier"]].head(50), height=400)
+
+    # ──────────────────────────────────────────────────────────────────────
+    # TAB 2: Autocomplete Validation (FREE)
+    # ──────────────────────────────────────────────────────────────────────
+    with tab_validate:
+        st.subheader("Google Autocomplete Validation")
+        st.info("Checks if Google suggests these keywords → real demand exists. **100% free, no API key needed.**")
+
+        if "pseo_matrix" not in st.session_state:
+            st.warning("Generate a keyword matrix first (Tab 1)")
+        else:
+            matrix = st.session_state["pseo_matrix"]
+            st.write(f"**{len(matrix):,}** keywords ready for validation")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                batch_size = st.number_input("Batch size", 10, 500, 100, step=10,
+                                             help="Keywords to check per run. ~150ms each = 100 takes ~15 sec.")
+            with col2:
+                start_from = st.number_input("Start from index", 0, len(matrix) - 1, 0, step=10)
+
+            if st.button("✅ Validate via Autocomplete", type="primary"):
+                batch = matrix[start_from:start_from + batch_size]
+                progress = st.progress(0, text="Checking Google Autocomplete...")
+                status = st.empty()
+
+                def _update(i, total):
+                    progress.progress(i / total, text=f"Checking {i}/{total}...")
+                    if i % 10 == 0:
+                        status.caption(f"Current: {batch[min(i, len(batch)-1)]['keyword']}")
+
+                validated = validate_keywords_autocomplete(batch, delay=0.15, progress_callback=_update)
+                progress.progress(1.0, text="Done!")
+
+                # Merge with existing results
+                existing = st.session_state.get("pseo_validated", [])
+                existing.extend(validated)
+                st.session_state["pseo_validated"] = existing
+
+        if "pseo_validated" in st.session_state:
+            validated = st.session_state["pseo_validated"]
+            import pandas as _pd
+            vdf = _pd.DataFrame(validated)
+
+            # Stats
+            strong = vdf[vdf["demand_signal"] == "strong"]
+            medium = vdf[vdf["demand_signal"] == "medium"]
+            weak = vdf[vdf["demand_signal"] == "weak"]
+            none_ = vdf[vdf["demand_signal"] == "none"]
+
+            col_a, col_b, col_c, col_d = st.columns(4)
+            col_a.metric("🟢 Strong", len(strong))
+            col_b.metric("🟡 Medium", len(medium))
+            col_c.metric("🟠 Weak", len(weak))
+            col_d.metric("🔴 No Signal", len(none_))
+
+            # Show strong + medium (the ones worth checking competition)
+            winners = vdf[vdf["demand_signal"].isin(["strong", "medium"])].sort_values("autocomplete_hits", ascending=False)
+            st.write(f"**{len(winners)}** keywords with demand signal → ready for competition check")
+
+            with st.expander(f"Keywords with demand ({len(winners)})", expanded=True):
+                display_cols = ["keyword", "lang", "country", "demand_signal", "autocomplete_hits"]
+                extra = [c for c in ["autocomplete_suggestions"] if c in winners.columns]
+                st.dataframe(winners[display_cols + extra].head(100), height=400)
+
+            # Export
+            if st.button("💾 Export validated keywords (JSON)"):
+                import json as _json
+                outpath = "/Users/ek/SEO agent/validated_keywords.json"
+                with open(outpath, "w") as f:
+                    _json.dump([r for r in validated if r.get("demand_signal") in ("strong", "medium")],
+                               f, indent=2, ensure_ascii=False)
+                st.success(f"Exported to `{outpath}`")
+
+    # ──────────────────────────────────────────────────────────────────────
+    # TAB 3: Competition Check (SerpAPI)
+    # ──────────────────────────────────────────────────────────────────────
+    with tab_compete:
+        st.subheader("SERP Competition Scoring")
+        st.info("Uses SerpAPI to check top 10 results for weak SERPs. **1 credit per keyword.**")
+
+        if not serp_key:
+            st.warning("Enter your SerpAPI key in the sidebar")
+        elif "pseo_validated" not in st.session_state:
+            st.warning("Validate keywords first (Tab 2)")
+        else:
+            validated = st.session_state["pseo_validated"]
+            winners = [kw for kw in validated if kw.get("demand_signal") in ("strong", "medium")]
+            st.write(f"**{len(winners)}** validated keywords available")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                max_checks = st.number_input("Max SerpAPI checks", 5, 50, 20, step=5,
+                                             help="Each check costs 1 SerpAPI credit (100 free/month)")
+            with col2:
+                st.caption(f"Budget: {max_checks} credits")
+
+            if st.button("🔍 Check Competition", type="primary"):
+                progress = st.progress(0, text="Checking SERPs...")
+
+                def _update(i, total):
+                    progress.progress(i / total, text=f"SERP check {i}/{total}...")
+
+                scored = batch_competition_check(
+                    winners, serp_key, max_checks=max_checks,
+                    delay=2.0, progress_callback=_update
+                )
+                progress.progress(1.0, text="Done!")
+                st.session_state["pseo_scored"] = scored
+
+        if "pseo_scored" in st.session_state:
+            scored = st.session_state["pseo_scored"]
+            import pandas as _pd
+            sdf = _pd.DataFrame(scored)
+
+            if "competition_score" in sdf.columns:
+                high_opp = sdf[sdf.get("opportunity", "") == "high"] if "opportunity" in sdf.columns else _pd.DataFrame()
+                med_opp = sdf[sdf.get("opportunity", "") == "medium"] if "opportunity" in sdf.columns else _pd.DataFrame()
+
+                col_a, col_b, col_c = st.columns(3)
+                col_a.metric("🎯 High Opportunity", len(high_opp))
+                col_b.metric("🟡 Medium", len(med_opp))
+                col_c.metric("Kolo Already Ranks", len(sdf[sdf.get("kolo_present", False) == True]) if "kolo_present" in sdf.columns else 0)
+
+                display_cols = [c for c in ["keyword", "lang", "country", "competition_score", "opportunity",
+                                            "big_players", "weak_results", "kolo_present", "top_3_domains"]
+                                if c in sdf.columns]
+                st.dataframe(sdf[display_cols].sort_values("competition_score", ascending=True), height=400)
+
+    # ──────────────────────────────────────────────────────────────────────
+    # TAB 4: Page Generator
+    # ──────────────────────────────────────────────────────────────────────
+    with tab_pages:
+        st.subheader("Programmatic Page Generator")
+        st.info("Generates SEO-optimized HTML pages from scored keywords. Template-based + optional Claude enrichment.")
+
+        source = None
+        if "pseo_scored" in st.session_state:
+            source = st.session_state["pseo_scored"]
+            st.write(f"Using **{len(source)}** competition-scored keywords")
+        elif "pseo_validated" in st.session_state:
+            source = [kw for kw in st.session_state["pseo_validated"]
+                      if kw.get("demand_signal") in ("strong", "medium")]
+            st.write(f"Using **{len(source)}** validated keywords (no competition data)")
+        else:
+            st.warning("Run keyword validation (Tab 2) or competition check (Tab 3) first")
+
+        if source:
+            min_opp = st.selectbox("Minimum opportunity level", ["high", "medium", "low"], index=1)
+
+            if st.button("🏗️ Generate Page Specs", type="primary"):
+                specs = generate_page_specs(source, min_opportunity=min_opp)
+                st.session_state["pseo_specs"] = specs
+
+        if "pseo_specs" in st.session_state:
+            specs = st.session_state["pseo_specs"]
+            st.success(f"**{len(specs)}** page specs generated")
+
+            import pandas as _pd
+            spec_data = [s.to_dict() for s in specs]
+            sdf = _pd.DataFrame(spec_data)
+            display_cols = [c for c in ["slug", "keyword", "lang", "country", "template",
+                                        "competition_score", "opportunity", "demand_signal"]
+                            if c in sdf.columns]
+            st.dataframe(sdf[display_cols], height=400)
+
+            # Preview a page
+            st.subheader("Page Preview")
+            if specs:
+                preview_idx = st.selectbox("Select page to preview",
+                                           range(len(specs)),
+                                           format_func=lambda i: f"{specs[i].slug} ({specs[i].keyword})")
+                html = generate_html_page(specs[preview_idx])
+                with st.expander("HTML Source", expanded=False):
+                    st.code(html, language="html")
+                st.components.v1.html(html, height=600, scrolling=True)
+
+            # Export
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("💾 Export as JSON"):
+                    outpath = "/Users/ek/SEO agent/page_specs.json"
+                    count = export_specs_json(specs, outpath)
+                    st.success(f"Exported {count} specs to `{outpath}`")
+            with col2:
+                if st.button("📊 Export as CSV"):
+                    outpath = "/Users/ek/SEO agent/page_specs.csv"
+                    count = export_specs_csv(specs, outpath)
+                    st.success(f"Exported {count} specs to `{outpath}`")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 
 pg = st.navigation({
@@ -2626,6 +2881,9 @@ pg = st.navigation({
         st.Page(page_geo_visibility,         title="GEO Visibility",   icon="🔍"),
         st.Page(page_monthly_eval,           title="Monthly Eval",     icon="📉"),
         st.Page(page_monthly_planner,        title="Monthly Planner",  icon="🗓️"),
+    ],
+    "Growth": [
+        st.Page(page_programmatic_seo,       title="Programmatic SEO", icon="🚀"),
     ],
 })
 pg.run()
