@@ -232,6 +232,12 @@ _INTENT_SIGNALS = {
              "review", "vs", "without kyc", "no kyc", "low fees", "instant"],
     "medium": ["card", "visa", "debit", "wallet", "prepaid"],
 }
+# Russian intent signals (RU speakers = 2x LTV, must not be penalized)
+_RU_INTENT_SIGNALS = {
+    "high": ["лучшая", "лучший", "как", "где", "купить", "потратить", "обменять",
+             "без kyc", "без верификации", "сравнение", "дешевая", "дешевый"],
+    "medium": ["карта", "кошелек", "visa", "крипто"],
+}
 
 # Natural query patterns (human-like phrasing)
 _NATURAL_PATTERNS = [
@@ -263,12 +269,13 @@ _REAL_MARKET_SIGNALS = {
 
 def score_keyword(kw: dict) -> dict:
     """
-    Score a keyword on 4 dimensions (0-1 total):
-      1. Intent (0-0.4): transactional / problem-solving?
-      2. Naturalness (0-0.2): sounds like a real human query?
-      3. Pattern scalability (0-0.2): repeatable template?
-      4. Market existence (0-0.2): real-world topic?
+    Score a keyword on 4 pre-SERP dimensions (0-0.75 total):
+      1. Intent (0-0.3): transactional / problem-solving?
+      2. Naturalness (0-0.15): sounds like a real human query?
+      3. Pattern scalability (0-0.15): repeatable template?
+      4. Market existence (0-0.15): real-world topic?
 
+    SERP viability (0-0.25) is added later via enrich_with_serp_viability().
     Rejects robotic / synthetic keywords.
     """
     keyword = kw["keyword"]
@@ -281,124 +288,373 @@ def score_keyword(kw: dict) -> dict:
     for rp in _ROBOTIC_PATTERNS:
         if rp.search(keyword):
             return {**kw, "quality_score": 0.0, "rejected": True, "reject_reason": "robotic",
-                    "intent_score": 0, "natural_score": 0, "scale_score": 0, "market_score": 0}
+                    "intent_score": 0, "natural_score": 0, "scale_score": 0,
+                    "market_score": 0, "serp_score": 0}
 
-    # ── 1. Intent Score (0-0.4) ──
-    intent = 0.1  # baseline
-    for signal in _INTENT_SIGNALS["high"]:
-        if signal in keyword_lower:
-            intent += 0.1
-    for signal in _INTENT_SIGNALS["medium"]:
-        if signal in keyword_lower:
-            intent += 0.05
-    # Spending/conversion intent = highest value for Kolo
-    if any(w in keyword_lower for w in ["spend", "pay", "convert", "exchange"]):
-        intent += 0.05
-    intent = min(0.4, intent)
+    # ── 1. Intent Score (0-0.3) ──
+    intent = 0.08  # baseline
+    if lang == "ru":
+        for signal in _RU_INTENT_SIGNALS["high"]:
+            if signal in keyword_lower:
+                intent += 0.08
+        for signal in _RU_INTENT_SIGNALS["medium"]:
+            if signal in keyword_lower:
+                intent += 0.04
+        # All RU geo keywords are inherently transactional (hand-written)
+        if "ru_geo" in pattern:
+            intent += 0.06
+    else:
+        for signal in _INTENT_SIGNALS["high"]:
+            if signal in keyword_lower:
+                intent += 0.08
+        for signal in _INTENT_SIGNALS["medium"]:
+            if signal in keyword_lower:
+                intent += 0.04
+    if any(w in keyword_lower for w in ["spend", "pay", "convert", "exchange",
+                                         "потратить", "обменять", "купить"]):
+        intent += 0.04
+    intent = min(0.3, intent)
 
-    # ── 2. Naturalness Score (0-0.2) ──
-    natural = 0.05  # baseline
-    for np in _NATURAL_PATTERNS:
-        if np.search(keyword):
-            natural += 0.05
-    # Penalize all-lowercase ticker soup
+    # ── 2. Naturalness Score (0-0.15) ──
+    natural = 0.03  # baseline
+    for np_re in _NATURAL_PATTERNS:
+        if np_re.search(keyword):
+            natural += 0.04
     words = keyword.split()
     if len(words) <= 2:
-        natural -= 0.05  # too short to be natural
+        natural -= 0.03
     if len(words) >= 4 and any(w in keyword_lower for w in ["in", "for", "to", "with"]):
-        natural += 0.05  # prepositions make it natural
-    # Russian keywords are naturally phrased (hand-written patterns)
+        natural += 0.04
     if lang == "ru":
-        natural += 0.1
-    natural = max(0.0, min(0.2, natural))
+        natural += 0.07
+    natural = max(0.0, min(0.15, natural))
 
-    # ── 3. Pattern Scalability (0-0.2) ──
-    scale = 0.1  # baseline
+    # ── 3. Pattern Scalability (0-0.15) ──
+    scale = 0.07  # baseline
     if pattern in _SCALABLE_PATTERNS:
-        scale = 0.2
+        scale = 0.15
     elif "country" in pattern:
-        scale = 0.15
+        scale = 0.12
     elif "persona" in pattern:
-        scale = 0.15
+        scale = 0.12
 
-    # ── 4. Market Existence (0-0.2) ──
-    market = 0.05  # baseline
+    # ── 4. Market Existence (0-0.15) ──
+    market = 0.04  # baseline
     country_name = COUNTRIES.get(country, {}).get("name", "")
-    # Check aliases too
     all_names = [country_name] + COUNTRIES.get(country, {}).get("aliases", [])
-    # Check RU country names
     ru_name = RU_COUNTRIES.get(country, "")
     if ru_name:
         all_names.append(ru_name)
-
     for name in all_names:
         if name in _REAL_MARKET_SIGNALS["high"]:
-            market = 0.2
-            break
-        elif name in _REAL_MARKET_SIGNALS["medium"]:
             market = 0.15
             break
-
+        elif name in _REAL_MARKET_SIGNALS["medium"]:
+            market = 0.11
+            break
     if country == "global":
-        # Global keywords always have market existence
-        market = 0.15
+        market = 0.11
 
     total = round(intent + natural + scale + market, 2)
 
     return {
         **kw,
-        "quality_score": total,
+        "quality_score": total,       # pre-SERP score (max 0.75)
         "intent_score": round(intent, 2),
         "natural_score": round(natural, 2),
         "scale_score": round(scale, 2),
         "market_score": round(market, 2),
+        "serp_score": 0.0,            # filled by enrich_with_serp_viability
         "rejected": False,
         "reject_reason": "",
     }
 
 
+# ── SERP Viability Scoring ────────────────────────────────────────────────────
+
+def _serp_viability_score(serp_data: dict) -> float:
+    """
+    Score SERP viability from 0-0.25 based on competition analysis.
+    Higher = easier to rank (weak SERP, forums, niche blogs).
+    """
+    comp = serp_data.get("competition_score")
+    if comp is None:
+        return 0.0
+
+    big = serp_data.get("big_players", 0)
+    forums = serp_data.get("forums_ugc", 0)
+    weak = serp_data.get("weak_results", 0)
+    total = serp_data.get("total_results", 0)
+    has_paa = serp_data.get("people_also_ask", 0) > 0
+
+    score = 0.0
+
+    # Weak domains = opportunity (forums, niche blogs beatable)
+    if weak >= 4:
+        score += 0.10
+    elif weak >= 2:
+        score += 0.06
+    elif weak >= 1:
+        score += 0.03
+
+    # Forums/UGC in top 10 = beatable with dedicated page
+    if forums >= 3:
+        score += 0.08
+    elif forums >= 1:
+        score += 0.04
+
+    # Penalize big-brand domination
+    if big >= 5:
+        score -= 0.05
+    elif big >= 3:
+        score -= 0.02
+
+    # Low total results = niche opportunity
+    if total and total < 1_000_000:
+        score += 0.03
+    if total and total < 100_000:
+        score += 0.04
+
+    # People Also Ask = Google considers this a real topic
+    if has_paa:
+        score += 0.03
+
+    return round(max(0.0, min(0.25, score)), 2)
+
+
+def enrich_with_serp_viability(
+    keywords: list[dict],
+    serpapi_key: str,
+    max_checks: int = 30,
+    delay: float = 2.0,
+    progress_callback=None,
+) -> list[dict]:
+    """
+    Run SERP checks on keywords and add serp_score (0-0.25) to quality_score.
+    Returns keywords with updated quality_score = pre-SERP + serp_viability.
+    Costs 1 SerpAPI credit per keyword checked.
+    """
+    results = []
+    to_check = keywords[:max_checks]
+
+    for i, kw in enumerate(to_check):
+        serp = check_serp_competition(
+            kw["keyword"],
+            serpapi_key,
+            lang=kw.get("lang", "en"),
+            country=kw.get("country", ""),
+        )
+        serp_v = _serp_viability_score(serp)
+
+        result = {**kw, **serp}
+        result["serp_score"] = serp_v
+        # Recalculate total: pre-SERP dims + SERP viability
+        pre_serp = (result.get("intent_score", 0) + result.get("natural_score", 0) +
+                    result.get("scale_score", 0) + result.get("market_score", 0))
+        result["quality_score"] = round(pre_serp + serp_v, 2)
+
+        results.append(result)
+
+        if progress_callback:
+            progress_callback(i + 1, len(to_check))
+
+        if i < len(to_check) - 1:
+            time.sleep(delay)
+
+    return results
+
+
+# ── Intent Deduplication ──────────────────────────────────────────────────────
+
+def _normalize_for_dedup(keyword: str) -> str:
+    """Normalize keyword to a canonical form for intent clustering."""
+    kw = keyword.lower().strip()
+    # Remove year suffixes
+    kw = re.sub(r'\s*20\d{2}\s*$', '', kw)
+    # Normalize crypto synonyms
+    replacements = [
+        (r'\bbitcoin\b', 'btc'), (r'\bethereum\b', 'eth'),
+        (r'\btron\b', 'trx'), (r'\bstablecoin\b', 'usdt'),
+        (r'\bcryptocurrency\b', 'crypto'), (r'\bcryptos?\b', 'crypto'),
+    ]
+    for pat, rep in replacements:
+        kw = re.sub(pat, rep, kw)
+    # Normalize card types → "card"
+    kw = re.sub(r'\b(visa card|debit card|prepaid card|credit card)\b', 'card', kw)
+    # Remove filler words
+    kw = re.sub(r'\b(the|a|an|is|are|for|in|to|with)\b', ' ', kw)
+    # Collapse whitespace, sort words for order-invariant matching
+    words = sorted(set(kw.split()))
+    return ' '.join(words)
+
+
+def deduplicate_by_intent(keywords: list[dict]) -> dict:
+    """
+    Cluster keywords by intent similarity. Pick the highest-scoring keyword
+    per cluster as the canonical representative. Others become alternates.
+
+    Returns {"canonical": [...], "duplicates": [...], "clusters": {norm: [kws]}}
+    """
+    clusters: dict[str, list[dict]] = {}
+
+    for kw in keywords:
+        norm = _normalize_for_dedup(kw["keyword"])
+        # Add country to make geo-specific intents distinct
+        country = kw.get("country", "global")
+        lang = kw.get("lang", "en")
+        cluster_key = f"{norm}|{country}|{lang}"
+
+        if cluster_key not in clusters:
+            clusters[cluster_key] = []
+        clusters[cluster_key].append(kw)
+
+    canonical = []
+    duplicates = []
+
+    for cluster_key, kws in clusters.items():
+        # Sort by quality_score desc, pick best
+        kws.sort(key=lambda x: -x.get("quality_score", 0))
+        best = kws[0]
+        best["cluster_size"] = len(kws)
+        best["alternates"] = [k["keyword"] for k in kws[1:]]
+        canonical.append(best)
+        duplicates.extend(kws[1:])
+
+    canonical.sort(key=lambda x: -x.get("quality_score", 0))
+
+    return {
+        "canonical": canonical,
+        "duplicates": duplicates,
+        "clusters": clusters,
+    }
+
+
+# ── Pattern-Level Evaluation ─────────────────────────────────────────────────
+
+def evaluate_patterns(keywords: list[dict], min_avg_score: float = 0.65) -> dict:
+    """
+    Group keywords by pattern template, calculate average score per pattern.
+    Drop entire patterns that underperform (avg score < min_avg_score).
+
+    Returns {"kept_patterns": {...}, "dropped_patterns": {...}, "kept": [...], "stats": {...}}
+    """
+    by_pattern: dict[str, list[dict]] = {}
+    for kw in keywords:
+        p = kw.get("pattern", "other")
+        if p not in by_pattern:
+            by_pattern[p] = []
+        by_pattern[p].append(kw)
+
+    kept_patterns = {}
+    dropped_patterns = {}
+    pattern_stats = {}
+
+    for p, kws in by_pattern.items():
+        scores = [k.get("quality_score", 0) for k in kws]
+        avg = round(sum(scores) / max(len(scores), 1), 3)
+        top = round(max(scores), 3) if scores else 0
+        bottom = round(min(scores), 3) if scores else 0
+        stat = {"count": len(kws), "avg_score": avg, "top_score": top, "bottom_score": bottom}
+        pattern_stats[p] = stat
+
+        if avg >= min_avg_score:
+            kept_patterns[p] = kws
+        else:
+            dropped_patterns[p] = kws
+
+    kept = []
+    for kws in kept_patterns.values():
+        kept.extend(kws)
+    kept.sort(key=lambda x: -x.get("quality_score", 0))
+
+    dropped_kws = []
+    for kws in dropped_patterns.values():
+        dropped_kws.extend(kws)
+
+    return {
+        "kept_patterns": kept_patterns,
+        "dropped_patterns": dropped_patterns,
+        "kept": kept,
+        "dropped": dropped_kws,
+        "pattern_stats": pattern_stats,
+    }
+
+
+# ── Main Pipeline: score → deduplicate → evaluate patterns ───────────────────
+
 def score_and_filter_keywords(
     keywords: list[dict],
     min_score: float = 0.6,
+    min_pattern_avg: float = 0.65,
     group_by_pattern: bool = True,
 ) -> dict:
     """
-    Score all keywords, reject bad ones, keep score > min_score.
-    Returns {"kept": [...], "rejected": [...], "by_pattern": {...}, "stats": {...}}
+    Full pre-SERP pipeline:
+      1. Score each keyword (4 dims, max 0.75)
+      2. Reject robotic + below min_score
+      3. Deduplicate by intent (1 canonical per cluster)
+      4. Evaluate patterns (drop underperforming templates)
+
+    Returns {"kept": [...], "rejected": [...], "by_pattern": {...},
+             "dedup_stats": {...}, "pattern_eval": {...}, "stats": {...}}
     """
+    # Step 1: Score
     scored = [score_keyword(kw) for kw in keywords]
 
     kept = [kw for kw in scored if not kw["rejected"] and kw["quality_score"] >= min_score]
     rejected = [kw for kw in scored if kw["rejected"] or kw["quality_score"] < min_score]
 
+    # Step 2: Deduplicate by intent
+    dedup = deduplicate_by_intent(kept)
+    deduped = dedup["canonical"]
+    rejected.extend(dedup["duplicates"])
+
+    # Step 3: Evaluate patterns
+    pat_eval = evaluate_patterns(deduped, min_avg_score=min_pattern_avg)
+    final_kept = pat_eval["kept"]
+    rejected.extend(pat_eval["dropped"])
+
     # Sort by score desc
-    kept.sort(key=lambda x: -x["quality_score"])
+    final_kept.sort(key=lambda x: -x["quality_score"])
 
     # Group by pattern
     by_pattern = {}
     if group_by_pattern:
-        for kw in kept:
+        for kw in final_kept:
             p = kw.get("pattern", "other")
             if p not in by_pattern:
                 by_pattern[p] = []
             by_pattern[p].append(kw)
 
     stats = {
-        "total": len(scored),
-        "kept": len(kept),
+        "total_raw": len(scored),
+        "after_scoring": len(kept),
+        "after_dedup": len(deduped),
+        "after_pattern_eval": len(final_kept),
+        "kept": len(final_kept),
         "rejected": len(rejected),
         "rejection_rate": round(len(rejected) / max(len(scored), 1) * 100, 1),
-        "avg_score": round(sum(k["quality_score"] for k in kept) / max(len(kept), 1), 2),
+        "avg_score": round(sum(k["quality_score"] for k in final_kept) / max(len(final_kept), 1), 2),
         "by_pattern_count": {p: len(kws) for p, kws in by_pattern.items()},
         "score_distribution": {
-            "0.9-1.0": len([k for k in kept if k["quality_score"] >= 0.9]),
-            "0.8-0.9": len([k for k in kept if 0.8 <= k["quality_score"] < 0.9]),
-            "0.7-0.8": len([k for k in kept if 0.7 <= k["quality_score"] < 0.8]),
-            "0.6-0.7": len([k for k in kept if 0.6 <= k["quality_score"] < 0.7]),
+            "0.9-1.0": len([k for k in final_kept if k["quality_score"] >= 0.9]),
+            "0.8-0.9": len([k for k in final_kept if 0.8 <= k["quality_score"] < 0.9]),
+            "0.7-0.8": len([k for k in final_kept if 0.7 <= k["quality_score"] < 0.8]),
+            "0.6-0.7": len([k for k in final_kept if 0.6 <= k["quality_score"] < 0.7]),
         },
     }
 
-    return {"kept": kept, "rejected": rejected, "by_pattern": by_pattern, "stats": stats}
+    return {
+        "kept": final_kept,
+        "rejected": rejected,
+        "by_pattern": by_pattern,
+        "dedup_stats": {
+            "clusters": len(dedup["clusters"]),
+            "duplicates_removed": len(dedup["duplicates"]),
+        },
+        "pattern_eval": pat_eval["pattern_stats"],
+        "stats": stats,
+    }
 
 
 # ── Step 2: Google Autocomplete Validation (FREE) ────────────────────────────

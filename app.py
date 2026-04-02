@@ -44,6 +44,7 @@ from programmatic_seo import (
     generate_keyword_matrix, score_and_filter_keywords,
     validate_keywords_autocomplete,
     check_serp_competition, batch_competition_check,
+    enrich_with_serp_viability,
     generate_page_specs, generate_html_page,
     export_specs_json, export_specs_csv,
     COUNTRIES,
@@ -2645,14 +2646,20 @@ def page_programmatic_seo():
         with col3:
             max_kw = st.number_input("Max keywords", 100, 5000, 2000, step=100)
 
-        min_score = st.slider("Minimum quality score", 0.3, 1.0, 0.6, 0.05,
-                              help="Keywords below this score are rejected. 0.6 = balanced filter.")
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            min_score = st.slider("Min keyword score", 0.3, 0.75, 0.45, 0.05,
+                                  help="Pre-SERP max is 0.75. Recommended: 0.45+")
+        with col_s2:
+            min_pattern_avg = st.slider("Min pattern avg score", 0.3, 0.75, 0.5, 0.05,
+                                        help="Entire template dropped if avg below this")
 
-        if st.button("🔧 Generate & Score Matrix", type="primary"):
+        if st.button("🔧 Generate → Score → Dedup → Filter", type="primary"):
             with st.spinner("Generating keyword combinations..."):
                 raw_matrix = generate_keyword_matrix(tiers=tiers, include_ru=include_ru, max_combos=max_kw)
-            with st.spinner(f"Scoring {len(raw_matrix):,} keywords on 4 quality dimensions..."):
-                result = score_and_filter_keywords(raw_matrix, min_score=min_score)
+            with st.spinner(f"Scoring → deduplicating → evaluating patterns ({len(raw_matrix):,} keywords)..."):
+                result = score_and_filter_keywords(raw_matrix, min_score=min_score,
+                                                   min_pattern_avg=min_pattern_avg)
                 st.session_state["pseo_matrix"] = result["kept"]
                 st.session_state["pseo_score_result"] = result
 
@@ -2664,33 +2671,53 @@ def page_programmatic_seo():
 
             st.success(f"**{stats['kept']}** keywords kept · **{stats['rejected']}** rejected ({stats['rejection_rate']}% filtered out)")
 
-            # Score stats
+            # Pipeline funnel
             import pandas as _pd
+            st.subheader("Pipeline Funnel")
             col_a, col_b, col_c, col_d = st.columns(4)
-            col_a.metric("✅ Kept", stats["kept"])
-            col_b.metric("❌ Rejected", stats["rejected"])
-            col_c.metric("Avg Score", stats["avg_score"])
-            col_d.metric("Filter Rate", f"{stats['rejection_rate']}%")
+            col_a.metric("Raw Generated", stats["total_raw"])
+            col_b.metric("After Scoring", stats["after_scoring"])
+            col_c.metric("After Dedup", stats["after_dedup"],
+                         delta=f"-{result['dedup_stats']['duplicates_removed']} dupes")
+            col_d.metric("After Pattern Eval", stats["after_pattern_eval"])
+
+            # Stats row
+            col_e, col_f, col_g = st.columns(3)
+            col_e.metric("Avg Score (pre-SERP)", stats["avg_score"])
+            col_f.metric("Filter Rate", f"{stats['rejection_rate']}%")
+            col_g.metric("Intent Clusters", result["dedup_stats"]["clusters"])
 
             # Score distribution
-            st.subheader("Score Distribution")
+            st.subheader("Score Distribution (pre-SERP, max 0.75)")
             dist = stats["score_distribution"]
-            dist_df = _pd.DataFrame([
-                {"range": k, "count": v} for k, v in dist.items()
-            ])
+            dist_df = _pd.DataFrame([{"range": k, "count": v} for k, v in dist.items()])
             st.bar_chart(dist_df.set_index("range"))
 
-            # By pattern
-            st.subheader("Keywords by Pattern")
+            # Pattern evaluation
+            st.subheader("Pattern Evaluation")
+            pat_eval = result.get("pattern_eval", {})
+            pat_rows = []
+            for p, ps in sorted(pat_eval.items(), key=lambda x: -x[1]["avg_score"]):
+                status = "✅" if ps["avg_score"] >= min_pattern_avg else "❌ dropped"
+                pat_rows.append({
+                    "Pattern": p, "Keywords": ps["count"],
+                    "Avg Score": ps["avg_score"], "Top": ps["top_score"],
+                    "Bottom": ps["bottom_score"], "Status": status
+                })
+            st.dataframe(_pd.DataFrame(pat_rows), hide_index=True)
+
+            # By pattern (kept only)
+            st.subheader("Kept Keywords by Pattern")
             pattern_counts = stats["by_pattern_count"]
             for pattern, count in sorted(pattern_counts.items(), key=lambda x: -x[1]):
                 with st.expander(f"**{pattern}** — {count} keywords"):
                     pat_kws = result["by_pattern"][pattern]
                     pat_df = _pd.DataFrame(pat_kws)
                     display_cols = [c for c in ["keyword", "lang", "country", "quality_score",
-                                                "intent_score", "natural_score", "scale_score", "market_score"]
+                                                "intent_score", "natural_score", "scale_score",
+                                                "market_score", "cluster_size", "alternates"]
                                    if c in pat_df.columns]
-                    st.dataframe(pat_df[display_cols].head(30), height=300)
+                    st.dataframe(pat_df[display_cols].head(40), height=300)
 
             # Rejected samples
             with st.expander(f"Rejected keywords ({len(rejected)} total)", expanded=False):
@@ -2698,7 +2725,7 @@ def page_programmatic_seo():
                 display_cols = [c for c in ["keyword", "quality_score", "reject_reason",
                                             "intent_score", "natural_score"]
                                 if c in rej_df.columns]
-                st.dataframe(rej_df[display_cols].head(30), height=200)
+                st.dataframe(rej_df[display_cols].head(40), height=200)
 
     # ──────────────────────────────────────────────────────────────────────
     # TAB 2: Autocomplete Validation (FREE)
@@ -2777,8 +2804,8 @@ def page_programmatic_seo():
     # TAB 3: Competition Check (SerpAPI)
     # ──────────────────────────────────────────────────────────────────────
     with tab_compete:
-        st.subheader("SERP Competition Scoring")
-        st.info("Uses SerpAPI to check top 10 results for weak SERPs. **1 credit per keyword.**")
+        st.subheader("SERP Viability & Competition Scoring")
+        st.info("Checks top 10 results, scores SERP viability (0-0.25), recalculates final score. **1 SerpAPI credit per keyword.**")
 
         if not serp_key:
             st.warning("Enter your SerpAPI key in the sidebar")
@@ -2794,15 +2821,15 @@ def page_programmatic_seo():
                 max_checks = st.number_input("Max SerpAPI checks", 5, 50, 20, step=5,
                                              help="Each check costs 1 SerpAPI credit (100 free/month)")
             with col2:
-                st.caption(f"Budget: {max_checks} credits")
+                st.caption(f"Budget: {max_checks} credits · Score = pre-SERP (0.75) + SERP viability (0.25)")
 
-            if st.button("🔍 Check Competition", type="primary"):
-                progress = st.progress(0, text="Checking SERPs...")
+            if st.button("🔍 Check Competition + Score SERP Viability", type="primary"):
+                progress = st.progress(0, text="Checking SERPs & scoring viability...")
 
                 def _update(i, total):
                     progress.progress(i / total, text=f"SERP check {i}/{total}...")
 
-                scored = batch_competition_check(
+                scored = enrich_with_serp_viability(
                     winners, serp_key, max_checks=max_checks,
                     delay=2.0, progress_callback=_update
                 )
@@ -2815,18 +2842,22 @@ def page_programmatic_seo():
             sdf = _pd.DataFrame(scored)
 
             if "competition_score" in sdf.columns:
-                high_opp = sdf[sdf.get("opportunity", "") == "high"] if "opportunity" in sdf.columns else _pd.DataFrame()
-                med_opp = sdf[sdf.get("opportunity", "") == "medium"] if "opportunity" in sdf.columns else _pd.DataFrame()
+                high_opp = sdf[sdf["opportunity"] == "high"] if "opportunity" in sdf.columns else _pd.DataFrame()
+                med_opp = sdf[sdf["opportunity"] == "medium"] if "opportunity" in sdf.columns else _pd.DataFrame()
 
-                col_a, col_b, col_c = st.columns(3)
+                col_a, col_b, col_c, col_d = st.columns(4)
                 col_a.metric("🎯 High Opportunity", len(high_opp))
                 col_b.metric("🟡 Medium", len(med_opp))
-                col_c.metric("Kolo Already Ranks", len(sdf[sdf.get("kolo_present", False) == True]) if "kolo_present" in sdf.columns else 0)
+                col_c.metric("Kolo Already Ranks", len(sdf[sdf["kolo_present"] == True]) if "kolo_present" in sdf.columns else 0)
+                if "serp_score" in sdf.columns:
+                    col_d.metric("Avg SERP Viability", f"{sdf['serp_score'].mean():.2f}/0.25")
 
-                display_cols = [c for c in ["keyword", "lang", "country", "competition_score", "opportunity",
-                                            "big_players", "weak_results", "kolo_present", "top_3_domains"]
+                display_cols = [c for c in ["keyword", "lang", "country", "quality_score",
+                                            "serp_score", "competition_score", "opportunity",
+                                            "big_players", "weak_results", "forums_ugc",
+                                            "kolo_present", "top_3_domains"]
                                 if c in sdf.columns]
-                st.dataframe(sdf[display_cols].sort_values("competition_score", ascending=True), height=400)
+                st.dataframe(sdf[display_cols].sort_values("quality_score", ascending=False), height=400)
 
     # ──────────────────────────────────────────────────────────────────────
     # TAB 4: Page Generator
