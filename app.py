@@ -30,6 +30,8 @@ from keyword_research import (
     build_taxonomy, taxonomy_to_dicts, filter_keywords,
     get_competitor_keywords, expand_keywords_serpapi,
     classify_keyword, detect_language, detect_market, score_keyword,
+    generate_keyword_matrix, discover_keywords_perplexity,
+    get_google_autocomplete, expand_with_autocomplete, chain_discover,
 )
 try:
     from sheets_client import push_comments, push_audit_results, push_publications, load_content_plan, save_content_plan
@@ -3143,8 +3145,8 @@ def page_keyword_intel():
     pplx_key = st.session_state.get("perplexity_key")
     ahrefs_key = st.session_state.get("ahrefs_key")
 
-    tab_taxonomy, tab_ai_audit, tab_competitor, tab_expand = st.tabs([
-        "📊 Keyword Taxonomy", "🤖 AI Prompt Audit", "🔎 Competitor Gap", "🌱 Keyword Expansion"
+    tab_taxonomy, tab_discover, tab_ai_audit, tab_competitor, tab_expand = st.tabs([
+        "📊 Keyword Taxonomy", "🔬 Discovery", "🤖 AI Prompt Audit", "🔎 Competitor Gap", "🌱 Keyword Expansion"
     ])
 
     # ── TAB 1: Keyword Taxonomy ──────────────────────────────────────────
@@ -3214,7 +3216,180 @@ def page_keyword_intel():
                                file_name=f"keyword_taxonomy_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
                                mime="text/csv")
 
-    # ── TAB 2: AI Prompt Audit (Perplexity) ──────────────────────────────
+    # ── TAB 2: Discovery ───────────────────────────────────────────────────
+    with tab_discover:
+        st.subheader("Keyword Discovery Engine")
+        st.markdown("""
+Three discovery methods — from free to cheap:
+1. **Keyword Matrix** — product × market × language × intent (free, instant)
+2. **Google Autocomplete** — real search suggestions + alphabet expansion (free)
+3. **Perplexity AI** — ask AI what people search for in each market (~$0.005/market)
+""")
+
+        disc_tab1, disc_tab2, disc_tab3 = st.tabs(["🧮 Matrix Generator", "🔤 Autocomplete", "🤖 AI Discovery"])
+
+        with disc_tab1:
+            st.markdown("**Generates:** `[product] × [market] × [language] × [intent modifier]`")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                incl_en = st.checkbox("English keywords", value=True)
+                incl_ru = st.checkbox("Russian keywords", value=True, help="RU = 2x LTV")
+            with col2:
+                incl_b2b = st.checkbox("B2B keywords", value=True, help="B2B = 41% of spend")
+                max_per = st.slider("Max per market", 10, 50, 30)
+            with col3:
+                st.caption("Markets: 15 EN + 16 RU")
+                st.caption("Products: 4 EN + 3 RU")
+                st.caption("Intent types: 5")
+
+            if st.button("🧮 Generate Matrix", type="primary"):
+                with st.spinner("Generating keyword combinations..."):
+                    matrix = generate_keyword_matrix(
+                        include_en=incl_en, include_ru=incl_ru,
+                        include_b2b=incl_b2b, max_per_market=max_per,
+                    )
+                    # Convert to Keyword objects and score
+                    kws = []
+                    for m in matrix:
+                        kw = Keyword(
+                            keyword=m["q"], language=m["lang"], market=m["market"],
+                            category=m.get("category", classify_keyword(m["q"])),
+                            intent=m.get("intent", "transactional"),
+                        )
+                        kw.priority_score = score_keyword(kw)
+                        kws.append(kw)
+                    kws.sort(key=lambda k: -k.priority_score)
+                    st.session_state["matrix_keywords"] = kws
+
+                st.success(f"Generated **{len(kws)}** keywords")
+
+            if "matrix_keywords" in st.session_state:
+                kws = st.session_state["matrix_keywords"]
+                # Stats
+                col_a, col_b, col_c, col_d = st.columns(4)
+                col_a.metric("Total", len(kws))
+                col_b.metric("Languages", len(set(k.language for k in kws)))
+                col_c.metric("Markets", len(set(k.market for k in kws)))
+                col_d.metric("Categories", len(set(k.category for k in kws)))
+
+                # By market
+                market_counts = {}
+                for k in kws:
+                    market_counts[k.market] = market_counts.get(k.market, 0) + 1
+                st.markdown("**By market:**")
+                mdf = pd.DataFrame([{"market": m, "keywords": c} for m, c in sorted(market_counts.items(), key=lambda x: -x[1])])
+                st.dataframe(mdf, hide_index=True, height=200)
+
+                # Preview top keywords
+                st.markdown("**Top 30 by priority:**")
+                df = pd.DataFrame(taxonomy_to_dicts(kws[:30]))
+                st.dataframe(df, use_container_width=True, hide_index=True)
+
+                # Merge into main taxonomy
+                if st.button("➕ Merge into Taxonomy"):
+                    existing = st.session_state.get("kw_taxonomy", [])
+                    existing_set = {k.keyword.lower() for k in existing}
+                    added = sum(1 for k in kws if k.keyword.lower() not in existing_set)
+                    merged = existing + [k for k in kws if k.keyword.lower() not in existing_set]
+                    merged.sort(key=lambda k: -k.priority_score)
+                    st.session_state["kw_taxonomy"] = merged
+                    st.success(f"Added **{added}** new keywords to taxonomy (total: {len(merged)})")
+
+        with disc_tab2:
+            st.markdown("**Google Autocomplete** — type a seed, get real search suggestions. Free, no API key. Alphabet trick: tries `seed a`, `seed b`, ... `seed z` for max coverage.")
+
+            seed = st.text_input("Seed keyword", value="crypto card", key="ac_seed")
+            col1, col2 = st.columns(2)
+            with col1:
+                ac_lang = st.selectbox("Language", ["en", "ru", "it", "es", "pl", "pt", "id"], key="ac_lang")
+            with col2:
+                use_alphabet = st.checkbox("Alphabet expansion (a-z)", value=True,
+                                           help="27 requests instead of 1, takes ~3 seconds")
+
+            if st.button("🔤 Get Autocomplete Suggestions", type="primary"):
+                with st.spinner("Querying Google Autocomplete..."):
+                    if use_alphabet:
+                        results = expand_with_autocomplete(seed, language=ac_lang)
+                    else:
+                        raw = get_google_autocomplete(seed, language=ac_lang)
+                        results = [{"q": r, "lang": ac_lang, "market": detect_market(r) or "global",
+                                    "category": classify_keyword(r), "intent": "transactional",
+                                    "source": "google_autocomplete"} for r in raw]
+                    st.session_state["ac_results"] = results
+
+            if "ac_results" in st.session_state:
+                results = st.session_state["ac_results"]
+                st.success(f"**{len(results)}** suggestions found")
+                df = pd.DataFrame(results)
+                if not df.empty:
+                    st.dataframe(df, use_container_width=True, hide_index=True, height=400)
+
+                    if st.button("➕ Add all to Taxonomy", key="ac_add"):
+                        existing = st.session_state.get("kw_taxonomy", [])
+                        existing_set = {k.keyword.lower() for k in existing}
+                        added = 0
+                        for r in results:
+                            if r["q"].lower() not in existing_set:
+                                kw = Keyword(
+                                    keyword=r["q"], language=r.get("lang", "en"),
+                                    market=r.get("market", "global"),
+                                    category=r.get("category", classify_keyword(r["q"])),
+                                )
+                                kw.priority_score = score_keyword(kw)
+                                existing.append(kw)
+                                added += 1
+                        existing.sort(key=lambda k: -k.priority_score)
+                        st.session_state["kw_taxonomy"] = existing
+                        st.success(f"Added {added} new keywords")
+
+        with disc_tab3:
+            st.markdown("**Ask Perplexity AI:** 'What do people search for about crypto cards in [market]?' Returns real search queries people use. ~$0.005/market.")
+
+            if not pplx_key:
+                st.warning("Enter Perplexity API key in sidebar")
+            else:
+                col1, col2 = st.columns(2)
+                with col1:
+                    disc_market = st.selectbox("Market to discover", [
+                        "UAE", "UK", "Italy", "Spain", "Poland", "Germany",
+                        "Europe", "Indonesia", "Romania", "Georgia", "Uzbekistan",
+                    ], key="disc_market")
+                with col2:
+                    disc_lang = st.selectbox("Language", ["en", "ru"], key="disc_lang")
+
+                if st.button("🤖 Discover Keywords via AI", type="primary"):
+                    with st.spinner(f"Asking Perplexity about crypto cards in {disc_market}..."):
+                        results = discover_keywords_perplexity(
+                            pplx_key, disc_market, language=disc_lang,
+                        )
+                        st.session_state["pplx_discovery"] = results
+
+                if "pplx_discovery" in st.session_state:
+                    results = st.session_state["pplx_discovery"]
+                    st.success(f"**{len(results)}** keyword ideas discovered")
+                    df = pd.DataFrame(results)
+                    if not df.empty:
+                        st.dataframe(df, use_container_width=True, hide_index=True, height=400)
+
+                        if st.button("➕ Add all to Taxonomy", key="pplx_add"):
+                            existing = st.session_state.get("kw_taxonomy", [])
+                            existing_set = {k.keyword.lower() for k in existing}
+                            added = 0
+                            for r in results:
+                                if r["q"].lower() not in existing_set:
+                                    kw = Keyword(
+                                        keyword=r["q"], language=r.get("lang", "en"),
+                                        market=r.get("market", "global"),
+                                        category=r.get("category", classify_keyword(r["q"])),
+                                    )
+                                    kw.priority_score = score_keyword(kw)
+                                    existing.append(kw)
+                                    added += 1
+                            existing.sort(key=lambda k: -k.priority_score)
+                            st.session_state["kw_taxonomy"] = existing
+                            st.success(f"Added {added} new keywords")
+
+    # ── TAB 3: AI Prompt Audit (Perplexity) ──────────────────────────────
     with tab_ai_audit:
         st.subheader("AI Citation Visibility Audit")
         st.markdown("Sends prompts to **Perplexity AI** and checks if Kolo appears in the answer or cited sources. Cost: ~$0.005/prompt.")

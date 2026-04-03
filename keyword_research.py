@@ -498,3 +498,428 @@ def filter_keywords(
     if min_score > 0:
         result = [k for k in result if k.priority_score >= min_score]
     return result
+
+
+# ── Keyword Matrix Generator ─────────────────────────────────────────────────
+# Systematic: [product] × [market] × [language] × [intent modifier]
+
+PRODUCTS = [
+    "crypto card", "crypto Visa card", "USDT card", "crypto debit card",
+    "Bitcoin card", "stablecoin card", "TRC20 card", "crypto wallet card",
+]
+
+PRODUCTS_RU = [
+    "крипто карта", "криптокарта Visa", "USDT карта", "крипто дебетовая карта",
+    "биткоин карта", "карта для стейблкоинов", "крипто кошелёк карта",
+]
+
+MARKETS_EN = {
+    "GBR": ["UK", "United Kingdom", "Britain"],
+    "ARE": ["UAE", "Dubai"],
+    "ITA": ["Italy"],
+    "ESP": ["Spain"],
+    "POL": ["Poland"],
+    "IDN": ["Indonesia"],
+    "DEU": ["Germany"],
+    "EU":  ["Europe", "EU"],
+    "ROU": ["Romania"],
+    "LVA": ["Latvia"],
+    "CYP": ["Cyprus"],
+    "CHE": ["Switzerland"],
+    "MNE": ["Montenegro"],
+    "SRB": ["Serbia"],
+    "GEO": ["Georgia"],
+}
+
+MARKETS_RU = {
+    "ARE": ["ОАЭ", "Дубай"],
+    "EU":  ["Европа"],
+    "GEO": ["Грузия"],
+    "ARM": ["Армения"],
+    "UZB": ["Узбекистан"],
+    "KGZ": ["Кыргызстан"],
+    "MDA": ["Молдова"],
+    "MNE": ["Черногория"],
+    "SRB": ["Сербия"],
+    "LVA": ["Латвия"],
+    "LTU": ["Литва"],
+    "CYP": ["Кипр"],
+    "ESP": ["Испания"],
+    "ITA": ["Италия"],
+    "POL": ["Польша"],
+    "DEU": ["Германия"],
+}
+
+INTENT_MODIFIERS_EN = {
+    "transactional": [
+        "best {product} {market}", "best {product} {market} 2026",
+        "{product} {market}", "top {product} {market}",
+        "get {product} in {market}", "buy {product} {market}",
+    ],
+    "informational": [
+        "how to get {product} in {market}",
+        "how to use {product} in {market}",
+        "{product} {market} fees", "{product} {market} review",
+        "is {product} available in {market}",
+    ],
+    "comparison": [
+        "best {product} {market} comparison",
+        "cheapest {product} {market}",
+        "{product} {market} vs",
+    ],
+    "problem": [
+        "how to spend crypto in {market}",
+        "how to spend USDT in {market}",
+        "can I use crypto card in {market}",
+    ],
+    "long_tail": [
+        "{product} for freelancers in {market}",
+        "{product} for digital nomads {market}",
+        "{product} for expats in {market}",
+        "{product} for business in {market}",
+        "{product} without KYC {market}",
+        "{product} with cashback {market}",
+        "{product} low fees {market}",
+        "{product} for online shopping {market}",
+    ],
+}
+
+INTENT_MODIFIERS_RU = {
+    "transactional": [
+        "лучшая {product} {market}", "лучшая {product} {market} 2026",
+        "{product} {market}", "топ {product} {market}",
+        "заказать {product} {market}", "купить {product} {market}",
+    ],
+    "informational": [
+        "как получить {product} в {market}",
+        "как пользоваться {product} в {market}",
+        "{product} {market} комиссии", "{product} {market} отзывы",
+    ],
+    "problem": [
+        "как потратить крипту в {market}",
+        "как потратить USDT в {market}",
+        "можно ли расплатиться криптокартой в {market}",
+    ],
+    "long_tail": [
+        "{product} для фрилансеров {market}",
+        "{product} для бизнеса {market}",
+        "{product} для экспатов {market}",
+        "{product} без верификации {market}",
+        "{product} с кэшбэком {market}",
+        "{product} низкие комиссии {market}",
+    ],
+}
+
+# B2B-specific templates (language-independent seeds)
+B2B_EN = [
+    "crypto card for business expenses",
+    "corporate crypto Visa card",
+    "crypto payment solution for business {market}",
+    "business USDT card {market}",
+    "crypto card for companies {market}",
+    "manage business expenses with crypto card {market}",
+    "B2B crypto payments {market}",
+    "crypto corporate card {market} 2026",
+]
+
+B2B_RU = [
+    "криптокарта для бизнеса",
+    "корпоративная крипто карта Visa",
+    "крипто платежи для бизнеса {market}",
+    "USDT корпоративная карта {market}",
+    "криптокарта для компаний {market}",
+    "B2B крипто платежи {market}",
+]
+
+
+def generate_keyword_matrix(
+    *,
+    include_en: bool = True,
+    include_ru: bool = True,
+    include_b2b: bool = True,
+    markets_en: Optional[dict] = None,
+    markets_ru: Optional[dict] = None,
+    max_per_market: int = 30,
+) -> list[dict]:
+    """
+    Generate keyword matrix: product × market × language × intent.
+    Returns list of dicts ready for build_taxonomy().
+    """
+    if markets_en is None:
+        markets_en = MARKETS_EN
+    if markets_ru is None:
+        markets_ru = MARKETS_RU
+
+    results = []
+    seen = set()
+
+    def _add(q: str, lang: str, market: str, category: str, intent: str):
+        q = q.strip()
+        key = q.lower()
+        if key in seen or len(q) < 5:
+            return
+        seen.add(key)
+        results.append({
+            "q": q, "lang": lang, "market": market,
+            "category": category, "intent": intent,
+        })
+
+    if include_en:
+        for market_code, market_names in markets_en.items():
+            count = 0
+            for market_name in market_names:
+                for intent_type, templates in INTENT_MODIFIERS_EN.items():
+                    for template in templates:
+                        for product in PRODUCTS[:4]:  # top 4 products to limit explosion
+                            kw = template.format(product=product, market=market_name)
+                            _add(kw, "en", market_code, intent_type, intent_type)
+                            count += 1
+                            if count >= max_per_market:
+                                break
+                        if count >= max_per_market:
+                            break
+                    if count >= max_per_market:
+                        break
+                if count >= max_per_market:
+                    break
+
+    if include_ru:
+        for market_code, market_names in markets_ru.items():
+            count = 0
+            for market_name in market_names:
+                for intent_type, templates in INTENT_MODIFIERS_RU.items():
+                    for template in templates:
+                        for product in PRODUCTS_RU[:3]:  # top 3 RU products
+                            kw = template.format(product=product, market=market_name)
+                            _add(kw, "ru", market_code, intent_type, intent_type)
+                            count += 1
+                            if count >= max_per_market:
+                                break
+                        if count >= max_per_market:
+                            break
+                    if count >= max_per_market:
+                        break
+                if count >= max_per_market:
+                    break
+
+    if include_b2b:
+        for market_code, market_names in markets_en.items():
+            for template in B2B_EN[:4]:
+                kw = template.format(market=market_names[0])
+                _add(kw, "en", market_code, "b2b", "transactional")
+
+        for market_code, market_names in markets_ru.items():
+            for template in B2B_RU[:3]:
+                kw = template.format(market=market_names[0])
+                _add(kw, "ru", market_code, "b2b", "transactional")
+
+    return results
+
+
+# ── Perplexity-powered keyword discovery ─────────────────────────────────────
+
+def discover_keywords_perplexity(
+    api_key: str,
+    market: str,
+    language: str = "en",
+    *,
+    max_results: int = 20,
+) -> list[dict]:
+    """
+    Ask Perplexity: 'What do people search for about crypto cards in {market}?'
+    Returns discovered keyword ideas with classification.
+    Cost: ~$0.005/query.
+    """
+    lang_prompts = {
+        "en": f"List the top {max_results} specific search queries people use when looking for crypto debit cards or crypto Visa cards in {market}. Include long-tail queries, local-language queries, and questions. Return ONLY the search queries, one per line, no numbering.",
+        "ru": f"Перечисли {max_results} конкретных поисковых запросов, которые люди используют при поиске крипто карт или крипто Visa карт в {market}. Включи длинные запросы и вопросы. Верни ТОЛЬКО запросы, по одному на строку, без нумерации.",
+    }
+
+    prompt = lang_prompts.get(language, lang_prompts["en"])
+
+    try:
+        resp = requests.post(
+            "https://api.perplexity.ai/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "sonar",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 800,
+                "temperature": 0.3,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception:
+        return []
+
+    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+    # Parse lines
+    keywords = []
+    for line in content.strip().split("\n"):
+        line = line.strip().lstrip("0123456789.-) ").strip('"').strip()
+        if len(line) < 5 or len(line) > 120:
+            continue
+        lang = detect_language(line)
+        kw_market = detect_market(line) or market
+        keywords.append({
+            "q": line,
+            "lang": lang,
+            "market": kw_market,
+            "category": classify_keyword(line),
+            "intent": "informational" if any(w in line.lower() for w in ["how", "what", "can", "is", "как", "что", "можно"]) else "transactional",
+            "source": "perplexity_discovery",
+        })
+
+    return keywords[:max_results]
+
+
+# ── Google Autocomplete (free, no API key) ───────────────────────────────────
+
+def get_google_autocomplete(
+    query: str,
+    *,
+    language: str = "en",
+    country: str = "",
+) -> list[str]:
+    """
+    Get Google Autocomplete suggestions. 100% free, no API key.
+    Returns list of suggested queries.
+    """
+    params = {
+        "q": query,
+        "client": "firefox",
+        "hl": language,
+    }
+    if country:
+        params["gl"] = country
+
+    try:
+        resp = requests.get(
+            "https://suggestqueries.google.com/complete/search",
+            params=params,
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, list) and len(data) > 1:
+            return [s for s in data[1] if isinstance(s, str)]
+    except Exception:
+        pass
+    return []
+
+
+def expand_with_autocomplete(
+    seed: str,
+    *,
+    language: str = "en",
+    country: str = "",
+    suffixes: Optional[list[str]] = None,
+) -> list[dict]:
+    """
+    Expand a seed keyword using Google Autocomplete + alphabet trick.
+    seed + " a", seed + " b", ... seed + " z" to discover more.
+    Returns classified keyword dicts.
+    """
+    if suffixes is None:
+        suffixes = [""] + list("abcdefghijklmnopqrstuvwxyz")
+
+    all_suggestions = set()
+    import time
+
+    for suffix in suffixes:
+        query = f"{seed} {suffix}".strip()
+        suggestions = get_google_autocomplete(query, language=language, country=country)
+        for s in suggestions:
+            all_suggestions.add(s)
+        time.sleep(0.1)  # polite
+
+    results = []
+    for s in sorted(all_suggestions):
+        if s.lower() == seed.lower():
+            continue
+        lang = detect_language(s)
+        market = detect_market(s)
+        results.append({
+            "q": s,
+            "lang": lang or language,
+            "market": market or "global",
+            "category": classify_keyword(s),
+            "intent": "informational" if any(w in s.lower() for w in ["how", "what", "can", "is", "как", "что"]) else "transactional",
+            "source": "google_autocomplete",
+        })
+
+    return results
+
+
+# ── Chain Discovery ──────────────────────────────────────────────────────────
+
+def chain_discover(
+    seeds: list[str],
+    *,
+    serpapi_key: Optional[str] = None,
+    perplexity_key: Optional[str] = None,
+    use_autocomplete: bool = True,
+    language: str = "en",
+    market: str = "global",
+    max_depth: int = 1,
+) -> list[dict]:
+    """
+    Chain multiple discovery methods from seeds:
+    1. Google Autocomplete (free, unlimited)
+    2. SerpAPI PAA + Related (1 credit/seed)
+    3. Perplexity discovery (1 query/market, ~$0.005)
+
+    Returns deduplicated, classified keyword list.
+    """
+    import time
+    all_kws: dict[str, dict] = {}
+
+    def _add(kw_dict: dict):
+        key = kw_dict["q"].lower().strip()
+        if key not in all_kws and len(key) >= 5:
+            all_kws[key] = kw_dict
+
+    # Layer 1: Autocomplete (free)
+    if use_autocomplete:
+        for seed in seeds:
+            results = expand_with_autocomplete(seed, language=language)
+            for r in results:
+                _add(r)
+
+    # Layer 2: SerpAPI PAA + Related
+    if serpapi_key:
+        for seed in seeds[:5]:  # limit to save credits
+            expansion = expand_keywords_serpapi(serpapi_key, seed)
+            for q in expansion.get("people_also_ask", []):
+                _add({
+                    "q": q, "lang": detect_language(q),
+                    "market": detect_market(q) or market,
+                    "category": classify_keyword(q),
+                    "intent": "informational",
+                    "source": "serpapi_paa",
+                })
+            for q in expansion.get("related_searches", []):
+                _add({
+                    "q": q, "lang": detect_language(q),
+                    "market": detect_market(q) or market,
+                    "category": classify_keyword(q),
+                    "intent": "transactional",
+                    "source": "serpapi_related",
+                })
+            time.sleep(1)
+
+    # Layer 3: Perplexity discovery
+    if perplexity_key:
+        discovered = discover_keywords_perplexity(
+            perplexity_key, market, language=language,
+        )
+        for d in discovered:
+            _add(d)
+
+    return list(all_kws.values())
