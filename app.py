@@ -224,7 +224,7 @@ def page_market_intel():
         return {"High": "background-color: #ffd6d6", "Medium": "background-color: #fff3cd",
                 "Low": "background-color: #d4edda", "High (urgent)": "background-color: #ff9999",
                 "Low (deprioritize)": "background-color: #e8e8e8"}.get(val, "")
-    st.dataframe(competitors.style.applymap(color_threat, subset=["Threat"]), use_container_width=True, hide_index=True)
+    st.dataframe(competitors.style.map(color_threat, subset=["Threat"]), use_container_width=True, hide_index=True)
 
     st.header("Content Gaps vs. Competitors")
     col1, col2 = st.columns(2)
@@ -735,7 +735,7 @@ def page_outlet_matching():
         if val >= 60: return "background-color: #fff3cd"
         return "background-color: #d4edda"
     st.dataframe(
-        pillar_budget.style.applymap(color_util, subset=["Util %"]),
+        pillar_budget.style.map(color_util, subset=["Util %"]),
         use_container_width=True,
         hide_index=True,
         column_config={
