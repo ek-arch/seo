@@ -24,6 +24,7 @@ from geo_visibility import DEFAULT_QUERIES, audit_query, run_full_audit, summari
 from perplexity_geo import (
     query_perplexity, analyze_perplexity_response, audit_prompt as perplexity_audit_prompt,
     run_geo_audit, summarize_geo_audit, DEFAULT_GEO_PROMPTS,
+    GEO_MARKETS, generate_geo_prompts, run_geo_market_audit, summarize_by_market,
 )
 from keyword_research import (
     Keyword, SEED_KEYWORDS, COMPETITOR_DOMAINS,
@@ -3145,8 +3146,8 @@ def page_keyword_intel():
     pplx_key = st.session_state.get("perplexity_key")
     ahrefs_key = st.session_state.get("ahrefs_key")
 
-    tab_taxonomy, tab_discover, tab_ai_audit, tab_competitor, tab_expand = st.tabs([
-        "📊 Keyword Taxonomy", "🔬 Discovery", "🤖 AI Prompt Audit", "🔎 Competitor Gap", "🌱 Keyword Expansion"
+    tab_taxonomy, tab_discover, tab_geo_audit, tab_ai_audit, tab_competitor, tab_expand = st.tabs([
+        "📊 Taxonomy", "🔬 Discovery", "🌍 Geo Market Audit", "🤖 AI Prompt Audit", "🔎 Competitor Gap", "🌱 Expansion"
     ])
 
     # ── TAB 1: Keyword Taxonomy ──────────────────────────────────────────
@@ -3389,7 +3390,160 @@ Three discovery methods — from free to cheap:
                             st.session_state["kw_taxonomy"] = existing
                             st.success(f"Added {added} new keywords")
 
-    # ── TAB 3: AI Prompt Audit (Perplexity) ──────────────────────────────
+    # ── TAB 3: Geo Market Audit ──────────────────────────────────────────
+    with tab_geo_audit:
+        st.subheader("🌍 Geo-Targeted AI Visibility Audit")
+        st.markdown("""
+Select your target markets → generates **local prompts** per market (EN + local language) → checks Perplexity AI for Kolo visibility.
+
+Shows you **per-market**: is Kolo visible in AI answers? Which competitors dominate each geography?
+""")
+
+        if not pplx_key:
+            st.warning("Enter Perplexity API key in the sidebar.")
+        else:
+            # Market selection
+            all_markets = list(GEO_MARKETS.keys())
+            market_labels = {k: f"{v.get('name', k)} ({v.get('lang', 'en').upper()})" for k, v in GEO_MARKETS.items()}
+
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                selected_markets = st.multiselect(
+                    "Target markets",
+                    all_markets,
+                    default=["GBR", "ARE", "ITA", "ESP", "POL"],
+                    format_func=lambda x: market_labels.get(x, x),
+                )
+            with col2:
+                max_per = st.slider("Prompts per market", 2, 10, 5, help="More = deeper audit, more cost")
+                incl_local = st.checkbox("Include local language", value=True, help="e.g. Italian for ITA, Russian for CIS")
+
+            # Categories
+            cat_options = ["head", "long_tail", "problem", "comparison", "b2b"]
+            selected_cats = st.multiselect("Prompt categories", cat_options, default=["head", "long_tail", "problem"])
+
+            # Preview prompts
+            preview = generate_geo_prompts(selected_markets, categories=selected_cats, include_local_lang=incl_local)
+            total_prompts = min(len(preview), len(selected_markets) * max_per)
+            est_cost = total_prompts * 0.005
+
+            with st.expander(f"Preview prompts ({len(preview)} generated, {total_prompts} will be run)"):
+                for m in selected_markets:
+                    market_prompts = [p for p in preview if p["market"] == m]
+                    st.markdown(f"**{market_labels.get(m, m)}** ({len(market_prompts)} prompts)")
+                    for p in market_prompts[:max_per]:
+                        lang_tag = f"[{p['language'].upper()}]"
+                        cat_tag = p['category']
+                        st.markdown(f"- {lang_tag} *{cat_tag}* — {p['prompt']}")
+
+            st.caption(f"Estimated cost: **${est_cost:.2f}** ({total_prompts} prompts × $0.005)")
+
+            if st.button("🌍 Run Geo Market Audit", type="primary"):
+                progress = st.progress(0, text="Running geo audit...")
+                results = []
+                market_count = {}
+
+                all_prompts = generate_geo_prompts(selected_markets, categories=selected_cats, include_local_lang=incl_local)
+                # Filter to max_per
+                filtered_prompts = []
+                for p in all_prompts:
+                    mc = p["market"]
+                    if market_count.get(mc, 0) < max_per:
+                        filtered_prompts.append(p)
+                        market_count[mc] = market_count.get(mc, 0) + 1
+
+                for i, p in enumerate(filtered_prompts):
+                    progress.progress((i + 1) / len(filtered_prompts),
+                                      text=f"[{p['market']}] {p['prompt'][:50]}...")
+                    result = perplexity_audit_prompt(pplx_key, p["prompt"])
+                    result["market"] = p["market"]
+                    result["language"] = p["language"]
+                    result["category"] = p["category"]
+                    results.append(result)
+                    import time; time.sleep(0.5)
+
+                progress.progress(1.0, text="Done!")
+                st.session_state["geo_market_results"] = results
+
+            if "geo_market_results" in st.session_state:
+                results = st.session_state["geo_market_results"]
+                by_market = summarize_by_market(results)
+
+                # Overall metrics
+                total = len(results)
+                kolo_total = sum(1 for r in results if r.get("kolo_visible"))
+                errors = sum(1 for r in results if r.get("error"))
+
+                col_a, col_b, col_c = st.columns(3)
+                col_a.metric("Markets Tested", len(by_market))
+                col_b.metric("Total Prompts", total)
+                col_c.metric("Kolo Visible Overall", f"{kolo_total}/{total - errors}")
+
+                # Per-market summary cards
+                st.subheader("Per-Market Results")
+
+                # Sort markets by kolo visibility (worst first = needs most attention)
+                sorted_markets = sorted(by_market.values(), key=lambda x: x["kolo_pct"])
+
+                for ms in sorted_markets:
+                    market_name = ms["market_name"]
+                    kolo_pct = ms["kolo_pct"]
+
+                    if kolo_pct == 0:
+                        icon = "🔴"
+                    elif kolo_pct < 50:
+                        icon = "🟡"
+                    else:
+                        icon = "🟢"
+
+                    comps_str = ", ".join(f"{c[0]} ({c[1]}x)" for c in ms["top_competitors"]) or "None detected"
+
+                    with st.expander(f"{icon} **{market_name}** — Kolo visible: {ms['kolo_visible']}/{ms['prompts_tested']} ({kolo_pct}%) | Competitors: {comps_str}"):
+                        for r in ms["results"]:
+                            vis = "✅" if r.get("kolo_visible") else "❌"
+                            lang = r.get("language", "en").upper()
+                            cat = r.get("category", "")
+                            comps = ", ".join(r.get("competitors_mentioned", [])) or "—"
+                            st.markdown(f"{vis} [{lang}] *{cat}* — **{r['prompt'][:80]}**")
+                            if r.get("competitors_mentioned"):
+                                st.caption(f"   Competitors in answer: {comps}")
+                            if r.get("citations"):
+                                st.caption(f"   Sources: {', '.join(r['citations'][:3])}")
+
+                # Market comparison table
+                st.subheader("Market Comparison")
+                table_rows = []
+                for ms in sorted_markets:
+                    top_comp = ms["top_competitors"][0][0] if ms["top_competitors"] else "—"
+                    table_rows.append({
+                        "Market": ms["market_name"],
+                        "Kolo Visible": f"{ms['kolo_visible']}/{ms['prompts_tested']}",
+                        "Kolo %": ms["kolo_pct"],
+                        "Top Competitor": top_comp,
+                        "Status": "🔴 Not visible" if ms["kolo_pct"] == 0 else ("🟡 Partial" if ms["kolo_pct"] < 50 else "🟢 Good"),
+                    })
+                st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
+
+                # Export
+                export_rows = []
+                for r in results:
+                    export_rows.append({
+                        "market": r.get("market", ""),
+                        "language": r.get("language", ""),
+                        "category": r.get("category", ""),
+                        "prompt": r.get("prompt", ""),
+                        "kolo_visible": r.get("kolo_visible", False),
+                        "kolo_in_text": r.get("kolo_in_text", False),
+                        "kolo_in_citations": r.get("kolo_in_citations", False),
+                        "competitors": ", ".join(r.get("competitors_mentioned", [])),
+                        "citations": " | ".join(r.get("citations", [])[:3]),
+                    })
+                csv = pd.DataFrame(export_rows).to_csv(index=False)
+                st.download_button("📥 Download geo audit CSV", data=csv,
+                                   file_name=f"geo_market_audit_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+                                   mime="text/csv")
+
+    # ── TAB 4: AI Prompt Audit (Perplexity) ──────────────────────────────
     with tab_ai_audit:
         st.subheader("AI Citation Visibility Audit")
         st.markdown("Sends prompts to **Perplexity AI** and checks if Kolo appears in the answer or cited sources. Cost: ~$0.005/prompt.")
