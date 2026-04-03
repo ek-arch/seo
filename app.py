@@ -117,11 +117,10 @@ with st.sidebar:
             st.session_state[k] = v
     st.divider()
     st.subheader("📋 Pipeline")
-    for name, status in [("Stage 1 · Market Intel", "✅"), ("Stage 2 · Kolo Metrics", "✅"),
+    for name, status in [("Stage 2 · Kolo Metrics", "✅"),
                           ("Stage 3 · Content Plan", "✅"), ("Stage 4 · Outlet Match",  "✅"),
                           ("Stage 5 · Pub ROI",       "✅"),
                           ("Stage 6 · PR Generator",  "🆕"), ("Stage 7 · Distribution", "🆕"),
-                          ("Stage 8 · GEO Visibility","🆕"),
                           ("Stage 8b · Keyword Intel","🆕"),
                           ("Stage 9 · Monthly Eval", "🆕"),
                           ("Stage 10 · Monthly Planner","🆕")]:
@@ -136,7 +135,7 @@ with st.sidebar:
 
 def page_dashboard():
     st.title("🤖 Kolo SEO & GEO Intelligence Agent")
-    st.markdown("**March 2026 · \\$2,000 budget · SEO + GEO (AI visibility) + Social Distribution**")
+    st.markdown("**April 2026 · \\$2,000 budget · SEO + GEO (AI visibility) + Social Distribution**")
 
     st.divider()
 
@@ -197,115 +196,6 @@ def page_dashboard():
 | 4 | **PR Generator** → Track Publications | Log published articles + URLs |
 | 5 | **Distribution** → Tracker | Monitor comment posting status |
 """)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE 1 · MARKET INTEL
-# ══════════════════════════════════════════════════════════════════════════════
-
-def page_market_intel():
-    st.title("📊 Stage 1 · Market Intel")
-    st.caption("Last run: 2026-03-10 · Web search + competitor analysis + AI engine audit")
-
-    st.header("Competitor Map by Market")
-    competitors = pd.DataFrame([
-        {"Market": "🇬🇧 GBR", "Key Competitors": "Wirex, Bybit, Nexo, Coinbase",          "Kolo Advantage": "Lower fees, USDT TRC20, Telegram-native",         "Threat": "High"},
-        {"Market": "🇦🇪 ARE", "Key Competitors": "Oobit, Crypto.com, Club Swan",            "Kolo Advantage": "TRON community, TRC20 dominant stablecoin rail",   "Threat": "High"},
-        {"Market": "🇵🇱 POL", "Key Competitors": "Bleap (local), MetaMask Card, Binance",   "Kolo Advantage": "No dominant local brand — Kolo can own it",         "Threat": "Medium"},
-        {"Market": "🇮🇹 ITA", "Key Competitors": "Coinbase, Binance, MetaMask Card",        "Kolo Advantage": "Zero Italian SEO competition",                     "Threat": "Medium"},
-        {"Market": "🇪🇸 ESP", "Key Competitors": "Crypto.com, Coinbase, MetaMask",          "Kolo Advantage": "RU-speaking Spanish users = 2× LTV",               "Threat": "Medium"},
-        {"Market": "🇮🇩 IDN", "Key Competitors": "Bitget (50+ markets)",                    "Kolo Advantage": "Strong USDT TRC20 use case, cheap media",          "Threat": "Low"},
-        {"Market": "🇧🇷 BRA", "Key Competitors": "Crypto.com, COCA, Gnosis Pay",            "Kolo Advantage": "—",                                                "Threat": "Low (deprioritize)"},
-        {"Market": "🇷🇴 ROU", "Key Competitors": "Bybit (Crypto Expo 2026 winner)",         "Kolo Advantage": "+183% growth, no Kolo content yet",                "Threat": "High (urgent)"},
-        {"Market": "🌍 CIS",  "Key Competitors": "Oobit (KGZ only)",                        "Kolo Advantage": "Bybit/Nexo/KuCoin ALL exclude CIS — structural moat","Threat": "Low"},
-        {"Market": "🇨🇭 CHE", "Key Competitors": "None dominant",                           "Kolo Advantage": "44.68% crypto penetration, premium audience",       "Threat": "Low"},
-    ])
-    def color_threat(val):
-        return {"High": "background-color: #ffd6d6", "Medium": "background-color: #fff3cd",
-                "Low": "background-color: #d4edda", "High (urgent)": "background-color: #ff9999",
-                "Low (deprioritize)": "background-color: #e8e8e8"}.get(val, "")
-    st.dataframe(competitors.style.map(color_threat, subset=["Threat"]), use_container_width=True, hide_index=True)
-
-    st.header("Content Gaps vs. Competitors")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("🔴 Critical Gaps")
-        st.markdown("""
-1. **"Best crypto card [country]" pages** — Oobit has country-specific landing pages. Kolo has none.
-2. **Cashback comparison** — "0% fee vs 4% cashback with 1.7% conversion cost = Kolo wins."
-3. **USDT TRC20 spend guide** — TRC20 dominant in CIS + UAE. Zero content from Kolo.
-4. **Trustee Plus shutdown coverage** — Highest-intent migration keyword, minimal competition.
-5. **B2B crypto card** — 41% of Kolo spend, 7× faster growth. Zero B2B-targeted content.
-""")
-    with col2:
-        st.subheader("🟡 Opportunity Gaps")
-        st.markdown("""
-6. **Romania crypto card** — +183% Kolo growth, Bybit now competing there. Move fast.
-7. **"How to spend USDT in [city]"** — Local content for Dubai, Warsaw, Tbilisi, Bishkek.
-8. **TRON/TRC20 card guide** — TRON partnership drove 2.9× deposit spike.
-9. **Crypto card for freelancers** — B2B angle, growing segment, underserved.
-10. **Argentina USDC stablecoin card** — Argentina is 46.6% USDC. Localized angle.
-""")
-
-    st.header("Target Keyword Rankings")
-    keywords = pd.DataFrame([
-        {"Keyword": "best crypto card 2026",       "Intent": "Transactional", "Top Competitors": "Wirex, Crypto.com, Bybit, Nexo", "Kolo": "❌ Not visible", "Priority": "🔴"},
-        {"Keyword": "crypto card UK",               "Intent": "Transactional", "Top Competitors": "Wirex, Coinbase, Crypto.com",    "Kolo": "❌ Not visible", "Priority": "🔴"},
-        {"Keyword": "USDT card",                    "Intent": "Transactional", "Top Competitors": "Oobit, Bitget, Buvei",           "Kolo": "❌ Not visible", "Priority": "🔴"},
-        {"Keyword": "Trustee Plus alternative",     "Intent": "Transactional", "Top Competitors": "Minimal",                       "Kolo": "❌ Not visible", "Priority": "🔴 HUGE"},
-        {"Keyword": "how to spend crypto",          "Intent": "Informational", "Top Competitors": "MetaMask, CoinGecko, guides",   "Kolo": "❌ Not visible", "Priority": "🟠"},
-        {"Keyword": "crypto card Poland",           "Intent": "Transactional", "Top Competitors": "Bleap, MetaMask Card",          "Kolo": "❌ Not visible", "Priority": "🟠"},
-        {"Keyword": "crypto card Italy",            "Intent": "Transactional", "Top Competitors": "Binance, Coinbase, MetaMask",   "Kolo": "❌ Not visible", "Priority": "🟠"},
-        {"Keyword": "crypto debit card UAE",        "Intent": "Transactional", "Top Competitors": "Oobit, Crypto.com, Bybit",      "Kolo": "❌ Not visible", "Priority": "🟠"},
-        {"Keyword": "TRC20 card",                   "Intent": "Transactional", "Top Competitors": "Bitget, Buvei",                 "Kolo": "❌ Not visible", "Priority": "🟡"},
-        {"Keyword": "crypto card Georgia",          "Intent": "Transactional", "Top Competitors": "Bitget (150 countries)",        "Kolo": "❌ Not visible", "Priority": "🟡"},
-    ])
-    st.dataframe(keywords, use_container_width=True, hide_index=True)
-
-    st.header("Market Trend Signals")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Visa crypto card spending growth", "15×", "Jan 2023 → Dec 2025")
-    c2.metric("Total stablecoin tx volume (2025)", "2.5T", "USDT dominant globally")
-    c3.metric("Visa stablecoin card programs", "130+", "40+ countries")
-    st.markdown("""
-| Signal | Detail |
-|---|---|
-| 🇷🇴 Romania breakout | 10% flat crypto tax, MiCA adopted, IT expat community, Revolut 3M users |
-| 🇨🇭 Switzerland | 4.03M crypto users projected 2026, 44.68% penetration, premium fintech audience |
-| 🌍 CIS structural gap | Bybit, Nexo, KuCoin all explicitly exclude CIS — Kolo has exclusive access |
-| 🇸🇪 Sweden whale | \\$24,570/user (9 users, \\$221K) — RU expat cluster, no competitor content targeting them |
-""")
-    st.info("**Data source:** Web search, competitor sites, CoinGecko, Cryptopolitan · 2026-03-10")
-
-    st.header("🤖 AI Engine Visibility Audit (GEO)")
-    st.caption("Generative Engine Optimization — does Kolo appear when users ask AI about crypto cards?")
-    geo_audit = pd.DataFrame([
-        {"Query": "best crypto card 2026",        "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Crypto.com, Coinbase, Wirex, Bybit"},
-        {"Query": "crypto card UK",                "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Wirex, Coinbase, Nexo, Revolut"},
-        {"Query": "USDT card",                     "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Oobit, Bitget, Bybit"},
-        {"Query": "Trustee Plus alternative",      "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Minimal competition — high opportunity"},
-        {"Query": "how to spend crypto",           "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "MetaMask, CoinGecko guides, Crypto.com"},
-        {"Query": "crypto card Poland",            "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Binance, MetaMask Card"},
-        {"Query": "crypto card Italy",             "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Coinbase, Binance"},
-        {"Query": "crypto debit card UAE",         "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Oobit, Crypto.com, Bybit"},
-        {"Query": "TRC20 card",                    "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Bitget, minimal competition"},
-        {"Query": "crypto card for business",      "ChatGPT": "❌", "Perplexity": "❌", "Google AI Overview": "❌", "Who Appears Instead": "Crypto.com, Coinbase, Ramp"},
-    ])
-    st.dataframe(geo_audit, use_container_width=True, hide_index=True)
-    st.error(
-        "**Kolo is invisible across all 10 target queries in ALL AI engines.** "
-        "GEO tactics needed: FAQ sections, stat-dense content, entity-rich intros, "
-        "and publication on high-authority outlets that AI engines cite."
-    )
-    st.markdown("""
-**GEO Action Plan:**
-1. **Restructure lead article** with FAQ section + question-format headers
-2. **Publish on high-DR outlets** (DR>65) that AI engines frequently cite
-3. **Include quotable stats** — AI engines extract self-contained factual sentences
-4. **Target "Trustee Plus alternative"** — minimal AI competition, high intent
-5. **Monitor monthly** — re-audit AI engine presence after each publication cycle
-""")
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 2 · KOLO METRICS
@@ -2384,265 +2274,6 @@ def _load_audit_results():
         return None, None
 
 
-def page_geo_visibility():
-    st.title("🔍 Stage 8 · GEO Visibility Audit")
-    st.caption("Track Kolo's presence in Google search results vs competitors · SerpAPI free 100/month")
-
-    serp_key = st.session_state.get("serpapi_key")
-
-    # Load cached results on first visit (persists across sessions)
-    if "geo_audit_results" not in st.session_state:
-        cached, saved_at = _load_audit_results()
-        if cached:
-            st.session_state["geo_audit_results"] = cached
-            st.session_state["geo_audit_saved_at"] = saved_at
-
-    tab_audit, tab_plan, tab_history = st.tabs(["🔍 Run Audit", "🎯 Action Plan", "📊 History"])
-
-    with tab_audit:
-        st.subheader("Visibility Audit")
-        st.markdown(
-            f"Queries **{len(DEFAULT_QUERIES)}** target keywords on Google. "
-            f"Checks if Kolo appears in top 10 results and which competitors rank."
-        )
-
-        if not serp_key:
-            st.warning("Add your **SerpAPI key** in the sidebar to run new audits. The Action Plan tab works without it if you've run an audit before.")
-
-        # Show queries
-        with st.expander("Target queries", expanded=False):
-            for i, q in enumerate(DEFAULT_QUERIES):
-                st.markdown(f"{i+1}. **{q['q']}** — {q['intent']} · {q['geo']}")
-
-        # Custom queries
-        custom_q = st.text_input("Add custom query (optional)", placeholder="e.g. crypto card Poland")
-
-        queries_to_run = [q["q"] for q in DEFAULT_QUERIES]
-        if custom_q:
-            queries_to_run.append(custom_q)
-
-        if st.button(f"🚀 Run Audit ({len(queries_to_run)} queries)", type="primary", disabled=not serp_key):
-            results = []
-            progress = st.progress(0)
-            status = st.empty()
-
-            for i, q in enumerate(queries_to_run):
-                status.text(f"Searching: {q}")
-                result = audit_query(serp_key, q)
-                results.append(result)
-                progress.progress((i + 1) / len(queries_to_run))
-
-            st.session_state["geo_audit_results"] = results
-            st.session_state["geo_audit_saved_at"] = pd.Timestamp.now().isoformat()
-            _save_audit_results(results)
-            status.empty()
-            progress.empty()
-            st.success(f"Audit complete! Results saved — Action Plan tab is ready.")
-
-        # Display results
-        results = st.session_state.get("geo_audit_results", [])
-        if results:
-            summary = summarize_audit(results)
-
-            # Top metrics
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Kolo Visible", summary["visibility_score"],
-                       f"{summary['kolo_visible_pct']}% of queries")
-            c2.metric("Avg Position", summary["avg_kolo_position"] or "Not found")
-            c3.metric("Queries Audited", summary["total_queries"])
-            c4.metric("Errors", summary["errors"])
-
-            st.divider()
-
-            # Competitor leaderboard
-            st.subheader("🏆 Competitor Visibility")
-            if summary["top_competitors"]:
-                comp_df = pd.DataFrame(summary["top_competitors"], columns=["Competitor", "Queries Visible"])
-                comp_df["Share"] = comp_df["Queries Visible"].apply(
-                    lambda x: f"{x}/{summary['total_queries'] - summary['errors']}"
-                )
-                st.dataframe(comp_df, use_container_width=True, hide_index=True)
-            else:
-                st.info("No known competitors found in results.")
-
-            st.divider()
-
-            # Per-query breakdown
-            st.subheader("📋 Query-by-Query Results")
-            rows = []
-            for r in results:
-                if r.get("error"):
-                    rows.append({
-                        "Query": r["query"],
-                        "Kolo": "❌ Error",
-                        "Position": "—",
-                        "Top Result": r["error"][:50],
-                        "Competitors": "—",
-                    })
-                else:
-                    kolo_status = f"✅ #{r['kolo_position']}" if r["kolo_visible"] else "❌"
-                    rows.append({
-                        "Query": r["query"],
-                        "Kolo": kolo_status,
-                        "Position": r["kolo_position"] or "—",
-                        "Top Result": f"{r['top_result_domain']}",
-                        "Competitors": ", ".join(r["competitors_found"][:3]) or "None",
-                    })
-
-            results_df = pd.DataFrame(rows)
-            st.dataframe(results_df, use_container_width=True, hide_index=True)
-
-            # Detailed view per query
-            with st.expander("Detailed results (top 10 per query)"):
-                for r in results:
-                    if r.get("error"):
-                        continue
-                    st.markdown(f"**{r['query']}**")
-                    for res in r.get("results", []):
-                        icon = "🟢" if res["kolo_domain"] else ("🟡" if res["kolo_mentioned"] else ("🔴" if res["competitor"] else "⚪"))
-                        label = "KOLO" if res["kolo_domain"] or res["kolo_mentioned"] else (res["competitor"] or "")
-                        st.markdown(f"{icon} #{res['position']} [{res['title'][:60]}]({res['link']}) {f'**{label}**' if label else ''}")
-                    st.divider()
-
-    # ── Tab 2: Action Plan (persists without re-running) ─────────────
-    with tab_plan:
-        results = st.session_state.get("geo_audit_results", [])
-        if not results:
-            st.info("Run an audit first (Run Audit tab) to generate an action plan. Results are saved to disk — you only need to run once.")
-        else:
-            saved_at = st.session_state.get("geo_audit_saved_at", "unknown")
-            summary = summarize_audit(results)
-            st.subheader(f"GEO Action Plan — Kolo visible in {summary['visibility_score']} queries")
-            st.caption(f"Based on audit from: {saved_at[:16] if saved_at != 'unknown' else 'this session'} · No API key needed to view")
-
-            # Categorize queries
-            not_visible = [r for r in results if not r.get("error") and not r.get("kolo_visible")]
-            visible_low = [r for r in results if r.get("kolo_position") and r["kolo_position"] > 5]
-            visible_high = [r for r in results if r.get("kolo_position") and r["kolo_position"] <= 5]
-            has_ai_overview = [r for r in results if r.get("ai_overview")]
-
-            # ── Priority 1: Not visible at all ────────────────────
-            if not_visible:
-                st.markdown("### 🔴 Priority 1: Not Visible — Create Content")
-                st.markdown("Kolo doesn't appear in top 10 for these queries. **Action: publish targeted articles.**")
-                for r in not_visible:
-                    competitors = ", ".join(r.get("competitors_found", [])[:3]) or "No known competitors"
-                    top = r.get("top_result_domain", "—")
-                    st.markdown(
-                        f"- **\"{r['query']}\"** — Top result: `{top}` · Competitors: {competitors}\n"
-                        f"  → Write article targeting this keyword · Publish on high-DR outlet · Add FAQ + comparison table"
-                    )
-
-                # Generate briefs suggestion
-                st.divider()
-                st.markdown("**Suggested article briefs:**")
-                for i, r in enumerate(not_visible[:5]):
-                    q = r["query"]
-                    st.markdown(
-                        f"{i+1}. **Title:** \"Best {q.title()} in 2026 — Complete Guide\" · "
-                        f"**KW:** `{q}` · **Structure:** question headers + FAQ + comparison table + stat paragraphs"
-                    )
-
-            # ── Priority 2: Visible but low position ──────────────
-            if visible_low:
-                st.divider()
-                st.markdown("### 🟡 Priority 2: Low Position (#6-10) — Optimize Existing")
-                st.markdown("Kolo appears but below the fold. **Action: boost with backlinks + Reddit/Quora mentions.**")
-                for r in visible_low:
-                    st.markdown(
-                        f"- **\"{r['query']}\"** — Position #{r['kolo_position']}\n"
-                        f"  → Post on Reddit/Quora answering this query · Link to existing article · Add internal links"
-                    )
-
-            # ── Priority 3: Good position ─────────────────────────
-            if visible_high:
-                st.divider()
-                st.markdown("### 🟢 Priority 3: Strong Position (#1-5) — Defend & Expand")
-                st.markdown("Kolo ranks well. **Action: maintain + create related content.**")
-                for r in visible_high:
-                    st.markdown(
-                        f"- ✅ **\"{r['query']}\"** — Position #{r['kolo_position']}"
-                    )
-
-            # ── Competitor Analysis ────────────────────────────────
-            if summary["top_competitors"]:
-                st.divider()
-                st.markdown("### 🏆 Competitor Dominance — Where to Attack")
-                for comp, count in summary["top_competitors"]:
-                    total_valid = summary["total_queries"] - summary["errors"]
-                    pct = round(count / max(total_valid, 1) * 100)
-                    if pct > 50:
-                        action = "**High threat** — create comparison articles (Kolo vs " + comp + ")"
-                    elif pct > 25:
-                        action = "Moderate presence — mention in Reddit/Quora answers as alternative"
-                    else:
-                        action = "Low presence — monitor"
-                    st.markdown(f"- **{comp}** visible in {count}/{total_valid} queries ({pct}%) → {action}")
-
-            # ── AI Overview Strategy ──────────────────────────────
-            if has_ai_overview:
-                st.divider()
-                st.markdown("### 🤖 AI Overview Detected")
-                ai_kolo = sum(1 for r in has_ai_overview if r["ai_overview"].get("kolo_mentioned"))
-                st.markdown(
-                    f"Google AI Overviews appeared for **{len(has_ai_overview)}** queries. "
-                    f"Kolo mentioned in **{ai_kolo}** of them."
-                )
-                if ai_kolo < len(has_ai_overview):
-                    st.markdown(
-                        "**Action:** Restructure articles for AI citability:\n"
-                        "- Add FAQ sections with exact target queries as questions\n"
-                        "- Use question-format H2 headers\n"
-                        "- Include self-contained stat sentences (\"Kolo supports USDT spending in 99 countries\")\n"
-                        "- Post answers on Reddit/Quora — AI engines heavily cite these"
-                    )
-
-            # ── Weekly Action Checklist ────────────────────────────
-            st.divider()
-            st.markdown("### 📋 This Week's GEO Checklist")
-            n_missing = len(not_visible)
-            n_low = len(visible_low)
-            top_comp = summary["top_competitors"][0][0] if summary["top_competitors"] else "Crypto.com"
-
-            checklist = []
-            if n_missing > 0:
-                checklist.append(f"Write {min(n_missing, 3)} articles targeting missing queries (see Priority 1 above)")
-            if n_missing > 0:
-                checklist.append(f"Publish on outlets with DR 40+ for missing keyword coverage")
-            if n_low > 0:
-                checklist.append(f"Post {min(n_low, 3)} Reddit/Quora answers for low-position queries")
-            checklist.append(f"Create comparison article: Kolo vs {top_comp}")
-            checklist.append("Add FAQ sections to all published articles that don't have them")
-            checklist.append("Test 5 queries on ChatGPT + Perplexity — log if Kolo appears")
-            checklist.append(f"Re-run GEO audit next week to track progress")
-
-            for item in checklist:
-                st.markdown(f"- [ ] {item}")
-
-    with tab_history:
-        st.subheader("Audit History")
-        st.info("Run audits regularly (weekly) to track visibility improvements over time. Results are stored in session — for persistence, download as CSV.")
-
-        results = st.session_state.get("geo_audit_results", [])
-        if results:
-            summary = summarize_audit(results)
-            # Export
-            export_rows = []
-            for r in results:
-                export_rows.append({
-                    "date": pd.Timestamp.now().strftime("%Y-%m-%d"),
-                    "query": r["query"],
-                    "kolo_visible": r.get("kolo_visible", False),
-                    "kolo_position": r.get("kolo_position"),
-                    "competitors": ", ".join(r.get("competitors_found", [])),
-                    "top_result": r.get("top_result_domain", ""),
-                })
-            export_df = pd.DataFrame(export_rows)
-            csv = export_df.to_csv(index=False)
-            st.download_button("📥 Download audit as CSV", data=csv, file_name=f"geo_audit_{pd.Timestamp.now().strftime('%Y%m%d')}.csv", mime="text/csv")
-            st.dataframe(export_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("No audit results yet. Run an audit in the first tab.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -3146,8 +2777,8 @@ def page_keyword_intel():
     pplx_key = st.session_state.get("perplexity_key")
     ahrefs_key = st.session_state.get("ahrefs_key")
 
-    tab_taxonomy, tab_discover, tab_geo_audit, tab_ai_audit, tab_competitor, tab_expand = st.tabs([
-        "📊 Taxonomy", "🔬 Discovery", "🌍 Geo Market Audit", "🤖 AI Prompt Audit", "🔎 Competitor Gap", "🌱 Expansion"
+    tab_taxonomy, tab_discover, tab_geo_audit, tab_ai_audit, tab_expand = st.tabs([
+        "📊 Taxonomy", "🔬 Discovery", "🌍 Geo Market Audit", "🤖 AI Prompt Audit", "🌱 Expansion"
     ])
 
     # ── TAB 1: Keyword Taxonomy ──────────────────────────────────────────
@@ -3645,35 +3276,6 @@ Shows you **per-market**: is Kolo visible in AI answers? Which competitors domin
                                    file_name=f"ai_audit_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
                                    mime="text/csv")
 
-    # ── TAB 3: Competitor Gap ────────────────────────────────────────────
-    with tab_competitor:
-        st.subheader("Competitor Keyword Gap (Ahrefs)")
-        st.markdown("Pulls organic keywords from competitor domains that Kolo doesn't rank for.")
-
-        if not ahrefs_key:
-            st.warning("Ahrefs API key required. Enter it in the sidebar or connect via MCP.")
-            st.markdown("""
-**Alternative without Ahrefs ($1,499/mo is expensive):**
-1. Use the free **Keyword Expansion** tab (SerpAPI People Also Ask)
-2. Use Ahrefs web UI manually and export CSVs
-3. Consider [Ahrefs Lite](https://ahrefs.com/pricing) ($99/mo) with the MCP connector
-""")
-        else:
-            competitors = st.multiselect("Competitor domains", COMPETITOR_DOMAINS, default=COMPETITOR_DOMAINS[:3])
-            country = st.selectbox("Country", ["us", "gb", "ae", "it", "es", "pl", "id", "de", "ru"])
-            limit = st.slider("Keywords per competitor", 20, 200, 50)
-
-            if st.button("🔎 Pull Competitor Keywords", type="primary"):
-                with st.spinner("Fetching from Ahrefs..."):
-                    comp_kws = get_competitor_keywords(ahrefs_key, competitors, country=country, limit_per_competitor=limit)
-                    st.session_state["competitor_keywords"] = comp_kws
-
-            if "competitor_keywords" in st.session_state:
-                comp_kws = st.session_state["competitor_keywords"]
-                st.success(f"Found **{len(comp_kws)}** crypto-related keywords from competitors")
-                df = pd.DataFrame(taxonomy_to_dicts(comp_kws))
-                st.dataframe(df, use_container_width=True, hide_index=True, height=500)
-
     # ── TAB 4: Keyword Expansion (SerpAPI — free) ────────────────────────
     with tab_expand:
         st.subheader("Keyword Expansion via Google")
@@ -3743,7 +3345,6 @@ pg = st.navigation({
         st.Page(page_dashboard,        title="Dashboard",        icon="🤖", default=True),
     ],
     "Stages": [
-        st.Page(page_market_intel,     title="Market Intel",     icon="📊"),
         st.Page(page_kolo_metrics,     title="Kolo Metrics",     icon="📈"),
         st.Page(page_content_plan,     title="Content Plan",     icon="✍️"),
         st.Page(page_outlet_matching,  title="Outlet Matching",  icon="🗞️"),
@@ -3752,7 +3353,6 @@ pg = st.navigation({
     "Actions": [
         st.Page(page_pr_generator,           title="PR Generator",     icon="📝"),
         st.Page(page_content_distribution,   title="Distribution",     icon="📣"),
-        st.Page(page_geo_visibility,         title="GEO Visibility",   icon="🔍"),
         st.Page(page_monthly_eval,           title="Monthly Eval",     icon="📉"),
         st.Page(page_monthly_planner,        title="Monthly Planner",  icon="🗓️"),
     ],
