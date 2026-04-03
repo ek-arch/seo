@@ -4,6 +4,7 @@ perplexity_geo.py — Perplexity API for GEO (AI citation) visibility
 Sends prompts to Perplexity's sonar model and checks whether Kolo
 appears in the AI-generated answer or cited sources.
 Cost: ~$0.005/query (sonar model).
+Updated: 2026-04-03
 """
 
 from __future__ import annotations
