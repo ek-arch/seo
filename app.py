@@ -2848,178 +2848,231 @@ def page_keyword_intel():
                                file_name=f"keyword_taxonomy_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
                                mime="text/csv")
 
-    # ── TAB 2: Discovery ───────────────────────────────────────────────────
+    # ── TAB 2: Discovery Pipeline ─────────────────────────────────────────
     with tab_discover:
-        st.subheader("Keyword Discovery Engine")
-        st.markdown("""
-Three discovery methods — from free to cheap:
-1. **Keyword Matrix** — product × market × language × intent (free, instant)
-2. **Google Autocomplete** — real search suggestions + alphabet expansion (free)
-3. **Perplexity AI** — ask AI what people search for in each market (~$0.005/market)
-""")
+        st.subheader("Keyword Discovery Pipeline")
+        st.markdown("**One flow:** Generate → Select → Autocomplete validate → AI check → Final ranked list")
 
-        disc_tab1, disc_tab2, disc_tab3 = st.tabs(["🧮 Matrix Generator", "🔤 Autocomplete", "🤖 AI Discovery"])
+        # ── STEP 1: Generate Matrix ───────────────────────────────────────
+        st.markdown("### Step 1 · Generate Keyword Matrix")
+        st.caption("Product × market × language × intent — free, instant")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            incl_en = st.checkbox("English keywords", value=True, key="pipe_en")
+            incl_ru = st.checkbox("Russian keywords", value=True, key="pipe_ru", help="RU = 2x LTV")
+        with col2:
+            incl_b2b = st.checkbox("B2B keywords", value=True, key="pipe_b2b", help="B2B = 41% of spend")
+            max_per = st.slider("Max per market", 10, 50, 30, key="pipe_max")
+        with col3:
+            st.caption("Markets: 15 EN + 16 RU")
+            st.caption("Products: 4 EN + 3 RU")
+            st.caption("Intent types: 5")
 
-        with disc_tab1:
-            st.markdown("**Generates:** `[product] × [market] × [language] × [intent modifier]`")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                incl_en = st.checkbox("English keywords", value=True)
-                incl_ru = st.checkbox("Russian keywords", value=True, help="RU = 2x LTV")
-            with col2:
-                incl_b2b = st.checkbox("B2B keywords", value=True, help="B2B = 41% of spend")
-                max_per = st.slider("Max per market", 10, 50, 30)
-            with col3:
-                st.caption("Markets: 15 EN + 16 RU")
-                st.caption("Products: 4 EN + 3 RU")
-                st.caption("Intent types: 5")
-
-            if st.button("🧮 Generate Matrix", type="primary"):
-                with st.spinner("Generating keyword combinations..."):
-                    matrix = generate_kw_matrix(
-                        include_en=incl_en, include_ru=incl_ru,
-                        include_b2b=incl_b2b, max_per_market=max_per,
+        if st.button("🧮 Generate Matrix", type="primary", key="pipe_gen"):
+            with st.spinner("Generating keyword combinations..."):
+                matrix = generate_kw_matrix(
+                    include_en=incl_en, include_ru=incl_ru,
+                    include_b2b=incl_b2b, max_per_market=max_per,
+                )
+                kws = []
+                for m in matrix:
+                    kw = Keyword(
+                        keyword=m["q"], language=m["lang"], market=m["market"],
+                        category=m.get("category", classify_keyword(m["q"])),
+                        intent=m.get("intent", "transactional"),
                     )
-                    # Convert to Keyword objects and score
-                    kws = []
-                    for m in matrix:
-                        kw = Keyword(
-                            keyword=m["q"], language=m["lang"], market=m["market"],
-                            category=m.get("category", classify_keyword(m["q"])),
-                            intent=m.get("intent", "transactional"),
-                        )
-                        kw.priority_score = score_keyword(kw)
-                        kws.append(kw)
-                    kws.sort(key=lambda k: -k.priority_score)
-                    st.session_state["matrix_keywords"] = kws
+                    kw.priority_score = score_keyword(kw)
+                    kws.append(kw)
+                kws.sort(key=lambda k: -k.priority_score)
+                st.session_state["pipe_candidates"] = kws
+                # Reset downstream
+                st.session_state.pop("pipe_selected", None)
+                st.session_state.pop("pipe_ac_results", None)
+                st.session_state.pop("pipe_ai_results", None)
+            st.success(f"Generated **{len(kws)}** keywords")
 
-                st.success(f"Generated **{len(kws)}** keywords")
+        # ── STEP 2: Select / Filter ───────────────────────────────────────
+        if "pipe_candidates" in st.session_state:
+            kws = st.session_state["pipe_candidates"]
+            st.divider()
+            st.markdown("### Step 2 · Select Keywords to Validate")
 
-            if "matrix_keywords" in st.session_state:
-                kws = st.session_state["matrix_keywords"]
-                # Stats
-                col_a, col_b, col_c, col_d = st.columns(4)
-                col_a.metric("Total", len(kws))
-                col_b.metric("Languages", len(set(k.language for k in kws)))
-                col_c.metric("Markets", len(set(k.market for k in kws)))
-                col_d.metric("Categories", len(set(k.category for k in kws)))
+            col_a, col_b, col_c, col_d = st.columns(4)
+            col_a.metric("Total generated", len(kws))
+            col_b.metric("Languages", len(set(k.language for k in kws)))
+            col_c.metric("Markets", len(set(k.market for k in kws)))
+            col_d.metric("Categories", len(set(k.category for k in kws)))
 
-                # By market
-                market_counts = {}
-                for k in kws:
-                    market_counts[k.market] = market_counts.get(k.market, 0) + 1
-                st.markdown("**By market:**")
-                mdf = pd.DataFrame([{"market": m, "keywords": c} for m, c in sorted(market_counts.items(), key=lambda x: -x[1])])
-                st.dataframe(mdf, hide_index=True, height=200)
+            # Filters
+            f1, f2, f3 = st.columns(3)
+            with f1:
+                filt_lang = st.multiselect("Filter language", sorted(set(k.language for k in kws)), key="pipe_fl")
+            with f2:
+                filt_market = st.multiselect("Filter market", sorted(set(k.market for k in kws)), key="pipe_fm")
+            with f3:
+                filt_cat = st.multiselect("Filter category", sorted(set(k.category for k in kws)), key="pipe_fc")
+            top_n = st.slider("Select top N by priority score", 10, min(200, len(kws)), min(50, len(kws)), key="pipe_topn")
 
-                # Preview top keywords
-                st.markdown("**Top 30 by priority:**")
-                df = pd.DataFrame(taxonomy_to_dicts(kws[:30]))
-                st.dataframe(df, use_container_width=True, hide_index=True)
+            filtered = kws
+            if filt_lang:
+                filtered = [k for k in filtered if k.language in filt_lang]
+            if filt_market:
+                filtered = [k for k in filtered if k.market in filt_market]
+            if filt_cat:
+                filtered = [k for k in filtered if k.category in filt_cat]
+            selected = filtered[:top_n]
 
-                # Merge into main taxonomy
-                if st.button("➕ Merge into Taxonomy"):
-                    existing = st.session_state.get("kw_taxonomy", [])
-                    existing_set = {k.keyword.lower() for k in existing}
-                    added = sum(1 for k in kws if k.keyword.lower() not in existing_set)
-                    merged = existing + [k for k in kws if k.keyword.lower() not in existing_set]
-                    merged.sort(key=lambda k: -k.priority_score)
-                    st.session_state["kw_taxonomy"] = merged
-                    st.success(f"Added **{added}** new keywords to taxonomy (total: {len(merged)})")
+            st.markdown(f"**Selected {len(selected)} keywords** (from {len(filtered)} after filters)")
+            df_sel = pd.DataFrame(taxonomy_to_dicts(selected))
+            st.dataframe(df_sel, use_container_width=True, hide_index=True, height=300)
 
-        with disc_tab2:
-            st.markdown("**Google Autocomplete** — type a seed, get real search suggestions. Free, no API key. Alphabet trick: tries `seed a`, `seed b`, ... `seed z` for max coverage.")
+            if st.button("✅ Confirm selection → proceed to Autocomplete", type="primary", key="pipe_confirm"):
+                st.session_state["pipe_selected"] = selected
+                st.session_state.pop("pipe_ac_results", None)
+                st.session_state.pop("pipe_ai_results", None)
 
-            seed = st.text_input("Seed keyword", value="crypto card", key="ac_seed")
-            col1, col2 = st.columns(2)
-            with col1:
-                ac_lang = st.selectbox("Language", ["en", "ru", "it", "es", "pl", "pt", "id"], key="ac_lang")
-            with col2:
-                use_alphabet = st.checkbox("Alphabet expansion (a-z)", value=True,
-                                           help="27 requests instead of 1, takes ~3 seconds")
+        # ── STEP 3: Autocomplete Validation ───────────────────────────────
+        if "pipe_selected" in st.session_state:
+            selected = st.session_state["pipe_selected"]
+            st.divider()
+            st.markdown("### Step 3 · Google Autocomplete Validation")
+            st.caption(f"Checks {len(selected)} keywords against Google Autocomplete (free). Finds related real searches.")
 
-            if st.button("🔤 Get Autocomplete Suggestions", type="primary"):
-                with st.spinner("Querying Google Autocomplete..."):
-                    if use_alphabet:
-                        results = expand_with_autocomplete(seed, language=ac_lang)
-                    else:
-                        raw = get_google_autocomplete(seed, language=ac_lang)
-                        results = [{"q": r, "lang": ac_lang, "market": detect_market(r) or "global",
-                                    "category": classify_keyword(r), "intent": "transactional",
-                                    "source": "google_autocomplete"} for r in raw]
-                    st.session_state["ac_results"] = results
+            if st.button("🔤 Run Autocomplete Validation", type="primary", key="pipe_ac_run"):
+                ac_all = {}
+                progress = st.progress(0.0, text="Checking autocomplete...")
+                for i, kw in enumerate(selected):
+                    try:
+                        raw = get_google_autocomplete(kw.keyword, language=kw.language)
+                        ac_all[kw.keyword] = raw
+                    except Exception:
+                        ac_all[kw.keyword] = []
+                    progress.progress((i + 1) / len(selected), text=f"Checked {i+1}/{len(selected)}")
+                progress.empty()
 
-            if "ac_results" in st.session_state:
-                results = st.session_state["ac_results"]
-                st.success(f"**{len(results)}** suggestions found")
-                df = pd.DataFrame(results)
-                if not df.empty:
-                    st.dataframe(df, use_container_width=True, hide_index=True, height=400)
+                # Build enriched results
+                enriched = []
+                for kw in selected:
+                    suggestions = ac_all.get(kw.keyword, [])
+                    enriched.append({
+                        "keyword": kw.keyword,
+                        "language": kw.language,
+                        "market": kw.market,
+                        "category": kw.category,
+                        "priority_score": kw.priority_score,
+                        "autocomplete_hits": len(suggestions),
+                        "top_suggestions": " | ".join(suggestions[:5]),
+                    })
+                # Also gather new keyword ideas from autocomplete
+                new_ideas = []
+                seen = {kw.keyword.lower() for kw in selected}
+                for kw_str, suggs in ac_all.items():
+                    for s in suggs:
+                        if s.lower() not in seen:
+                            seen.add(s.lower())
+                            new_ideas.append(s)
 
-                    if st.button("➕ Add all to Taxonomy", key="ac_add"):
-                        existing = st.session_state.get("kw_taxonomy", [])
-                        existing_set = {k.keyword.lower() for k in existing}
-                        added = 0
-                        for r in results:
-                            if r["q"].lower() not in existing_set:
-                                kw = Keyword(
-                                    keyword=r["q"], language=r.get("lang", "en"),
-                                    market=r.get("market", "global"),
-                                    category=r.get("category", classify_keyword(r["q"])),
-                                )
-                                kw.priority_score = score_keyword(kw)
-                                existing.append(kw)
-                                added += 1
-                        existing.sort(key=lambda k: -k.priority_score)
-                        st.session_state["kw_taxonomy"] = existing
-                        st.success(f"Added {added} new keywords")
+                st.session_state["pipe_ac_results"] = enriched
+                st.session_state["pipe_ac_new_ideas"] = new_ideas
+                st.session_state.pop("pipe_ai_results", None)
+                st.success(f"Done! {sum(1 for e in enriched if e['autocomplete_hits'] > 0)} keywords have autocomplete data. Found **{len(new_ideas)}** new keyword ideas.")
 
-        with disc_tab3:
-            st.markdown("**Ask Perplexity AI:** 'What do people search for about crypto cards in [market]?' Returns real search queries people use. ~$0.005/market.")
+            if "pipe_ac_results" in st.session_state:
+                enriched = st.session_state["pipe_ac_results"]
+                df_ac = pd.DataFrame(enriched)
+                # Sort: keywords with autocomplete hits first
+                df_ac = df_ac.sort_values("autocomplete_hits", ascending=False)
+                st.dataframe(df_ac, use_container_width=True, hide_index=True, height=350)
+
+                new_ideas = st.session_state.get("pipe_ac_new_ideas", [])
+                if new_ideas:
+                    with st.expander(f"💡 {len(new_ideas)} new keyword ideas from autocomplete"):
+                        st.write(", ".join(new_ideas[:100]))
+                        if len(new_ideas) > 100:
+                            st.caption(f"...and {len(new_ideas)-100} more")
+
+                st.markdown("**Ready for AI check →**")
+
+        # ── STEP 4: Perplexity AI Visibility Check ────────────────────────
+        if "pipe_ac_results" in st.session_state:
+            st.divider()
+            st.markdown("### Step 4 · AI Visibility Check (Perplexity)")
+            st.caption("Asks Perplexity each keyword — does Kolo appear in the AI answer? ~$0.005/query")
 
             if not pplx_key:
-                st.warning("Enter Perplexity API key in sidebar")
+                st.warning("Enter Perplexity API key in sidebar to proceed.")
             else:
-                col1, col2 = st.columns(2)
-                with col1:
-                    disc_market = st.selectbox("Market to discover", [
-                        "UAE", "UK", "Italy", "Spain", "Poland", "Germany",
-                        "Europe", "Indonesia", "Romania", "Georgia", "Uzbekistan",
-                    ], key="disc_market")
-                with col2:
-                    disc_lang = st.selectbox("Language", ["en", "ru"], key="disc_lang")
+                # Let user pick how many to check
+                enriched = st.session_state["pipe_ac_results"]
+                # Only check top ones by priority (sorted by autocomplete_hits already)
+                max_ai = st.slider("Keywords to check with AI", 5, min(50, len(enriched)), min(20, len(enriched)), key="pipe_ai_n")
 
-                if st.button("🤖 Discover Keywords via AI", type="primary"):
-                    with st.spinner(f"Asking Perplexity about crypto cards in {disc_market}..."):
-                        results = discover_keywords_perplexity(
-                            pplx_key, disc_market, language=disc_lang,
+                if st.button("🤖 Check AI Visibility", type="primary", key="pipe_ai_run"):
+                    to_check = enriched[:max_ai]
+                    ai_results = []
+                    progress = st.progress(0.0, text="Querying Perplexity...")
+                    for i, row in enumerate(to_check):
+                        try:
+                            resp = perplexity_audit_prompt(pplx_key, row["keyword"])
+                            ai_results.append({
+                                **row,
+                                "kolo_cited": resp.get("kolo_cited", False),
+                                "kolo_mentioned": resp.get("kolo_mentioned", False),
+                                "competitors_cited": ", ".join(resp.get("competitors_cited", [])),
+                                "ai_answer_preview": resp.get("answer_text", "")[:150],
+                            })
+                        except Exception as e:
+                            ai_results.append({**row, "kolo_cited": False, "kolo_mentioned": False,
+                                               "competitors_cited": "", "ai_answer_preview": f"Error: {e}"})
+                        progress.progress((i + 1) / len(to_check), text=f"Checked {i+1}/{len(to_check)}")
+                    progress.empty()
+                    st.session_state["pipe_ai_results"] = ai_results
+                    cited = sum(1 for r in ai_results if r["kolo_cited"] or r["kolo_mentioned"])
+                    st.success(f"Done! Kolo visible in **{cited}/{len(ai_results)}** AI answers.")
+
+        # ── STEP 5: Final Ranked Results ──────────────────────────────────
+        if "pipe_ai_results" in st.session_state:
+            st.divider()
+            st.markdown("### Step 5 · Final Ranked Keywords")
+            ai_results = st.session_state["pipe_ai_results"]
+            df_final = pd.DataFrame(ai_results)
+
+            # Color kolo visibility
+            st.dataframe(df_final, use_container_width=True, hide_index=True, height=500)
+
+            # Summary
+            total = len(df_final)
+            visible = df_final["kolo_cited"].sum() + df_final["kolo_mentioned"].sum()
+            st.markdown(f"""
+**Summary:** {total} keywords checked · Kolo visible in **{int(visible)}** AI answers · \
+Top competitors: {', '.join(df_final['competitors_cited'].dropna().str.split(', ').explode().value_counts().head(5).index.tolist()) if not df_final['competitors_cited'].eq('').all() else 'none detected'}
+""")
+
+            # Export
+            csv = df_final.to_csv(index=False)
+            st.download_button("📥 Download pipeline results CSV", data=csv,
+                               file_name=f"keyword_pipeline_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+                               mime="text/csv", key="pipe_export")
+
+            # Merge into taxonomy
+            if st.button("➕ Merge all into Taxonomy", key="pipe_merge"):
+                existing = st.session_state.get("kw_taxonomy", [])
+                existing_set = {k.keyword.lower() for k in existing}
+                added = 0
+                for row in ai_results:
+                    if row["keyword"].lower() not in existing_set:
+                        kw = Keyword(
+                            keyword=row["keyword"], language=row.get("language", "en"),
+                            market=row.get("market", "global"),
+                            category=row.get("category", classify_keyword(row["keyword"])),
                         )
-                        st.session_state["pplx_discovery"] = results
-
-                if "pplx_discovery" in st.session_state:
-                    results = st.session_state["pplx_discovery"]
-                    st.success(f"**{len(results)}** keyword ideas discovered")
-                    df = pd.DataFrame(results)
-                    if not df.empty:
-                        st.dataframe(df, use_container_width=True, hide_index=True, height=400)
-
-                        if st.button("➕ Add all to Taxonomy", key="pplx_add"):
-                            existing = st.session_state.get("kw_taxonomy", [])
-                            existing_set = {k.keyword.lower() for k in existing}
-                            added = 0
-                            for r in results:
-                                if r["q"].lower() not in existing_set:
-                                    kw = Keyword(
-                                        keyword=r["q"], language=r.get("lang", "en"),
-                                        market=r.get("market", "global"),
-                                        category=r.get("category", classify_keyword(r["q"])),
-                                    )
-                                    kw.priority_score = score_keyword(kw)
-                                    existing.append(kw)
-                                    added += 1
-                            existing.sort(key=lambda k: -k.priority_score)
-                            st.session_state["kw_taxonomy"] = existing
-                            st.success(f"Added {added} new keywords")
+                        kw.priority_score = row.get("priority_score", score_keyword(kw))
+                        existing.append(kw)
+                        existing_set.add(row["keyword"].lower())
+                        added += 1
+                existing.sort(key=lambda k: -k.priority_score)
+                st.session_state["kw_taxonomy"] = existing
+                st.success(f"Added **{added}** keywords to taxonomy (total: {len(existing)})")
 
     # ── TAB 3: Geo Market Audit ──────────────────────────────────────────
     with tab_geo_audit:
