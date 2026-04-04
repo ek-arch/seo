@@ -31,7 +31,7 @@ from keyword_research import (
     build_taxonomy, taxonomy_to_dicts, filter_keywords,
     get_competitor_keywords, expand_keywords_serpapi,
     classify_keyword, detect_language, detect_market, score_keyword,
-    generate_keyword_matrix, discover_keywords_perplexity,
+    generate_keyword_matrix as generate_kw_matrix, discover_keywords_perplexity,
     get_google_autocomplete, expand_with_autocomplete, chain_discover,
 )
 try:
@@ -2876,7 +2876,7 @@ Three discovery methods — from free to cheap:
 
             if st.button("🧮 Generate Matrix", type="primary"):
                 with st.spinner("Generating keyword combinations..."):
-                    matrix = generate_keyword_matrix(
+                    matrix = generate_kw_matrix(
                         include_en=incl_en, include_ru=incl_ru,
                         include_b2b=incl_b2b, max_per_market=max_per,
                     )
