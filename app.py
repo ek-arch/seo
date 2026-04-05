@@ -425,6 +425,20 @@ def page_content_plan():
 def page_outlet_matching():
     st.title("🗞️ Stage 4 · Outlet Matching")
     st.caption("Scoring: 6-dimension 0–18 system (SEO + GEO) · Source of truth for all outlet decisions")
+    with st.expander("ℹ️ How outlet scoring works", expanded=False):
+        st.markdown("""
+**6-dimension scoring model (0-18 points max):**
+Each outlet is scored on 6 factors, each worth 0-3 points:
+
+1. **Domain Rating (DR)** — Ahrefs authority: DR≥60 = 3pts, DR≥45 = 2pts, DR≥30 = 1pt
+2. **Traffic** — monthly organic visitors: ≥100K = 3pts, ≥30K = 2pts, ≥5K = 1pt
+3. **Crypto category** — has dedicated crypto/finance section: yes = 3pts
+4. **Price** — cost per publication: ≤$50 = 3pts, ≤$100 = 2pts, ≤$200 = 1pt
+5. **GEO citability** — how likely AI engines cite this outlet: high = 3pts
+6. **Language fit** — matches a priority market language: exact match = 3pts
+
+**Verdict:** ≥14 = must-buy, ≥11 = strong, ≥8 = viable, <8 = skip
+""")
     st.success(
         "✅ **Catalog scraped via browser session** — "
         f"{sum(len(v) for v in RAW_OUTLETS.values())} sites across 7 languages "
@@ -698,6 +712,18 @@ def page_publication_roi():
         "3-layer model: direct referral + SEO compound + AI citation traffic (90-day) × LTV by language · "
         "LTV source: Hex BigQuery cohort Oct 2025–Mar 2026"
     )
+    with st.expander("ℹ️ How ROI is calculated", expanded=False):
+        st.markdown("""
+**3-layer traffic model (90-day window):**
+1. **Direct referral** — outlet monthly traffic × article visibility % × click-through % → visitors to kolo.in
+2. **SEO compound** — backlink from outlet boosts kolo.in's ranking. Positions gained depend on outlet DR. New rank → higher CTR → more organic traffic over 90 days
+3. **AI citation (GEO)** — high-DR outlets get cited by ChatGPT/Perplexity/Google AI Overviews. AI citation probability = `(citability/3) × (DR/80) × 15%`. Applied to keyword volume × AI search share (8%)
+
+**Revenue:** total visitors × conversion rate (by language) × LTV (by market+language). Russian = 2x LTV vs English.
+
+**3 scenarios** with multipliers: conservative (0.5×/0.4×/0.3×), mid (1×), optimistic (1.6×/2×/2.5×)
+""")
+
 
     # ── Assumption Controls ───────────────────────────────────────────────────
     with st.expander("⚙️ Model Assumptions", expanded=False):
@@ -1018,6 +1044,18 @@ def _get_all_briefs():
 def page_pr_generator():
     st.title("📝 Stage 6 · PR Generator")
     st.caption("Generate SEO+GEO-optimized press releases, revise with AI, translate, and track publications")
+    with st.expander("ℹ️ How PR generation works", expanded=False):
+        st.markdown("""
+**GEO-optimized article structure** — designed to be cited by AI engines:
+- **H2 headers as questions** — matches "People Also Ask" format that AI engines extract
+- **Quotable stat paragraphs** — dense facts AI can cite (e.g. "Kolo supports 40+ countries with 0% FX markup")
+- **Comparison tables** — Kolo vs competitors in structured format AI engines parse easily
+- **FAQ section** — direct Q&A format preferred by ChatGPT, Perplexity, Google AI Overviews
+
+**Flow:** Select brief → Claude generates EN draft → AI revise (add stats, questions) → translate to RU/IT/ES/PL/PT/ID → track publication URLs + UTM params
+
+**Translation:** Claude adapts content per market (not literal translation). RU version emphasizes different features than ID version.
+""")
 
     api_key = st.session_state.get("anthropic_token")
 
@@ -1196,6 +1234,14 @@ def page_pr_generator():
 def page_monthly_eval():
     st.title("📉 Stage 7 · Monthly Evaluation")
     st.caption("Compare actual vs projected ROI for published articles")
+    with st.expander("ℹ️ How monthly evaluation works", expanded=False):
+        st.markdown("""
+**Tracks actual performance vs ROI projections:**
+- Input actual data per publication: referral visits, registrations, backlink status
+- System compares against the 3-layer ROI model's conservative/mid/optimistic forecasts
+- Identifies top and worst performers → feeds into next month's planning
+- Ahrefs integration (optional): pull real backlink data and organic keyword gains
+""")
 
     notion_tok = st.session_state.get("notion_token")
 
@@ -1381,6 +1427,16 @@ def page_monthly_eval():
 def page_monthly_planner():
     st.title("🗓️ Stage 8 · Monthly Planner")
     st.caption("Full cycle: evaluate last month → recommend next → approve → push to Notion")
+    with st.expander("ℹ️ How monthly planning works", expanded=False):
+        st.markdown("""
+**AI-powered budget allocation:**
+1. **Analyze** — Claude reviews last month's evaluation data (ROI by outlet, language, market)
+2. **Recommend** — suggests next month's outlet mix, budget split per language pillar, content angles
+3. **Review** — you adjust the plan, override allocations, add/remove outlets
+4. **Approve & Push** — saves final plan to Notion as content calendar entries
+
+**Logic:** Doubles down on high-ROI outlets/languages, cuts underperformers, suggests new markets based on Hex data trends.
+""")
 
     api_key = st.session_state.get("anthropic_token")
     notion_tok = st.session_state.get("notion_token")
@@ -1664,6 +1720,15 @@ def _load_distribution_state():
 def page_content_distribution():
     st.title("📣 Stage 9 · Social Listening & Distribution")
     st.caption("Find relevant Reddit & Quora posts → draft helpful comments → track posting")
+    with st.expander("ℹ️ How distribution works", expanded=False):
+        st.markdown("""
+**3-step social distribution flow:**
+1. **Find Posts** — uses SerpAPI to search Reddit, Quora, and Twitter/X for posts mentioning crypto cards, USDT spending, etc. Finds real conversations where Kolo can be mentioned naturally
+2. **Draft Comments** — Claude AI generates helpful, non-promotional replies that naturally mention Kolo. Comments are tailored per platform (Reddit casual, Quora expert, X concise). Can reference a published article URL
+3. **Queue & Track** — manage drafted comments, mark as posted, track engagement
+
+**Why:** Social comments on high-traffic threads = free backlinks + referral traffic + signals to AI engines that Kolo is a real product people discuss.
+""")
 
     # Load persisted data on first render
     _load_distribution_state()
@@ -2283,6 +2348,18 @@ def _load_audit_results():
 def page_programmatic_seo():
     st.title("🚀 Programmatic SEO — Long-Tail Keyword Factory")
     st.caption("Generate → Validate (free) → Score competition → Auto-build pages")
+    with st.expander("ℹ️ How programmatic SEO works", expanded=False):
+        st.markdown("""
+**Goal:** Auto-generate hundreds of long-tail landing pages like "crypto card for freelancers in UAE" or "USDT Visa card Poland".
+
+**4-step pipeline:**
+1. **Keyword Matrix** — pattern-based generation: `"crypto card" + country + use-case`. Scored 0-0.75 on search potential, language fit, market value
+2. **Autocomplete Validation** (free) — checks Google Autocomplete: if Google suggests it, people actually search for it. Adds 0.25 to score
+3. **Competition Check** (SerpAPI) — analyzes SERP for each keyword: domain authority of top results, content quality signals. Score reaches max 1.0
+4. **Build Pages** — clusters keywords → generates AI content via Claude → exports HTML pages with JSON-LD, hreflang, internal links. Deployable to Cloudflare Workers
+
+**Scoring:** 0-0.75 (matrix) + 0.25 (autocomplete) + competition adjustment = final 0-1.0 score. Threshold ≥0.5 recommended.
+""")
 
     serp_key = st.session_state.get("serpapi_key")
 
@@ -2784,7 +2861,18 @@ def page_keyword_intel():
     # ── TAB 1: Keyword Taxonomy ──────────────────────────────────────────
     with tab_taxonomy:
         st.subheader("Ranked Keyword Taxonomy")
-        st.info("60+ seed keywords across 8 languages, 15+ markets. Scored by volume, difficulty, AI opportunity, and market LTV.")
+        with st.expander("ℹ️ How keyword scoring works", expanded=False):
+            st.markdown("""
+**Priority score** (max ~100 pts) ranks which keywords to target first:
+- **Volume** (0-30 pts) — log-scaled search volume. 1K = 30pts, 100 = 20pts, 10 = 10pts
+- **Difficulty** (0-25 pts) — inverse: easy keywords score higher. `25 - (difficulty × 0.25)`
+- **AI overview bonus** (+10 pts) — Google shows AI answer = GEO opportunity for Kolo
+- **Untapped bonus** (+10 pts) — Kolo doesn't rank yet = fresh opportunity
+- **Category bonus** — comparison +10, problem/B2B +8, long-tail +5, branded -5
+- **Language LTV multiplier** — RU ×1.5, EN ×1.0, IT/ES ×0.9, PL/RO ×0.8, ID ×0.5
+
+Higher score = higher priority to write content for.
+""")
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -2852,6 +2940,16 @@ def page_keyword_intel():
     with tab_discover:
         st.subheader("Keyword Discovery Pipeline")
         st.markdown("**One flow:** Generate → Select → Autocomplete validate → AI check → Final ranked list")
+        with st.expander("ℹ️ How the pipeline works", expanded=False):
+            st.markdown("""
+**5-step sequential pipeline** — each step feeds the next:
+
+1. **Generate Matrix** (free, instant) — combines products (crypto card, USDT wallet, etc.) × markets (UAE, UK, Italy...) × languages (EN, RU) × intent modifiers (best, how to, review, vs...) = hundreds of keyword candidates
+2. **Select & Filter** — narrow down by language, market, category. Pick top N by priority score
+3. **Autocomplete Validation** (free) — sends each keyword to Google Autocomplete API. Keywords with many autocomplete suggestions = real search demand. Also discovers new keyword ideas from Google's suggestions
+4. **AI Visibility Check** (~$0.005/query) — sends each keyword to Perplexity AI and checks: does Kolo appear in the answer? Which competitors are cited? Keywords where Kolo is NOT visible = GEO content opportunities
+5. **Final Ranked Results** — combined table with priority score + autocomplete data + AI visibility. Export as CSV or merge into your main taxonomy
+""")
 
         # ── STEP 1: Generate Matrix ───────────────────────────────────────
         st.markdown("### Step 1 · Generate Keyword Matrix")
@@ -3077,10 +3175,19 @@ Top competitors: {', '.join(df_final['competitors_cited'].dropna().str.split(', 
     # ── TAB 3: Geo Market Audit ──────────────────────────────────────────
     with tab_geo_audit:
         st.subheader("🌍 Geo-Targeted AI Visibility Audit")
-        st.markdown("""
-Select your target markets → generates **local prompts** per market (EN + local language) → checks Perplexity AI for Kolo visibility.
+        with st.expander("ℹ️ How geo-targeted audit works", expanded=False):
+            st.markdown("""
+**Difference from AI Prompt Audit:** This checks Kolo visibility **per market** using localized prompts.
 
-Shows you **per-market**: is Kolo visible in AI answers? Which competitors dominate each geography?
+**How it works:**
+1. Select target markets (e.g. UAE, UK, Italy, Poland)
+2. System generates **local-language prompts** per market — e.g. "лучшая крипто карта в ОАЭ" for Russian-speaking UAE users, "miglior carta crypto in Italia" for Italy
+3. Each prompt is sent to Perplexity AI → checks if Kolo appears in the answer
+4. Results grouped by market: visibility rate, dominant competitors, language gaps
+
+**Why it matters:** A user in Italy searching in Italian gets different AI answers than someone searching in English. This finds your blind spots per geography.
+
+**Prompt templates:** EN, RU, IT, ES — covering head terms, geo-specific, long-tail, comparison, and problem-solving queries.
 """)
 
         if not pplx_key:
@@ -3230,7 +3337,21 @@ Shows you **per-market**: is Kolo visible in AI answers? Which competitors domin
     # ── TAB 4: AI Prompt Audit (Perplexity) ──────────────────────────────
     with tab_ai_audit:
         st.subheader("AI Citation Visibility Audit")
-        st.markdown("Sends prompts to **Perplexity AI** and checks if Kolo appears in the answer or cited sources. Cost: ~$0.005/prompt.")
+        with st.expander("ℹ️ How AI audit works", expanded=False):
+            st.markdown("""
+**What it does:** Sends natural-language prompts to Perplexity AI (sonar model) and analyzes the response for Kolo visibility.
+
+**Checks 3 layers:**
+1. **Text mention** — does Perplexity's answer text mention "Kolo", "kolo.in", or "kolo card"?
+2. **Source citations** — does Perplexity cite kolo.in or kolo.xyz as a source URL?
+3. **Search results** — does Perplexity's internal search find Kolo pages?
+
+**Competitor tracking:** Also detects mentions of Crypto.com, Coinbase, Nexo, Binance, MetaMask, Revolut, Wirex in answers and citations.
+
+**Cost:** ~$0.005 per prompt via Perplexity Chat API. 24 default prompts = ~$0.12.
+
+**Goal:** Find which queries Kolo is invisible in → create content targeting those queries to improve AI visibility (GEO).
+""")
 
         if not pplx_key:
             st.warning("Enter your Perplexity API key in the sidebar to run AI audits.")
@@ -3332,7 +3453,16 @@ Shows you **per-market**: is Kolo visible in AI answers? Which competitors domin
     # ── TAB 4: Keyword Expansion (SerpAPI — free) ────────────────────────
     with tab_expand:
         st.subheader("Keyword Expansion via Google")
-        st.markdown("Uses SerpAPI to get **People Also Ask** and **Related Searches** for seed keywords. 1 credit per seed.")
+        with st.expander("ℹ️ How keyword expansion works", expanded=False):
+            st.markdown("""
+**Uses SerpAPI** to extract Google's own keyword suggestions:
+- **People Also Ask** — questions Google shows in search results. Great for FAQ content and featured snippets
+- **Related Searches** — keywords at the bottom of Google results. Shows what else people search for
+
+**Why it matters:** These are Google's own signals about what users want. Use them to discover content gaps and long-tail opportunities you'd miss with matrix generation alone.
+
+**Cost:** 1 SerpAPI credit per seed keyword (~$0.01).
+""")
 
         if not serp_key:
             st.warning("Enter SerpAPI key in the sidebar")
