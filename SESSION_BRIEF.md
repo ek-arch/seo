@@ -60,6 +60,9 @@ Full brief in `/Users/ek/SEO agent/webflow-designer-seo-fixes.md`. Summary:
 
 ---
 
+## ⛔ CRITICAL: Check Dependencies Before Destructive Actions
+**NEVER delete, disable, or disconnect any infrastructure component without first listing ALL downstream dependencies.** Trace the full chain: what services use this key/org/account? What breaks if it's removed? Always propose a non-destructive alternative first. This rule exists because deleting an Anthropic org broke the API key which broke all Claude-powered features across the entire app.
+
 ## Key Reminders
 - **kolo.in redirects to kolo.xyz** — same site, two domains
 - **NOT "in Telegram"** — Kolo is multi-platform (iOS, Android, Telegram, web)

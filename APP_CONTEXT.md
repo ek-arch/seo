@@ -141,6 +141,17 @@ Single-page Streamlit app (`app.py`, ~3800+ lines) with 12 pages via `st.navigat
 
 ---
 
+## ⛔ CRITICAL: Infrastructure Safety Rule
+**BEFORE any destructive action (delete org, revoke key, disable service, change DNS, remove worker), MUST:**
+1. List all features/services that depend on the component being changed
+2. State explicitly what will break
+3. Present risk to user and get confirmation
+4. Prefer non-destructive alternatives (rename, create new, etc.)
+
+**Incident log:** Anthropic Individual Org deleted on bad advice → API key invalidated → broke: content generation, prompt discovery, programmatic SEO builder, GEO Tracker Claude mode. Required support ticket + 7-day recovery window.
+
+---
+
 ## Cloudflare Worker (kolo-proxy)
 
 **Account:** 3ff8191356080bd0d901586d6098dcde
