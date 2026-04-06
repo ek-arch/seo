@@ -98,6 +98,7 @@ with st.sidebar:
     _notion_default = ""
     _anthropic_default = ""
     _serpapi_default = ""
+    _perplexity_default = ""
     try:
         _notion_default = st.secrets.get("NOTION_TOKEN", "")
     except Exception:
@@ -110,10 +111,14 @@ with st.sidebar:
         _serpapi_default = st.secrets.get("SERPAPI_KEY", "")
     except Exception:
         pass
+    try:
+        _perplexity_default = st.secrets.get("PERPLEXITY_KEY", "")
+    except Exception:
+        pass
     notion_token = st.text_input("Notion token", type="password", value=_notion_default, placeholder="secret_...", help="Required for writing to Notion")
     anthropic_token = st.text_input("Anthropic API key", type="password", value=_anthropic_default, placeholder="sk-ant-...", help="console.anthropic.com → API keys")
     serpapi_key = st.text_input("SerpAPI key", type="password", value=_serpapi_default, placeholder="...", help="serpapi.com → free 100 searches/month")
-    perplexity_key = st.text_input("Perplexity API key", type="password", placeholder="pplx-...", help="perplexity.ai/settings/api · ~$0.005/query")
+    perplexity_key = st.text_input("Perplexity API key", type="password", value=_perplexity_default, placeholder="pplx-...", help="perplexity.ai/settings/api · ~$0.005/query")
     # Auto-load Google Sheets credentials from Streamlit secrets
     import json as _json
     _gsheets_creds = ""
@@ -3553,23 +3558,8 @@ def page_geo_tracker():
 **Cost:** ~$0.003/prompt (Perplexity) + ~$0.001/batch (Claude for discovery)
 """)
 
-    anthropic_key = st.session_state.get("anthropic_key") or os.environ.get("ANTHROPIC_API_KEY", "")
+    anthropic_key = st.session_state.get("anthropic_token") or os.environ.get("ANTHROPIC_API_KEY", "")
     perplexity_key = st.session_state.get("perplexity_key", "")
-
-    # API key inputs
-    with st.sidebar:
-        st.subheader("GEO API Keys")
-        if not anthropic_key:
-            anthropic_key = st.text_input("Anthropic API Key", type="password", key="geo_anthropic")
-            if anthropic_key:
-                st.session_state["anthropic_key"] = anthropic_key
-        else:
-            st.success("Anthropic: Connected")
-        pkey = st.text_input("Perplexity API Key", type="password", key="geo_perplexity",
-                             value=st.session_state.get("perplexity_key", ""))
-        if pkey:
-            st.session_state["perplexity_key"] = pkey
-            perplexity_key = pkey
 
     tab_discover, tab_monitor, tab_results, tab_history = st.tabs([
         "1. Discover Prompts", "2. Monitor", "3. Results & Opportunities", "4. History"
