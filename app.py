@@ -3558,7 +3558,9 @@ def page_geo_tracker():
 **Cost:** ~$0.003/prompt (Perplexity) + ~$0.001/batch (Claude for discovery)
 """)
 
-    anthropic_key = st.session_state.get("anthropic_token") or os.environ.get("ANTHROPIC_API_KEY", "")
+    anthropic_key = (st.session_state.get("anthropic_token")
+                     or st.session_state.get("anthropic_key")
+                     or os.environ.get("ANTHROPIC_API_KEY", ""))
     perplexity_key = st.session_state.get("perplexity_key", "")
 
     tab_discover, tab_monitor, tab_results, tab_history = st.tabs([
@@ -3598,17 +3600,20 @@ def page_geo_tracker():
                 st.error("Add Anthropic API key in sidebar")
             else:
                 existing = [p["prompt"] for p in st.session_state.get("geo_prompts", [])]
-                with st.spinner(f"Claude is generating ~{count_per_cat * len(selected_categories)} prompts..."):
-                    prompts = discover_prompts_claude(
-                        anthropic_key,
-                        categories=selected_categories,
-                        markets=selected_markets,
-                        languages=selected_langs,
-                        count_per_category=count_per_cat,
-                        existing_prompts=existing,
-                    )
-                st.session_state["geo_prompts"] = prompts
-                st.success(f"Discovered {len(prompts)} prompts")
+                try:
+                    with st.spinner(f"Claude is generating ~{count_per_cat * len(selected_categories)} prompts..."):
+                        prompts = discover_prompts_claude(
+                            anthropic_key,
+                            categories=selected_categories,
+                            markets=selected_markets,
+                            languages=selected_langs,
+                            count_per_category=count_per_cat,
+                            existing_prompts=existing,
+                        )
+                    st.session_state["geo_prompts"] = prompts
+                    st.success(f"Discovered {len(prompts)} prompts")
+                except Exception as e:
+                    st.error(f"API error: {e}")
 
         # Show discovered prompts
         prompts = st.session_state.get("geo_prompts", [])
