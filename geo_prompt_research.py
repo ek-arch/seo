@@ -115,6 +115,144 @@ TARGET_MARKETS = {
 }
 
 
+# ── Pre-built Prompt Database (no API needed) ───────────────────────────────
+
+BUILTIN_PROMPTS = [
+    # Product Comparison — EN
+    {"prompt": "What are the best crypto debit cards in 2026?", "category": "product_comparison", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "Which crypto card has the lowest fees?", "category": "product_comparison", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "Best crypto Visa card for spending USDT", "category": "product_comparison", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "crypto.com vs wirex vs bybit card comparison", "category": "product_comparison", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "best crypto card with cashback 2026", "category": "product_comparison", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "what crypto card gives the best exchange rate", "category": "product_comparison", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "cheapest crypto card no monthly fees", "category": "product_comparison", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "compare all crypto visa cards available in europe", "category": "product_comparison", "language": "en", "market": "global", "intent": "informational"},
+    # Product Comparison — RU
+    {"prompt": "лучшие криптокарты 2026 года", "category": "product_comparison", "language": "ru", "market": "global", "intent": "transactional"},
+    {"prompt": "какая крипто карта самая выгодная", "category": "product_comparison", "language": "ru", "market": "global", "intent": "transactional"},
+    {"prompt": "сравнение криптокарт visa для USDT", "category": "product_comparison", "language": "ru", "market": "global", "intent": "informational"},
+    {"prompt": "криптокарта с кэшбэком в биткоинах", "category": "product_comparison", "language": "ru", "market": "global", "intent": "transactional"},
+
+    # How-To — EN
+    {"prompt": "How can I spend TRC20 USDT with a Visa card?", "category": "how_to", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "how to convert USDT to fiat and spend with a card", "category": "how_to", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "what's the easiest way to spend cryptocurrency at regular stores", "category": "how_to", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "I have USDT on Tron and need to pay rent in EUR", "category": "how_to", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "how to use crypto for everyday purchases without high fees", "category": "how_to", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "can I pay with USDT at a supermarket", "category": "how_to", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "how to get a crypto debit card step by step", "category": "how_to", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "how to top up a crypto card with bitcoin", "category": "how_to", "language": "en", "market": "global", "intent": "informational"},
+    # How-To — RU
+    {"prompt": "как потратить USDT TRC20 картой Visa", "category": "how_to", "language": "ru", "market": "global", "intent": "informational"},
+    {"prompt": "как конвертировать крипту в евро и потратить", "category": "how_to", "language": "ru", "market": "global", "intent": "informational"},
+    {"prompt": "как расплатиться криптовалютой в обычном магазине", "category": "how_to", "language": "ru", "market": "global", "intent": "informational"},
+    {"prompt": "у меня USDT на трон как проще всего потратить", "category": "how_to", "language": "ru", "market": "global", "intent": "informational"},
+
+    # Geo-Specific — UAE
+    {"prompt": "best crypto card for UAE residents 2026", "category": "geo_specific", "language": "en", "market": "UAE", "intent": "transactional"},
+    {"prompt": "can I use a crypto visa card in Dubai for daily purchases", "category": "geo_specific", "language": "en", "market": "UAE", "intent": "informational"},
+    {"prompt": "crypto card for expats in Dubai", "category": "geo_specific", "language": "en", "market": "UAE", "intent": "transactional"},
+    {"prompt": "which crypto cards actually work in UAE", "category": "geo_specific", "language": "en", "market": "UAE", "intent": "transactional"},
+    {"prompt": "лучшая крипто карта для ОАЭ", "category": "geo_specific", "language": "ru", "market": "UAE", "intent": "transactional"},
+    {"prompt": "какой криптокартой расплачиваться в Дубае", "category": "geo_specific", "language": "ru", "market": "UAE", "intent": "transactional"},
+    {"prompt": "крипто карта для экспатов в Дубае 2026", "category": "geo_specific", "language": "ru", "market": "UAE", "intent": "transactional"},
+    # Geo-Specific — UK
+    {"prompt": "best crypto card UK 2026", "category": "geo_specific", "language": "en", "market": "UK", "intent": "transactional"},
+    {"prompt": "crypto visa card for UK residents", "category": "geo_specific", "language": "en", "market": "UK", "intent": "transactional"},
+    {"prompt": "which crypto cards work in the UK with GBP", "category": "geo_specific", "language": "en", "market": "UK", "intent": "transactional"},
+    {"prompt": "cheapest crypto card in UK compared to banks", "category": "geo_specific", "language": "en", "market": "UK", "intent": "informational"},
+    # Geo-Specific — Italy
+    {"prompt": "migliore carta crypto in Italia 2026", "category": "geo_specific", "language": "it", "market": "Italy", "intent": "transactional"},
+    {"prompt": "carta visa crypto per residenti italiani", "category": "geo_specific", "language": "it", "market": "Italy", "intent": "transactional"},
+    {"prompt": "come spendere criptovalute in Italia con commissioni basse", "category": "geo_specific", "language": "it", "market": "Italy", "intent": "informational"},
+    {"prompt": "best crypto card for Italy", "category": "geo_specific", "language": "en", "market": "Italy", "intent": "transactional"},
+    # Geo-Specific — Spain
+    {"prompt": "лучшая криптокарта для жизни в Испании", "category": "geo_specific", "language": "ru", "market": "Spain", "intent": "transactional"},
+    {"prompt": "крипто карта для русских в Испании", "category": "geo_specific", "language": "ru", "market": "Spain", "intent": "transactional"},
+    {"prompt": "mejor tarjeta crypto en España 2026", "category": "geo_specific", "language": "es", "market": "Spain", "intent": "transactional"},
+    {"prompt": "tarjeta visa crypto para residentes españoles", "category": "geo_specific", "language": "es", "market": "Spain", "intent": "transactional"},
+    # Geo-Specific — Poland
+    {"prompt": "best crypto card Poland 2026", "category": "geo_specific", "language": "en", "market": "Poland", "intent": "transactional"},
+    {"prompt": "crypto card for freelancers in Poland", "category": "geo_specific", "language": "en", "market": "Poland", "intent": "transactional"},
+    # Geo-Specific — Georgia
+    {"prompt": "crypto card for expats in Georgia Tbilisi", "category": "geo_specific", "language": "en", "market": "Georgia", "intent": "transactional"},
+    {"prompt": "крипто карта для жизни в Грузии", "category": "geo_specific", "language": "ru", "market": "Georgia", "intent": "transactional"},
+    {"prompt": "лучшая криптокарта в Тбилиси 2026", "category": "geo_specific", "language": "ru", "market": "Georgia", "intent": "transactional"},
+    # Geo-Specific — CIS
+    {"prompt": "крипто карта для Узбекистана", "category": "geo_specific", "language": "ru", "market": "Uzbekistan", "intent": "transactional"},
+    {"prompt": "криптокарта visa для Армении", "category": "geo_specific", "language": "ru", "market": "Armenia", "intent": "transactional"},
+    {"prompt": "крипто карта в Кыргызстане 2026", "category": "geo_specific", "language": "ru", "market": "Kyrgyzstan", "intent": "transactional"},
+    {"prompt": "криптокарта для Азербайджана", "category": "geo_specific", "language": "ru", "market": "Azerbaijan", "intent": "transactional"},
+    # Geo-Specific — Cyprus/Latvia
+    {"prompt": "крипто карта для жизни на Кипре", "category": "geo_specific", "language": "ru", "market": "Cyprus", "intent": "transactional"},
+    {"prompt": "криптокарта visa для Латвии", "category": "geo_specific", "language": "ru", "market": "Latvia", "intent": "transactional"},
+
+    # Use Case — EN
+    {"prompt": "best crypto card for digital nomads who travel frequently", "category": "use_case", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "crypto card for freelancers who get paid in USDT", "category": "use_case", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "best way to pay for travel with crypto", "category": "use_case", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "can I use a crypto card for subscription payments like Netflix", "category": "use_case", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "crypto card that works with Apple Pay", "category": "use_case", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "crypto card for online shopping worldwide", "category": "use_case", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "best crypto card for remote workers paid in stablecoins", "category": "use_case", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "crypto card I can use to withdraw cash at ATMs", "category": "use_case", "language": "en", "market": "global", "intent": "transactional"},
+    # Use Case — RU
+    {"prompt": "криптокарта для фрилансера который получает в USDT", "category": "use_case", "language": "ru", "market": "global", "intent": "transactional"},
+    {"prompt": "крипто карта для путешествий по Европе", "category": "use_case", "language": "ru", "market": "global", "intent": "transactional"},
+    {"prompt": "криптокарта для оплаты подписок и онлайн покупок", "category": "use_case", "language": "ru", "market": "global", "intent": "transactional"},
+    {"prompt": "как снять наличные с криптокарты в банкомате", "category": "use_case", "language": "ru", "market": "global", "intent": "informational"},
+
+    # Cost & Fees — EN
+    {"prompt": "crypto card with no hidden fees", "category": "cost_fees", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "what are the fees for crypto visa cards", "category": "cost_fees", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "cheapest way to spend crypto with a card", "category": "cost_fees", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "crypto card conversion fees compared", "category": "cost_fees", "language": "en", "market": "global", "intent": "informational"},
+    # Cost & Fees — RU
+    {"prompt": "криптокарта без скрытых комиссий", "category": "cost_fees", "language": "ru", "market": "global", "intent": "transactional"},
+    {"prompt": "какие комиссии у крипто карт visa", "category": "cost_fees", "language": "ru", "market": "global", "intent": "informational"},
+
+    # Trust & Safety — EN
+    {"prompt": "is it safe to use a crypto visa card", "category": "trust_safety", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "are crypto debit cards regulated in Europe", "category": "trust_safety", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "can I trust a crypto card with my money", "category": "trust_safety", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "crypto card scams to avoid 2026", "category": "trust_safety", "language": "en", "market": "global", "intent": "informational"},
+
+    # Onboarding — EN
+    {"prompt": "how to get a crypto card without KYC", "category": "onboarding", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "fastest crypto card to sign up for", "category": "onboarding", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "crypto card instant virtual card no wait", "category": "onboarding", "language": "en", "market": "global", "intent": "transactional"},
+    # Onboarding — RU
+    {"prompt": "как получить криптокарту быстро без верификации", "category": "onboarding", "language": "ru", "market": "global", "intent": "informational"},
+    {"prompt": "криптокарта с моментальной виртуальной картой", "category": "onboarding", "language": "ru", "market": "global", "intent": "transactional"},
+
+    # B2B — EN
+    {"prompt": "best crypto card for business expenses", "category": "b2b", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "corporate crypto spending card for companies", "category": "b2b", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "crypto payment solution for small business in Europe", "category": "b2b", "language": "en", "market": "global", "intent": "transactional"},
+    {"prompt": "how to manage corporate crypto spending with visa cards", "category": "b2b", "language": "en", "market": "global", "intent": "informational"},
+    {"prompt": "crypto card for paying remote contractors", "category": "b2b", "language": "en", "market": "global", "intent": "transactional"},
+    # B2B — RU
+    {"prompt": "крипто карта для бизнеса в Европе", "category": "b2b", "language": "ru", "market": "global", "intent": "transactional"},
+    {"prompt": "корпоративная криптокарта для компании", "category": "b2b", "language": "ru", "market": "global", "intent": "transactional"},
+]
+
+
+def get_builtin_prompts(
+    categories: Optional[List[str]] = None,
+    markets: Optional[List[str]] = None,
+    languages: Optional[List[str]] = None,
+) -> List[dict]:
+    """Return filtered built-in prompts (no API call needed)."""
+    results = BUILTIN_PROMPTS
+    if categories:
+        results = [p for p in results if p["category"] in categories]
+    if markets:
+        results = [p for p in results if p["market"] in markets or p["market"] == "global"]
+    if languages:
+        results = [p for p in results if p["language"] in languages]
+    return results
+
+
 # ── Prompt Discovery via Claude ─────────────────────────────────────────────
 
 DISCOVERY_SYSTEM_PROMPT = """You are an AI prompt researcher. Your job is to generate realistic prompts

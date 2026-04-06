@@ -72,7 +72,7 @@ from seo_builder import (
 )
 from geo_prompt_research import (
     DISCOVERY_CATEGORIES, TARGET_MARKETS,
-    discover_prompts_claude, monitor_prompts_batch,
+    discover_prompts_claude, get_builtin_prompts, monitor_prompts_batch,
     summarize_results, find_opportunities,
     save_results, load_results, list_cached_results,
     PromptResult,
@@ -3595,10 +3595,9 @@ def page_geo_tracker():
         with col4:
             count_per_cat = st.slider("Prompts per category", 3, 20, 8)
 
-        if st.button("🔍 Discover Prompts", type="primary", disabled=not anthropic_key):
-            if not anthropic_key:
-                st.error("Add Anthropic API key in sidebar")
-            else:
+        bcol1, bcol2 = st.columns(2)
+        with bcol1:
+            if st.button("🔍 Discover via Claude", type="primary", disabled=not anthropic_key):
                 existing = [p["prompt"] for p in st.session_state.get("geo_prompts", [])]
                 try:
                     with st.spinner(f"Claude is generating ~{count_per_cat * len(selected_categories)} prompts..."):
@@ -3614,6 +3613,15 @@ def page_geo_tracker():
                     st.success(f"Discovered {len(prompts)} prompts")
                 except Exception as e:
                     st.error(f"API error: {e}")
+        with bcol2:
+            if st.button("📋 Use Built-in Prompts (no API needed)"):
+                prompts = get_builtin_prompts(
+                    categories=selected_categories,
+                    markets=selected_markets,
+                    languages=selected_langs,
+                )
+                st.session_state["geo_prompts"] = prompts
+                st.success(f"Loaded {len(prompts)} built-in prompts")
 
         # Show discovered prompts
         prompts = st.session_state.get("geo_prompts", [])
