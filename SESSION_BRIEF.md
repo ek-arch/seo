@@ -1,57 +1,62 @@
-# Next Session Brief — April 2, 2026
+# Next Session Brief — April 6, 2026
 
-## What Was Done This Session
+## What Was Done Recently
 
-### Webflow Editor — Published 7 SEO Changes
-All titles & descriptions optimized with target keywords from the SEO agent app and published live:
+### April 6 — GEO Tracker (Semrush-style AI Visibility Monitor)
+- Built `geo_prompt_research.py` — AI prompt discovery engine using Claude + Perplexity monitoring
+- Added **GEO Tracker** page to app (Growth → GEO Tracker) with 4 tabs:
+  - Tab 1: Discover Prompts — Claude generates realistic AI prompts across 8 categories × 15 markets × 5 languages
+  - Tab 2: Monitor — queries Perplexity for each prompt, checks Kolo mention/citation
+  - Tab 3: Results — Semrush-style table (Mentioned, Brands, Sources), competitor leaderboard, visibility by market, opportunity finder
+  - Tab 4: History — cached scans for comparison over time
+- Auto-loads Perplexity API key from Streamlit secrets (`PERPLEXITY_KEY`)
 
-| Page | New Title |
-|------|-----------|
-| Home | Kolo — Crypto Visa Card & USDT Wallet \| Spend in 60+ Countries |
-| Exchanger | Crypto Exchange — Buy & Sell USDT, BTC, ETH Instantly \| Kolo |
-| Buy Crypto | Buy Crypto with Card — USDT, BTC, ETH \| Kolo |
-| Countries | Crypto Card in 60+ Countries — Europe, UK, UAE & More \| Kolo |
-| Blog | Crypto Card Blog — News, Guides & Tips \| Kolo |
-| Cryptowallet | Crypto Wallet — USDT, BTC, ETH Multi-Currency \| Kolo |
-| Business | Crypto for Business — B2B Payments & Corporate Visa Cards \| Kolo |
+### April 2–5 — Programmatic SEO Infrastructure
+- Built full pipeline: `programmatic_seo.py` (keyword matrix + 5-dim scoring) + `seo_builder.py` (clustering + Claude content + HTML assembly)
+- 1500+ keyword combos → score/filter → ~41 pages (1 per country+language)
+- Added **Programmatic SEO** page to app (Growth → Programmatic SEO) with 4 tabs
+- HTML template with JSON-LD, hreflang, internal links, FAQ accordion
+- Cloudflare Worker updated for `/crypto-card/*` route serving from KV
 
-### Cloudflare Worker Fix
-Deployed updated `kolo-proxy` worker with `/sitemap.xml` route that proxies kolo.xyz sitemap with correct `application/xml` content-type (Webflow bug: serves as `application/rss+xml`).
-
-### Notion Audit Page
-Created "kolo.xyz SEO/GEO Audit — April 2026" page (ID: `335255c3-552c-81c9-abeb-fd00e1f177dd`) under SEO Agent Hub with full findings.
-
-### Webflow Designer Brief
-Created `webflow-designer-seo-fixes.md` — complete task list for Designer access work.
+### April 2 — Webflow SEO Changes
+- Published 7 optimized titles & descriptions via Webflow Editor
+- Deployed sitemap fix via Cloudflare Worker
+- Created Notion audit page and Webflow Designer brief
 
 ---
 
 ## What Needs to Be Done Next
 
-### Priority 1: Webflow Designer (needs Designer access, not Editor)
+### Priority 1: Run GEO Tracker
+- Add `PERPLEXITY_KEY` to Streamlit Cloud secrets
+- Run first AI visibility scan: discover prompts → monitor → identify gaps
+- Baseline: which competitors dominate AI answers for crypto card queries?
+
+### Priority 2: Run Programmatic SEO Pipeline
+- Generate all ~41 pages via Tab 4 (Build Pages) in Streamlit app
+- Requires working Anthropic API key (pending account restoration)
+- Get Webflow Designer access for deployment
+
+### Priority 3: Webflow Designer (needs Designer access, not Editor)
 Full brief in `/Users/ek/SEO agent/webflow-designer-seo-fixes.md`. Summary:
 
-1. **Fix hreflang tags** — ALL pages point hreflang to EN URL instead of locale URLs. Add correct `<link rel="alternate">` for en/ru/uk/x-default on all 8 pages x 3 locales.
-2. **Fix canonicals on /ru/ and /ua/ pages** — All locale pages canonical to English URL. Must self-reference. This causes 82 "duplicate without canonical" pages in GSC.
-3. **Translate RU/UA titles & descriptions** — Only /exchanger and /cryptowallet have translations. All other /ru/ and /ua/ pages show English titles. Full copy provided in the brief.
-4. **Add JSON-LD structured data** — FinancialProduct schema in site-wide head code.
-5. **Fix mobile Core Web Vitals** — 9 poor mobile URLs, 0 good. Desktop is fine (9 good).
+1. **Fix hreflang tags** — ALL pages point hreflang to EN URL instead of locale URLs
+2. **Fix canonicals on /ru/ and /ua/ pages** — causes 82 "duplicate without canonical" in GSC
+3. **Translate RU/UA titles & descriptions** — most /ru/ and /ua/ pages show English titles
+4. **Add JSON-LD structured data** — FinancialProduct schema in site-wide head code
+5. **Fix mobile Core Web Vitals** — 9 poor mobile URLs, 0 good
 
-### Priority 2: GSC Follow-up
-- Request indexing for the 7 updated pages (new titles/descriptions are live)
-- Monitor sitemap status (was "Couldn't fetch" — likely CDN cache, should resolve)
-- Check if 82 duplicate pages decrease after hreflang/canonical fix
-
-### Priority 3: Content & Distribution
+### Priority 4: Content & Distribution
 - Generate and publish April PR articles via the SEO agent app
 - Target markets: ARE (ru), GBR (en), ITA (it), ESP (ru — not en!), POL (pl)
 - New CIS markets now supported: UZB, KGZ, ARM, AZE — consider RU content
-- Use app's Publication ROI calculator to prioritize outlets
 
-### Priority 4: App Improvements
-- Ahrefs MCP integration (`ahrefs_hook.py` is stubbed, ready for implementation)
+### Priority 5: App Improvements
+- Ahrefs MCP integration (`ahrefs_hook.py` is stubbed)
 - Add GSC API integration for automated indexing requests
-- Content plan sync with Notion needs testing
+
+### Pending
+- Anthropic account: "elena's Individual Org" deletion requested to be cancelled (emailed support@anthropic.com April 6). Must be restored before Apr 13.
 
 ---
 
