@@ -36,11 +36,6 @@ def setup_sidebar() -> None:
             "Collaborator.pro token", type="password",
             placeholder="etVxo-...", help="collaborator.pro/user/api",
         )
-        notion_token = st.text_input(
-            "Notion token", type="password",
-            value=_try_secret("NOTION_TOKEN"),
-            placeholder="secret_...", help="Required for writing to Notion",
-        )
         anthropic_token = st.text_input(
             "Anthropic API key", type="password",
             value=_try_secret("ANTHROPIC_API_KEY"),
@@ -68,7 +63,6 @@ def setup_sidebar() -> None:
         key_map = {
             "hex_token": hex_token,
             "collab_token": collab_token,
-            "notion_token": notion_token,
             "anthropic_token": anthropic_token,
             "serpapi_key": serpapi_key,
             "perplexity_key": perplexity_key,
