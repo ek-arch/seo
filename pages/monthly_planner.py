@@ -11,7 +11,6 @@ from llm_client import recommend_monthly_plan
 from monthly_cycle import (
     generate_plan_inputs, parse_plan_recommendation, plan_to_notion_entries,
 )
-from notion_writer import create_content_plan_entry, create_monthly_plan_page
 
 
 def page_monthly_planner():
@@ -30,7 +29,6 @@ def page_monthly_planner():
 """)
 
     api_key = st.session_state.get("anthropic_token")
-    notion_tok = st.session_state.get("notion_token")
 
     tab_rec, tab_review, tab_approve = st.tabs(["Analyze + Recommend", "Review Plan", "Approve + Push"])
 
