@@ -24,7 +24,6 @@ def page_monthly_eval():
 - Ahrefs integration (optional): pull real backlink data and organic keyword gains
 """)
 
-    notion_tok = st.session_state.get("notion_token")
 
     tab_input, tab_report, tab_ahrefs = st.tabs(["Input Results", "Evaluation Report", "Ahrefs Data"])
 
