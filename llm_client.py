@@ -169,7 +169,7 @@ def generate_press_release(
     api_key: str,
     brief: dict,
     *,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "claude-3-5-sonnet-20241022",
     max_tokens: int = 4096,
     temperature: float = 0.7,
 ) -> str:
@@ -214,7 +214,7 @@ def revise_press_release(
     current_draft: str,
     instructions: str,
     *,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "claude-3-5-sonnet-20241022",
     max_tokens: int = 4096,
 ) -> str:
     """Revise a press release based on user instructions."""
@@ -246,7 +246,7 @@ def revise_comment(
     current_comment: str,
     instructions: str,
     *,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "claude-3-5-sonnet-20241022",
     max_tokens: int = 256,
 ) -> str:
     """Revise a social media comment. Returns ONLY the revised text."""
@@ -279,7 +279,7 @@ def translate_press_release(
     en_text: str,
     target_lang: str,
     *,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "claude-3-5-sonnet-20241022",
     max_tokens: int = 4096,
 ) -> str:
     """Translate an English press release to *target_lang* (e.g. "ru", "it")."""
@@ -304,7 +304,7 @@ def recommend_monthly_plan(
     available_outlets: list,
     budget: float,
     *,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "claude-3-5-sonnet-20241022",
     max_tokens: int = 4096,
 ) -> dict:
     """Analyse last-month performance and recommend next month's plan.
@@ -386,7 +386,7 @@ def generate_comment_reply(
     subreddit: str = "",
     article_url: str = "",
     *,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "claude-3-5-sonnet-20241022",
     max_tokens: int = 80,
 ) -> str:
     """Generate a natural comment/reply to an existing community post (≤200 chars)."""
