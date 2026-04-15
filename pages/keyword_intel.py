@@ -271,7 +271,7 @@ def page_keyword_intel():
             with col2:
                 selected_cats = st.multiselect("Categories",
                     ["product_comparison", "how_to", "geo_specific", "use_case", "cost_fees"],
-                    default=["product_comparison", "geo_specific"], key="geo_cat")
+                    key="geo_cat")
             with col3:
                 incl_local = st.checkbox("Include local language", value=True)
                 max_per = st.slider("Max prompts per market", 3, 15, 5, key="geo_max_per")
