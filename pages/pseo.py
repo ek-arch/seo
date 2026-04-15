@@ -308,7 +308,7 @@ def page_programmatic_seo():
                 if not api_key:
                     st.warning("Enter Anthropic API key in sidebar")
                 else:
-                    model = st.selectbox("Model", ["claude-3-5-haiku-20241022", "claude-sonnet-4-20250514"], index=0,
+                    model = st.selectbox("Model", ["claude-3-5-haiku-20241022", "claude-3-5-sonnet-20241022"], index=0,
                                          help="Haiku ≈ $0.002/page, Sonnet ≈ $0.01/page")
                     est_cost = len(clusters) * (0.002 if "haiku" in model else 0.01)
                     st.caption(f"Estimated cost: ~${est_cost:.2f} for {len(clusters)} pages")
