@@ -259,7 +259,7 @@ _RU_CONTENT_SYSTEM_PROMPT = """Ты — старший SEO-копирайтер 
 def generate_page_content(
     cluster: PageCluster,
     api_key: str,
-    model: str = "claude-3-5-haiku-20241022",
+    model: str = "claude-haiku-4-5-20251001",
     max_tokens: int = 2048,
 ) -> str:
     """
@@ -305,7 +305,7 @@ Write the HTML content blocks now."""
 def generate_content_batch(
     clusters: List[PageCluster],
     api_key: str,
-    model: str = "claude-3-5-haiku-20241022",
+    model: str = "claude-haiku-4-5-20251001",
     delay: float = 1.0,
     progress_callback=None,
 ) -> List[PageCluster]:
