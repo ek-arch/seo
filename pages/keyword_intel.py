@@ -213,7 +213,7 @@ def page_keyword_intel():
                 st.dataframe(ac_df.sort_values("autocomplete_hits", ascending=False), use_container_width=True, hide_index=True, height=300)
 
         # Step 4: AI Visibility
-        if "pipe_ac_results" in st.session_state:
+        if "pipe_ac_results" in st.session_state and st.session_state.get("pipe_ac_results"):
             st.divider()
             st.markdown("### Step 4 · AI Visibility Check (Perplexity)")
             if not pplx_key:
@@ -221,7 +221,7 @@ def page_keyword_intel():
             else:
                 ac_results = st.session_state["pipe_ac_results"]
                 confirmed = [r for r in ac_results if r["autocomplete_hits"] > 0]
-                max_ai = st.slider("Max AI checks", 5, min(50, len(confirmed)), min(20, len(confirmed)), key="pipe_ai_max")
+                max_ai = st.slider("Max AI checks", 1, max(1, min(50, len(confirmed))), max(1, min(20, len(confirmed))), key="pipe_ai_max")
                 est = max_ai * 0.005
                 st.caption(f"~${est:.3f} estimated cost")
 
