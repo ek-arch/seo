@@ -267,7 +267,7 @@ def page_keyword_intel():
             col1, col2, col3 = st.columns(3)
             with col1:
                 selected_markets = st.multiselect("Markets", available_markets,
-                    default=["UAE", "UK", "Italy", "Spain", "Georgia"], key="geo_mkt")
+                    key="geo_mkt")
             with col2:
                 selected_cats = st.multiselect("Categories",
                     ["product_comparison", "how_to", "geo_specific", "use_case", "cost_fees"],
