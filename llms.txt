@@ -1,0 +1,46 @@
+# Kolo
+
+> Kolo is a crypto-to-fiat Visa debit card and USDT wallet available as a Telegram mini-app, iOS/Android app, and web platform. Users can spend cryptocurrency at any Visa-accepting merchant in 60+ countries with real-time conversion and BTC cashback.
+
+## Key Facts
+
+- **Product:** Crypto Visa debit card + multi-currency USDT wallet
+- **Platforms:** Telegram mini-app, iOS, Android, Web
+- **Coverage:** 60+ countries including UK, UAE, EU, CIS, Southeast Asia
+- **Cashback:** Up to 2% back in BTC on every purchase
+- **Supported assets:** USDT, BTC, ETH — spend as EUR, GBP, USD
+- **FX markup:** 0% on major currency pairs
+- **Card issuance:** Virtual + physical Visa cards
+- **B2B:** Corporate cards, business accounts, crypto payroll
+- **Founded:** Estonia-based, EU-regulated
+- **Website:** https://kolo.xyz
+
+## Use Cases
+
+- Digital nomads spending crypto abroad without high FX fees
+- Freelancers receiving USDT payments and spending via Visa
+- Businesses issuing corporate crypto cards for team expenses
+- Users in CIS, Middle East, and Europe converting crypto to local spending
+- Cross-border payments with real-time USDT-to-fiat conversion
+
+## Comparison with Competitors
+
+| Feature | Kolo | Crypto.com | Binance Card | Revolut |
+|---------|------|------------|--------------|---------|
+| Crypto cashback | 2% BTC | 1-5% CRO | 0-2% BNB | None |
+| Telegram mini-app | Yes | No | No | No |
+| FX markup | 0% | 0-2% | 0% | 0-1.5% |
+| USDT wallet | Yes | Limited | Yes | No |
+| Countries | 60+ | 40+ | 30+ | 35+ |
+| Card type | Visa | Visa | Visa | Visa/Mastercard |
+
+## Pages
+
+- [Homepage](https://kolo.xyz): Main landing page with product overview
+- [Crypto Wallet](https://kolo.xyz/cryptowallet): USDT wallet features
+- [Buy Crypto](https://kolo.xyz/buy-crypto): Purchase crypto with bank card
+- [Exchanger](https://kolo.xyz/exchanger): Swap between crypto assets
+- [Countries](https://kolo.xyz/countries): Supported countries list
+- [For Business](https://kolo.xyz/for-business/business): B2B crypto card solutions
+- [Cashback](https://kolo.xyz/cashback): BTC cashback program details
+- [Blog](https://kolo.xyz/blog): Crypto news, guides, and product updates
