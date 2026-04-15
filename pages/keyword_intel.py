@@ -221,13 +221,11 @@ def page_keyword_intel():
             else:
                 ac_results = st.session_state["pipe_ac_results"]
                 confirmed = [r for r in ac_results if r["autocomplete_hits"] > 0]
-                if len(confirmed) < 2:
-                    st.info(f"Only {len(confirmed)} keyword(s) with autocomplete signals. Need at least 2 for AI checks.")
-                    max_ai = len(confirmed)
+                if not confirmed:
+                    st.info("No keywords with autocomplete signals found. Run Step 3 first.")
+                    max_ai = 0
                 else:
-                    _max_val = min(50, len(confirmed))
-                    _def_val = min(20, len(confirmed))
-                    max_ai = st.slider("Max AI checks", 2, _max_val, min(_def_val, _max_val), key="pipe_ai_max")
+                    max_ai = st.number_input("Max AI checks", min_value=1, max_value=min(50, len(confirmed)), value=min(20, len(confirmed)), step=1, key="pipe_ai_max")
                 est = max_ai * 0.005
                 st.caption(f"~${est:.3f} estimated cost")
 
