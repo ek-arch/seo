@@ -16,20 +16,22 @@ from geo_prompt_research import (
 
 def page_geo_tracker():
     st.title("🎯 GEO Tracker — AI Visibility Monitor")
-    st.caption("Discover what prompts users ask AI → Track if Kolo appears in answers")
+    st.caption("Is Kolo mentioned when someone asks ChatGPT/Perplexity about crypto cards?")
 
-    with st.expander("ℹ️ How GEO Tracking works", expanded=False):
+    st.info("""
+**What this does:** Sends crypto-card–related prompts to Perplexity AI and checks whether Kolo
+appears in the answer, alongside which competitors got mentioned instead.
+
+**Not about Google SEO** — for keyword research and landing-page generation, use the **SEO Factory** page.
+
+**GEO = Generative Engine Optimization**: the AI-era equivalent of SEO.
+""")
+
+    with st.expander("ℹ️ How the 3 steps work", expanded=False):
         st.markdown("""
-**GEO = Generative Engine Optimization** — getting Kolo mentioned when users ask AI about crypto cards.
-
-**3-step process:**
-1. **Discover Prompts** — Claude generates realistic prompts users type into ChatGPT/Perplexity
-2. **Monitor** — Each prompt is sent to Perplexity AI. We check if Kolo appears
-3. **Analyze** — See which prompts mention Kolo, which competitors dominate, where opportunities are
-
-**Metrics:** Mentioned (0/1 or 1/1), Brands count, Sources count, Competitor leaderboard
-
-**Cost:** ~$0.003/prompt (Perplexity) + ~$0.001/batch (Claude for discovery)
+1. **Load prompts** — click Built-in for instant start, or let Claude discover more
+2. **Monitor** — each prompt → Perplexity → we record if Kolo was mentioned and who else was (~$0.005/prompt)
+3. **Results** — see the opportunity list: prompts where competitors show up but Kolo doesn't. Target those with PRs.
 """)
 
     anthropic_key = (st.session_state.get("anthropic_token")

@@ -19,7 +19,6 @@ from pages.pr_generator import page_pr_generator
 from pages.distribution import page_content_distribution
 from pages.monthly_eval import page_monthly_eval
 from pages.monthly_planner import page_monthly_planner
-from pages.keyword_intel import page_keyword_intel
 from pages.pseo import page_programmatic_seo
 from pages.geo_tracker import page_geo_tracker
 
@@ -52,8 +51,7 @@ pg = st.navigation({
         st.Page(page_monthly_planner,        title="Monthly Planner",  icon="🗓️"),
     ],
     "Growth": [
-        st.Page(page_keyword_intel,          title="Keyword Intel",    icon="🧠"),
-        st.Page(page_programmatic_seo,       title="Programmatic SEO", icon="🚀"),
+        st.Page(page_programmatic_seo,       title="SEO Factory",      icon="🚀"),
         st.Page(page_geo_tracker,            title="GEO Tracker",      icon="🎯"),
     ],
 })
