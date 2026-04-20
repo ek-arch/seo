@@ -10,8 +10,7 @@ import pandas as pd
 
 from programmatic_seo import (
     generate_keyword_matrix, score_and_filter_keywords,
-    validate_keywords_autocomplete,
-    enrich_with_serp_viability, COUNTRIES,
+    validate_keywords_autocomplete, COUNTRIES,
 )
 from seo_builder import (
     cluster_keywords_to_pages, generate_content_batch,
@@ -93,17 +92,14 @@ def page_programmatic_seo():
         st.markdown("""
 **Goal:** Auto-generate hundreds of long-tail landing pages like "crypto card for freelancers in UAE".
 
-**4-step pipeline:**
-1. **Keyword Matrix** — pattern-based generation, scored 0-0.75
-2. **Autocomplete Validation** (free) — checks Google Autocomplete, adds 0.25
-3. **Competition Check** (SerpAPI) — SERP analysis, max 1.0
-4. **Build Pages** — clusters → Claude content → HTML export with JSON-LD, hreflang, internal links
+**3-step pipeline:**
+1. **Keyword Matrix** — pattern-based generation, scored 0-0.75 (free)
+2. **Autocomplete Validation** — checks Google Autocomplete, adds 0.25 (free)
+3. **Build Pages** — clusters → Claude content → HTML export with JSON-LD, hreflang, internal links
 """)
 
-    serp_key = st.session_state.get("serpapi_key")
-
-    tab_matrix, tab_validate, tab_compete, tab_build = st.tabs([
-        "1️⃣ Keyword Matrix", "2️⃣ Autocomplete Validation", "3️⃣ Competition Check", "4️⃣ Build Pages"
+    tab_matrix, tab_validate, tab_build = st.tabs([
+        "1️⃣ Keyword Matrix", "2️⃣ Autocomplete Validation", "3️⃣ Build Pages"
     ])
 
     # ── TAB 1: Keyword Matrix ─────────────────────────────────────
@@ -228,61 +224,14 @@ def page_programmatic_seo():
                 extra = [c for c in ["autocomplete_suggestions"] if c in winners.columns]
                 st.dataframe(winners[display_cols + extra].head(100), height=400)
 
-    # ── TAB 3: Competition Check ──────────────────────────────────
-    with tab_compete:
-        st.subheader("SERP Viability & Competition Scoring")
-        st.info("1 SerpAPI credit per keyword.")
-
-        if not serp_key:
-            st.warning("Enter SerpAPI key in sidebar")
-        elif "pseo_validated" not in st.session_state:
-            st.warning("Validate keywords first (Tab 2)")
-        else:
-            validated = st.session_state["pseo_validated"]
-            winners = [kw for kw in validated if kw.get("demand_signal") in ("strong", "medium")]
-            st.write(f"**{len(winners)}** validated keywords available")
-
-            col1, col2 = st.columns(2)
-            with col1:
-                max_checks = st.number_input("Max SerpAPI checks", 5, 50, 20, step=5)
-            with col2:
-                st.caption(f"Budget: {max_checks} credits")
-
-            if st.button("🔍 Check Competition", type="primary"):
-                progress = st.progress(0)
-                def _update(i, total):
-                    progress.progress(i / total, text=f"SERP check {i}/{total}...")
-                scored = enrich_with_serp_viability(winners, serp_key, max_checks=max_checks, delay=2.0, progress_callback=_update)
-                progress.progress(1.0, text="Done!")
-                st.session_state["pseo_scored"] = scored
-
-        if "pseo_scored" in st.session_state:
-            scored = st.session_state["pseo_scored"]
-            sdf = pd.DataFrame(scored)
-
-            if "competition_score" in sdf.columns:
-                high_opp = sdf[sdf["opportunity"] == "high"] if "opportunity" in sdf.columns else pd.DataFrame()
-                med_opp = sdf[sdf["opportunity"] == "medium"] if "opportunity" in sdf.columns else pd.DataFrame()
-
-                col_a, col_b, col_c, col_d = st.columns(4)
-                col_a.metric("🎯 High Opportunity", len(high_opp))
-                col_b.metric("🟡 Medium", len(med_opp))
-                col_c.metric("Kolo Already Ranks", len(sdf[sdf["kolo_present"] == True]) if "kolo_present" in sdf.columns else 0)
-                if "serp_score" in sdf.columns:
-                    col_d.metric("Avg SERP Viability", f"{sdf['serp_score'].mean():.2f}/0.25")
-
-                display_cols = [c for c in ["keyword", "lang", "country", "quality_score", "serp_score",
-                    "competition_score", "opportunity", "big_players", "weak_results", "forums_ugc",
-                    "kolo_present", "top_3_domains"] if c in sdf.columns]
-                st.dataframe(sdf[display_cols].sort_values("quality_score", ascending=False), height=400)
-
-    # ── TAB 4: Build Pages ────────────────────────────────────────
+    # ── TAB 3: Build Pages ────────────────────────────────────────
     with tab_build:
         st.subheader("Build & Export Pages")
         st.info("Clusters keywords → Claude content → ready-to-deploy package.")
 
         api_key = st.session_state.get("anthropic_token")
-        source = st.session_state.get("pseo_scored") or st.session_state.get("pseo_matrix")
+        validated = st.session_state.get("pseo_validated")
+        source = [kw for kw in validated if kw.get("demand_signal") in ("strong", "medium")] if validated else st.session_state.get("pseo_matrix")
 
         if not source:
             st.warning("Run Tab 1 (Keyword Matrix) first")

@@ -67,7 +67,16 @@ def page_geo_tracker():
 
         bcol1, bcol2 = st.columns(2)
         with bcol1:
-            if st.button("🔍 Discover via Claude", type="primary", disabled=not anthropic_key):
+            if st.button("📋 Load Built-in Prompts", type="primary"):
+                prompts = get_builtin_prompts(
+                    categories=selected_categories, markets=selected_markets,
+                    languages=selected_langs,
+                )
+                st.session_state["geo_prompts"] = prompts
+                st.success(f"Loaded {len(prompts)} built-in prompts — ready to monitor")
+        with bcol2:
+            if st.button("🔍 Discover more via Claude", disabled=not anthropic_key,
+                         help="Optional: expand with fresh AI-generated prompts"):
                 existing = [p["prompt"] for p in st.session_state.get("geo_prompts", [])]
                 try:
                     with st.spinner(f"Claude is generating ~{count_per_cat * len(selected_categories)} prompts..."):
@@ -80,14 +89,6 @@ def page_geo_tracker():
                     st.success(f"Discovered {len(prompts)} prompts")
                 except Exception as e:
                     st.error(f"API error: {e}")
-        with bcol2:
-            if st.button("📋 Use Built-in Prompts (no API needed)"):
-                prompts = get_builtin_prompts(
-                    categories=selected_categories, markets=selected_markets,
-                    languages=selected_langs,
-                )
-                st.session_state["geo_prompts"] = prompts
-                st.success(f"Loaded {len(prompts)} built-in prompts")
 
         prompts = st.session_state.get("geo_prompts", [])
         if prompts:
