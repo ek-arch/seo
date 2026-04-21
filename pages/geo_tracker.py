@@ -9,7 +9,7 @@ import pandas as pd
 from geo_prompt_research import (
     DISCOVERY_CATEGORIES, TARGET_MARKETS,
     discover_prompts_claude, get_builtin_prompts, monitor_prompts_batch,
-    summarize_results, find_opportunities,
+    summarize_results, find_opportunities, generate_recommendations,
     save_results, load_results, list_cached_results,
 )
 
@@ -217,6 +217,32 @@ appears in the answer, alongside which competitors got mentioned instead.
                 st.caption(f"**{len(opps)} opportunities** — target these with PR articles and content.")
             else:
                 st.success("No gaps found — Kolo appears wherever competitors do!")
+
+            # ── Instant Recommendations for the Plan ──────────────
+            st.divider()
+            st.subheader("💡 Recommendations — add these to the plan")
+            recs = generate_recommendations(results)
+            if not recs:
+                st.info("Run the monitor first to generate recommendations.")
+            else:
+                prio_icons = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "⚪"}
+                type_icons = {"strategic": "🎯", "competitive": "⚔️", "market": "🌍",
+                              "content": "📝", "prompt": "💬"}
+                for i, r in enumerate(recs, 1):
+                    p_icon = prio_icons.get(r["priority"], "⚪")
+                    t_icon = type_icons.get(r["type"], "•")
+                    with st.expander(f"{p_icon} {t_icon} **{r['title']}**", expanded=i <= 3):
+                        st.markdown(f"**Action:** {r['action']}")
+                        st.caption(f"*Evidence:* {r['evidence']}  ·  priority: {r['priority']}  ·  type: {r['type']}")
+
+                rec_rows = [{"priority": r["priority"], "type": r["type"],
+                             "title": r["title"], "action": r["action"],
+                             "evidence": r["evidence"]} for r in recs]
+                rec_df = pd.DataFrame(rec_rows)
+                st.download_button("📥 Download recommendations CSV",
+                    data=rec_df.to_csv(index=False),
+                    file_name=f"geo_recommendations_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv")
 
             # View AI answer
             st.subheader("View AI Answer")

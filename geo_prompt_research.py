@@ -615,6 +615,135 @@ def find_opportunities(results: List[PromptResult]) -> List[dict]:
     return opportunities
 
 
+def generate_recommendations(results: List[PromptResult]) -> List[dict]:
+    """
+    Turn monitor results into prioritized, actionable recommendations
+    ready to be added to the content/PR plan.
+
+    Returns a list of {type, priority, title, action, evidence} dicts.
+    """
+    recs: List[dict] = []
+    if not results:
+        return recs
+
+    total = len([r for r in results if not r.error])
+    if total == 0:
+        return recs
+
+    visible = sum(1 for r in results if r.kolo_visible)
+    visibility_pct = visible / total * 100
+
+    # ── 1. Overall posture headline ─────────────────────────────────
+    if visibility_pct == 0:
+        recs.append({
+            "type": "strategic",
+            "priority": "critical",
+            "title": "Kolo is invisible across all tested prompts",
+            "action": "Run a coordinated PR push: publish 3-5 comparison articles on DR>50 outlets citing kolo.in, plus optimize kolo.in for AI crawlers (schema.org, llms.txt, FAQ markup).",
+            "evidence": f"0/{total} prompts mention Kolo",
+        })
+    elif visibility_pct < 20:
+        recs.append({
+            "type": "strategic",
+            "priority": "high",
+            "title": f"Low AI visibility ({visibility_pct:.0f}%)",
+            "action": "Expand citations on top-cited sources. Review which domains Perplexity trusts and get Kolo on 3-5 of them.",
+            "evidence": f"{visible}/{total} prompts mention Kolo",
+        })
+
+    # ── 2. Dominant competitors → PR targeting ──────────────────────
+    comp_counts: Dict[str, int] = {}
+    for r in results:
+        for c in r.competitors_in_text:
+            comp_counts[c] = comp_counts.get(c, 0) + 1
+    top_comps = sorted(comp_counts.items(), key=lambda x: -x[1])[:3]
+    if top_comps:
+        comp_str = ", ".join(f"{name} ({n} prompts)" for name, n in top_comps)
+        recs.append({
+            "type": "competitive",
+            "priority": "high",
+            "title": f"Outpublish the top 3 competitors: {', '.join(c[0] for c in top_comps)}",
+            "action": f"Commission a head-to-head PR article: 'Kolo vs {top_comps[0][0]} vs {top_comps[1][0] if len(top_comps) > 1 else 'Wirex'} — crypto card comparison 2026'. Push to 2-3 DR>50 outlets.",
+            "evidence": f"These brands dominate AI answers: {comp_str}",
+        })
+
+    # ── 3. Market-level gaps ────────────────────────────────────────
+    by_market: Dict[str, Dict[str, int]] = {}
+    for r in results:
+        if r.error:
+            continue
+        m = by_market.setdefault(r.market, {"total": 0, "visible": 0})
+        m["total"] += 1
+        if r.kolo_visible:
+            m["visible"] += 1
+
+    priority_markets = {"UAE", "UK", "Italy", "Spain", "Poland", "Germany", "Georgia", "Uzbekistan", "Armenia", "Kyrgyzstan"}
+    for market, stats in by_market.items():
+        if stats["total"] < 3:
+            continue
+        pct = stats["visible"] / stats["total"] * 100
+        if pct == 0 and market in priority_markets:
+            recs.append({
+                "type": "market",
+                "priority": "high",
+                "title": f"{market}: 0% AI visibility in a priority market",
+                "action": f"Add {market} to next month's PR plan. Target 1 local + 1 international outlet. Localize Kolo landing page.",
+                "evidence": f"0/{stats['total']} {market} prompts mention Kolo",
+            })
+        elif pct == 0:
+            recs.append({
+                "type": "market",
+                "priority": "medium",
+                "title": f"{market}: no AI visibility",
+                "action": f"Test 1-2 mid-tier outlets in {market} before committing budget.",
+                "evidence": f"0/{stats['total']} prompts",
+            })
+
+    # ── 4. Category gaps ────────────────────────────────────────────
+    by_cat: Dict[str, Dict[str, int]] = {}
+    for r in results:
+        if r.error:
+            continue
+        c = by_cat.setdefault(r.category, {"total": 0, "visible": 0})
+        c["total"] += 1
+        if r.kolo_visible:
+            c["visible"] += 1
+
+    category_playbook = {
+        "product_comparison": "Write 'Top 10 crypto cards 2026' listicle with Kolo ranked. Pitch to comparison sites.",
+        "how_to": "Publish how-to guides on kolo.in blog covering USDT spending, TRC20 on-ramps, travel use cases. Rank for long-tail queries.",
+        "geo_specific": "Create country-specific landing pages (via SEO Factory) + local outlet PR.",
+        "use_case": "Write persona pieces: freelancer, digital nomad, B2B. Distribute to niche media.",
+        "cost_fees": "Publish a transparent fee breakdown + comparison calculator. Target cost-conscious searchers.",
+    }
+    for cat, stats in by_cat.items():
+        if stats["total"] >= 3 and stats["visible"] == 0 and cat in category_playbook:
+            recs.append({
+                "type": "content",
+                "priority": "medium",
+                "title": f"Missing in '{cat.replace('_', ' ')}' category",
+                "action": category_playbook[cat],
+                "evidence": f"0/{stats['total']} {cat} prompts",
+            })
+
+    # ── 5. High-traffic opportunities (many brands cited, Kolo missing) ──
+    opportunities = find_opportunities(results)
+    top_opps = [o for o in opportunities if o["priority"] == "high"][:3]
+    for o in top_opps:
+        recs.append({
+            "type": "prompt",
+            "priority": "high",
+            "title": f"Target prompt: \"{o['prompt'][:60]}{'...' if len(o['prompt']) > 60 else ''}\"",
+            "action": f"Publish a PR article answering this directly, cite kolo.in prominently. Competitors already ranking: {', '.join(o['competitors_present'][:3])}.",
+            "evidence": f"{o['brands_count']} brands mentioned in this prompt, Kolo absent",
+        })
+
+    # Sort by priority
+    prio_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    recs.sort(key=lambda x: prio_order.get(x["priority"], 9))
+    return recs
+
+
 # ── Persistence ──────────────────────────────────────────────────────────────
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "geo_cache")
