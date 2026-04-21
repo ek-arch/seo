@@ -12,6 +12,7 @@ from programmatic_seo import (
     generate_keyword_matrix, score_and_filter_keywords,
     validate_keywords_autocomplete, COUNTRIES,
 )
+from keyword_research import get_google_autocomplete, expand_keywords_serpapi
 from seo_builder import (
     cluster_keywords_to_pages, generate_content_batch,
     build_all_pages, build_manifest, build_sitemap_fragment,
@@ -95,6 +96,67 @@ and either exports them as a topic list for your writers, or auto-builds landing
 **Not for AI visibility** — if you want to check whether Kolo shows up in ChatGPT/Perplexity answers,
 use the **GEO Tracker** page instead.
 """)
+
+    # ── Quick Lookup: single keyword, instant Autocomplete + PAA ───────────
+    with st.expander("🔎 Quick Lookup — check any single keyword", expanded=False):
+        st.caption("Instantly pull Google Autocomplete (free) and People Also Ask / Related Searches (1 SerpAPI credit).")
+        ql_kw = st.text_input("Keyword", value="", placeholder="e.g. crypto card uae", key="ql_kw")
+        ql_c1, ql_c2 = st.columns(2)
+        with ql_c1:
+            ql_lang = st.selectbox("Language", ["en", "ru", "it", "es", "pl", "pt", "id", "ro"], key="ql_lang")
+        with ql_c2:
+            ql_country = st.text_input("Country code (optional)", value="", placeholder="gb, ae, it...", key="ql_country")
+
+        btn_ac, btn_paa = st.columns(2)
+        with btn_ac:
+            run_ac = st.button("🔍 Autocomplete", use_container_width=True, disabled=not ql_kw.strip(), key="ql_btn_ac")
+        with btn_paa:
+            serp_key = st.session_state.get("serpapi_key")
+            run_paa = st.button("💬 People Also Ask (SerpAPI)", use_container_width=True,
+                                 disabled=not ql_kw.strip() or not serp_key, key="ql_btn_paa",
+                                 help="Needs SerpAPI key in sidebar" if not serp_key else None)
+
+        if run_ac:
+            with st.spinner("Querying Google Autocomplete..."):
+                suggestions = get_google_autocomplete(ql_kw.strip(), language=ql_lang, country=ql_country or "")
+            st.session_state["ql_ac_results"] = {"seed": ql_kw, "suggestions": suggestions}
+
+        if run_paa:
+            with st.spinner("Querying SerpAPI..."):
+                try:
+                    expansion = expand_keywords_serpapi(serp_key, ql_kw.strip())
+                    st.session_state["ql_paa_results"] = {"seed": ql_kw, **expansion}
+                except Exception as e:
+                    st.error(f"SerpAPI error: {e}")
+
+        # Render results side by side
+        if st.session_state.get("ql_ac_results") or st.session_state.get("ql_paa_results"):
+            res_ac_col, res_paa_col = st.columns(2)
+            with res_ac_col:
+                ac = st.session_state.get("ql_ac_results")
+                if ac:
+                    st.markdown(f"**Autocomplete — `{ac['seed']}`**")
+                    sugg = ac.get("suggestions") or []
+                    if sugg:
+                        for s in sugg:
+                            st.markdown(f"- {s}")
+                    else:
+                        st.info("No suggestions returned")
+            with res_paa_col:
+                paa = st.session_state.get("ql_paa_results")
+                if paa:
+                    st.markdown(f"**People Also Ask — `{paa['seed']}`**")
+                    questions = paa.get("people_also_ask") or []
+                    if questions:
+                        for q in questions:
+                            st.markdown(f"- {q}")
+                    else:
+                        st.info("No PAA found")
+                    related = paa.get("related_searches") or []
+                    if related:
+                        st.markdown("**Related searches**")
+                        for r in related:
+                            st.markdown(f"- {r}")
 
     with st.expander("ℹ️ How the 3 steps work", expanded=False):
         st.markdown("""
